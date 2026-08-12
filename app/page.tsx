@@ -219,7 +219,7 @@ export default function Home() {
   function spinsForPoints(points: number) {
     const pointsPerSpin = Number(settings?.points_per_spin ?? 0)
     if (settings?.wheel_rule_mode !== 'points_per_spin' || pointsPerSpin <= 0) return 0
-    return Math.max(0, Math.floor(points / pointsPerSpin))
+    return Math.max(0, Math.round(points / pointsPerSpin))
   }
 
   const todayEntries = useMemo(
@@ -397,7 +397,7 @@ export default function Home() {
             <div className="card">
               <h2>Points & spins by child</h2>
               <p className="subtle">
-                Current calendar month. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 whole prize-wheel spin.` : 'Prize-wheel conversion is pending.'}
+                Current calendar month. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 spin, rounded to the nearest whole spin.` : 'Prize-wheel conversion is pending.'}
               </p>
               {childSummaries.map((child) => (
                 <div className="summary-row" key={child.id}>
