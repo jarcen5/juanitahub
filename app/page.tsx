@@ -11,6 +11,8 @@ type Child = {
   active: boolean
 }
 
+type CardName = 'diamond' | 'green' | 'yellow' | 'orange' | 'red'
+
 type Entry = {
   id: number
   child_id: number
@@ -23,12 +25,16 @@ type Entry = {
   recorded_by: string
 }
 
-type CardName = 'diamond' | 'green' | 'yellow' | 'orange' | 'red'
-
 type StaffProfile = {
   display_name: string
   role: 'staff' | 'admin'
   active: boolean
+}
+
+type AppSettings = {
+  wheel_rule_mode: 'pending' | 'points_per_spin' | 'tiers'
+  points_per_spin: number | null
+  wheel_rule_notes: string | null
 }
 
 const cards: { name: CardName; label: string; points: number; symbol: string }[] = [
@@ -62,6 +68,7 @@ function monthBounds(date = new Date()) {
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<StaffProfile | null>(null)
+  const [settings, setSettings] = useState<AppSettings | null>(null)
   const [children, setChildren] = useState<Child[]>([])
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,6 +78,7 @@ export default function Home() {
   const [password, setPassword] = useState('')
   const [newChildName, setNewChildName] = useState('')
   const [activeView, setActiveView] = useState<'today' | 'summary' | 'children'>('today')
+
   const today = localDateString()
   const bounds = monthBounds()
 
@@ -79,29 +87,35 @@ export default function Home() {
       setSession(data.session)
       setLoading(false)
     })
+
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
     })
+
     return () => listener.subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
     if (!session) {
       setProfile(null)
+      setSettings(null)
       setChildren([])
       setEntries([])
       return
     }
+
     void loadAppData()
   }, [session])
 
   async function loadAppData() {
     if (!session) return
+
     setLoading(true)
     setMessage('')
 
-    const [{ data: profileData }, { data: childData }, { data: entryData }] = await Promise.all([
+    const [profileResult, settingsResult, childrenResult, entriesResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
+      supabase.from('app_settings').select('wheel_rule_mode, points_per_spin, wheel_rule_notes').eq('id', 1).maybeSingle(),
       supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name'),
       supabase
         .from('behavior_entries')
@@ -110,14 +124,16 @@ export default function Home() {
         .lte('entry_date', bounds.end),
     ])
 
-    setProfile(profileData as StaffProfile | null)
-    setChildren((childData ?? []) as Child[])
-    setEntries((entryData ?? []) as Entry[])
+    setProfile(profileResult.data as StaffProfile | null)
+    setSettings(settingsResult.data as AppSettings | null)
+    setChildren((childrenResult.data ?? []) as Child[])
+    setEntries((entriesResult.data ?? []) as Entry[])
     setLoading(false)
   }
 
   async function handleAuth() {
     setMessage('')
+
     if (!email || !password) {
       setMessage('Enter an email address and password.')
       return
@@ -126,15 +142,17 @@ export default function Home() {
     if (authMode === 'signin') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setMessage(error.message)
-      else setMessage('Account created. If email confirmation is enabled, check your inbox. An administrator must also activate your staff profile.')
+      return
     }
+
+    const { error } = await supabase.auth.signUp({ email, password })
+    if (error) setMessage(error.message)
+    else setMessage('Account created. If email confirmation is enabled, check your inbox. An administrator must also activate your staff profile.')
   }
 
   async function saveBehavior(childId: number, card: CardName) {
     if (!session || !profile?.active) return
+
     const { error } = await supabase.from('behavior_entries').upsert(
       {
         child_id: childId,
@@ -146,16 +164,19 @@ export default function Home() {
       },
       { onConflict: 'child_id,entry_date' },
     )
+
     if (error) {
       setMessage(error.message)
       return
     }
+
     setMessage('Behavior card saved.')
     await loadAppData()
   }
 
   async function saveStatus(childId: number, status: string) {
     if (!session || !profile?.active) return
+
     const { error } = await supabase.from('behavior_entries').upsert(
       {
         child_id: childId,
@@ -167,44 +188,74 @@ export default function Home() {
       },
       { onConflict: 'child_id,entry_date' },
     )
+
     if (error) {
       setMessage(error.message)
       return
     }
+
     setMessage('Daily status saved.')
     await loadAppData()
   }
 
   async function addChild() {
     if (!newChildName.trim() || profile?.role !== 'admin') return
+
     const parts = newChildName.trim().split(/\s+/)
     const firstName = parts.shift() ?? ''
     const lastName = parts.join(' ') || null
     const { error } = await supabase.from('children').insert({ first_name: firstName, last_name: lastName })
+
     if (error) {
       setMessage(error.message)
       return
     }
+
     setNewChildName('')
     setMessage('Child added to the active roster.')
     await loadAppData()
   }
 
-  const todayEntries = useMemo(() => new Map(entries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry])), [entries, today])
-  const monthlyPoints = useMemo(() => entries.reduce((sum, entry) => sum + Number(entry.points || 0), 0), [entries])
-  const completedToday = todayEntries.size
-  const diamondCount = entries.filter((entry) => entry.card === 'diamond').length
-  const greenCount = entries.filter((entry) => entry.card === 'green').length
+  function spinsForPoints(points: number) {
+    const pointsPerSpin = Number(settings?.points_per_spin ?? 0)
+    if (settings?.wheel_rule_mode !== 'points_per_spin' || pointsPerSpin <= 0) return 0
+    return Math.max(0, Math.floor(points / pointsPerSpin))
+  }
+
+  const todayEntries = useMemo(
+    () => new Map(entries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry])),
+    [entries, today],
+  )
+
+  const monthlyPoints = useMemo(
+    () => entries.reduce((sum, entry) => sum + Number(entry.points || 0), 0),
+    [entries],
+  )
 
   const childSummaries = useMemo(
     () =>
-      children.map((child) => ({
-        ...child,
-        points: entries.filter((entry) => entry.child_id === child.id).reduce((sum, entry) => sum + Number(entry.points || 0), 0),
-        entries: entries.filter((entry) => entry.child_id === child.id).length,
-      })),
-    [children, entries],
+      children.map((child) => {
+        const childEntries = entries.filter((entry) => entry.child_id === child.id)
+        const points = childEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
+        return {
+          ...child,
+          points,
+          spins: spinsForPoints(points),
+          entries: childEntries.length,
+        }
+      }),
+    [children, entries, settings],
   )
+
+  const totalWheelSpins = useMemo(
+    () => childSummaries.reduce((sum, child) => sum + child.spins, 0),
+    [childSummaries],
+  )
+
+  const completedToday = todayEntries.size
+  const diamondCount = entries.filter((entry) => entry.card === 'diamond').length
+  const greenCount = entries.filter((entry) => entry.card === 'green').length
+  const wheelRuleReady = settings?.wheel_rule_mode === 'points_per_spin' && Number(settings.points_per_spin) > 0
 
   if (loading && !session) {
     return <main className="login-wrap"><div className="card login-card">Loading Juanita Hub…</div></main>
@@ -222,14 +273,21 @@ export default function Home() {
           <p className="subtle">Use your work-approved account to access behavior records.</p>
           <div className="field">
             <label>Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
           </div>
           <div className="field">
             <label>Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} />
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'}
+            />
           </div>
           {message && <div className={message.toLowerCase().includes('created') ? 'notice success' : 'notice error'}>{message}</div>}
-          <button className="primary" style={{ width: '100%' }} onClick={handleAuth}>{authMode === 'signin' ? 'Sign in' : 'Create account'}</button>
+          <button className="primary" style={{ width: '100%' }} onClick={handleAuth}>
+            {authMode === 'signin' ? 'Sign in' : 'Create account'}
+          </button>
           <button className="ghost" style={{ width: '100%', marginTop: 10 }} onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}>
             {authMode === 'signin' ? 'Need an account?' : 'Already have an account?'}
           </button>
@@ -280,7 +338,7 @@ export default function Home() {
           <div className="card stat"><span className="subtle">Active children</span><strong>{children.length}</strong></div>
           <div className="card stat"><span className="subtle">Completed today</span><strong>{completedToday}/{children.length}</strong></div>
           <div className="card stat"><span className="subtle">Monthly points</span><strong>{monthlyPoints}</strong></div>
-          <div className="card stat"><span className="subtle">Wheel spins</span><strong>Pending</strong></div>
+          <div className="card stat"><span className="subtle">Total wheel spins</span><strong>{wheelRuleReady ? totalWheelSpins : 'Pending'}</strong></div>
         </section>
 
         {activeView === 'today' && (
@@ -298,17 +356,30 @@ export default function Home() {
                     <div>
                       <div className="child-name">{child.first_name} {child.last_name ?? ''}</div>
                       <div className="subtle" style={{ fontSize: 13, marginTop: 4 }}>
-                        {entry?.entry_type === 'behavior' ? `${entry.card} card • ${entry.points > 0 ? '+' : ''}${entry.points}` : entry?.day_status ? entry.day_status.replace('_', ' ') : 'Not entered yet'}
+                        {entry?.entry_type === 'behavior'
+                          ? `${entry.card} card • ${entry.points > 0 ? '+' : ''}${entry.points}`
+                          : entry?.day_status
+                            ? entry.day_status.replace('_', ' ')
+                            : 'Not entered yet'}
                       </div>
                     </div>
                     <div>
                       <div className="behavior-buttons">
                         {cards.map((card) => (
-                          <button key={card.name} className={`behavior-button ${card.name} ${entry?.card === card.name ? 'selected' : ''}`} onClick={() => saveBehavior(child.id, card.name)} title={`${card.label}: ${card.points > 0 ? '+' : ''}${card.points} points`}>
+                          <button
+                            key={card.name}
+                            className={`behavior-button ${card.name} ${entry?.card === card.name ? 'selected' : ''}`}
+                            onClick={() => saveBehavior(child.id, card.name)}
+                            title={`${card.label}: ${card.points > 0 ? '+' : ''}${card.points} points`}
+                          >
                             {card.symbol} {card.points > 0 ? '+' : ''}{card.points}
                           </button>
                         ))}
-                        <select value={entry?.entry_type === 'status' ? entry.day_status ?? '' : ''} onChange={(e) => e.target.value && saveStatus(child.id, e.target.value)} style={{ border: '1px solid #cfd4dc', borderRadius: 10, padding: '9px 10px', background: 'white' }}>
+                        <select
+                          value={entry?.entry_type === 'status' ? entry.day_status ?? '' : ''}
+                          onChange={(event) => event.target.value && saveStatus(child.id, event.target.value)}
+                          style={{ border: '1px solid #cfd4dc', borderRadius: 10, padding: '9px 10px', background: 'white' }}
+                        >
                           <option value="">Status…</option>
                           {statusOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
                         </select>
@@ -324,23 +395,29 @@ export default function Home() {
         {activeView === 'summary' && (
           <section className="grid panel-grid">
             <div className="card">
-              <h2>Points by child</h2>
-              <p className="subtle">Current calendar month. Wheel conversion will be added once the formula is confirmed.</p>
+              <h2>Points & spins by child</h2>
+              <p className="subtle">
+                Current calendar month. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 whole prize-wheel spin.` : 'Prize-wheel conversion is pending.'}
+              </p>
               {childSummaries.map((child) => (
                 <div className="summary-row" key={child.id}>
-                  <span><strong>{child.first_name} {child.last_name ?? ''}</strong><br /><span className="subtle" style={{ fontSize: 13 }}>{child.entries} recorded days</span></span>
-                  <strong>{child.points} pts</strong>
+                  <span>
+                    <strong>{child.first_name} {child.last_name ?? ''}</strong><br />
+                    <span className="subtle" style={{ fontSize: 13 }}>{child.entries} recorded days</span>
+                  </span>
+                  <strong>{child.points} pts • {wheelRuleReady ? `${child.spins} spin${child.spins === 1 ? '' : 's'}` : 'Pending'}</strong>
                 </div>
               ))}
               {children.length === 0 && <div className="empty">No children to summarize yet.</div>}
             </div>
+
             <div className="card">
               <h2>Card totals</h2>
               <div className="summary-row"><span>◆ Diamond</span><strong>{diamondCount}</strong></div>
               <div className="summary-row"><span>● Green</span><strong>{greenCount}</strong></div>
-              <div className="summary-row"><span>● Yellow</span><strong>{entries.filter((e) => e.card === 'yellow').length}</strong></div>
-              <div className="summary-row"><span>● Orange</span><strong>{entries.filter((e) => e.card === 'orange').length}</strong></div>
-              <div className="summary-row"><span>● Red</span><strong>{entries.filter((e) => e.card === 'red').length}</strong></div>
+              <div className="summary-row"><span>● Yellow</span><strong>{entries.filter((entry) => entry.card === 'yellow').length}</strong></div>
+              <div className="summary-row"><span>● Orange</span><strong>{entries.filter((entry) => entry.card === 'orange').length}</strong></div>
+              <div className="summary-row"><span>● Red</span><strong>{entries.filter((entry) => entry.card === 'red').length}</strong></div>
             </div>
           </section>
         )}
@@ -350,11 +427,21 @@ export default function Home() {
             <h2>Active roster</h2>
             {profile.role === 'admin' && (
               <div className="toolbar" style={{ marginBottom: 18 }}>
-                <input value={newChildName} onChange={(e) => setNewChildName(e.target.value)} placeholder="Child name" style={{ minWidth: 260, border: '1px solid #cfd4dc', borderRadius: 10, padding: '10px 12px' }} />
+                <input
+                  value={newChildName}
+                  onChange={(event) => setNewChildName(event.target.value)}
+                  placeholder="Child name"
+                  style={{ minWidth: 260, border: '1px solid #cfd4dc', borderRadius: 10, padding: '10px 12px' }}
+                />
                 <button className="primary" onClick={addChild}>Add child</button>
               </div>
             )}
-            {children.map((child) => <div className="summary-row" key={child.id}><span>{child.first_name} {child.last_name ?? ''}</span><span className="badge">Active</span></div>)}
+            {children.map((child) => (
+              <div className="summary-row" key={child.id}>
+                <span>{child.first_name} {child.last_name ?? ''}</span>
+                <span className="badge">Active</span>
+              </div>
+            ))}
             {children.length === 0 && <div className="empty">The active roster is empty.</div>}
           </section>
         )}
