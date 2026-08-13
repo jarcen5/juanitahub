@@ -1,7 +1,5 @@
 import type { Metadata } from 'next'
-import AdminShortcut from '@/components/AdminShortcut'
-import QuickLinks from '@/components/QuickLinks'
-import RewardTestShortcut from '@/components/RewardTestShortcut'
+import SiteNavigation from '@/components/SiteNavigation'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -13,10 +11,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
+        <SiteNavigation />
         {children}
-        <QuickLinks />
-        <RewardTestShortcut />
-        <AdminShortcut />
       </body>
     </html>
   )
