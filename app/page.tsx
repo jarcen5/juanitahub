@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import HistoryEntryList from '@/components/HistoryEntryList'
 import { supabase } from '@/lib/supabase'
 
 type Child = {
@@ -153,7 +154,6 @@ export default function Home() {
     if (!session) return
 
     setLoading(true)
-    setMessage('')
 
     const [profileResult, settingsResult, childrenResult, entriesResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
@@ -196,48 +196,58 @@ export default function Home() {
   async function saveBehavior(childId: number, card: CardName) {
     if (!session || !profile?.active) return
 
-    const { error } = await supabase.from('behavior_entries').upsert(
-      {
-        child_id: childId,
-        entry_date: today,
-        entry_type: 'behavior',
-        card,
-        day_status: null,
-        recorded_by: session.user.id,
-      },
-      { onConflict: 'child_id,entry_date' },
-    )
+    const existing = todayEntries.get(childId)
+    const result = existing
+      ? await supabase
+          .from('behavior_entries')
+          .update({ entry_type: 'behavior', card, day_status: null })
+          .eq('id', existing.id)
+      : await supabase
+          .from('behavior_entries')
+          .insert({
+            child_id: childId,
+            entry_date: today,
+            entry_type: 'behavior',
+            card,
+            day_status: null,
+            recorded_by: session.user.id,
+          })
 
-    if (error) {
-      setMessage(error.message)
+    if (result.error) {
+      setMessage(result.error.message)
       return
     }
 
-    setMessage('Behavior card saved.')
+    setMessage(existing ? 'Behavior card corrected. The change was added to the audit trail.' : 'Behavior card saved.')
     await loadAppData()
   }
 
   async function saveStatus(childId: number, status: string) {
     if (!session || !profile?.active) return
 
-    const { error } = await supabase.from('behavior_entries').upsert(
-      {
-        child_id: childId,
-        entry_date: today,
-        entry_type: 'status',
-        card: null,
-        day_status: status,
-        recorded_by: session.user.id,
-      },
-      { onConflict: 'child_id,entry_date' },
-    )
+    const existing = todayEntries.get(childId)
+    const result = existing
+      ? await supabase
+          .from('behavior_entries')
+          .update({ entry_type: 'status', card: null, day_status: status })
+          .eq('id', existing.id)
+      : await supabase
+          .from('behavior_entries')
+          .insert({
+            child_id: childId,
+            entry_date: today,
+            entry_type: 'status',
+            card: null,
+            day_status: status,
+            recorded_by: session.user.id,
+          })
 
-    if (error) {
-      setMessage(error.message)
+    if (result.error) {
+      setMessage(result.error.message)
       return
     }
 
-    setMessage('Daily status saved.')
+    setMessage(existing ? 'Daily status corrected. The change was added to the audit trail.' : 'Daily status saved.')
     await loadAppData()
   }
 
@@ -287,17 +297,16 @@ export default function Home() {
   )
 
   const childSummaries = useMemo(
-    () =>
-      children.map((child) => {
-        const childEntries = entries.filter((entry) => entry.child_id === child.id)
-        const points = childEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
-        return {
-          ...child,
-          points,
-          spins: spinsForPoints(points),
-          entries: childEntries.length,
-        }
-      }),
+    () => children.map((child) => {
+      const childEntries = entries.filter((entry) => entry.child_id === child.id)
+      const points = childEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
+      return {
+        ...child,
+        points,
+        spins: spinsForPoints(points),
+        entries: childEntries.length,
+      }
+    }),
     [children, entries, settings],
   )
 
@@ -453,7 +462,7 @@ export default function Home() {
           <section className="card" style={{ marginTop: 16 }}>
             <div style={{ marginBottom: 18 }}>
               <h2>Daily cards</h2>
-              <p className="subtle">Choose one behavior card or a non-behavior status for each child. Selecting again replaces today's entry.</p>
+              <p className="subtle">Choose one behavior card or a non-behavior status for each child. Selecting again replaces today's entry and records the correction in the audit trail.</p>
             </div>
             <div className="roster">
               {children.length === 0 && <div className="empty">No active children yet. An admin can add the first child from the Children tab.</div>}
@@ -539,10 +548,7 @@ export default function Home() {
             <aside className="card history-sidebar">
               <h2>Choose child</h2>
               <div className="field" style={{ marginBottom: 0 }}>
-                <select
-                  value={selectedChildId ?? ''}
-                  onChange={(event) => setSelectedChildId(Number(event.target.value))}
-                >
+                <select value={selectedChildId ?? ''} onChange={(event) => setSelectedChildId(Number(event.target.value))}>
                   <option value="" disabled>Select a child…</option>
                   {children.map((child) => (
                     <option key={child.id} value={child.id}>{childFullName(child)}</option>
@@ -572,27 +578,7 @@ export default function Home() {
                   {selectedChildEntries.length === 0 ? (
                     <div className="empty">No entries for {childFullName(selectedChild)} in {monthLabel(selectedMonth)}.</div>
                   ) : (
-                    <div className="history-list">
-                      {selectedChildEntries.map((entry) => (
-                        <article className="history-entry" key={entry.id}>
-                          <div className="history-date">
-                            <strong>{new Date(`${entry.entry_date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</strong>
-                            <span className="subtle">{new Date(`${entry.entry_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}</span>
-                          </div>
-                          <div className="history-body">
-                            <div className="history-title-row">
-                              <span className={`entry-pill ${entry.card ?? 'status-pill'}`}>
-                                {entry.entry_type === 'behavior' ? `${prettyCard(entry.card)} card` : prettyStatus(entry.day_status)}
-                              </span>
-                              <strong className={Number(entry.points) < 0 ? 'negative-points' : Number(entry.points) > 0 ? 'positive-points' : ''}>
-                                {formatPoints(entry.points)} pts
-                              </strong>
-                            </div>
-                            {entry.note ? <p className="history-note">{entry.note}</p> : <p className="subtle history-note">No note recorded.</p>}
-                          </div>
-                        </article>
-                      ))}
-                    </div>
+                    <HistoryEntryList entries={selectedChildEntries} onSaved={loadAppData} />
                   )}
                 </>
               ) : (
