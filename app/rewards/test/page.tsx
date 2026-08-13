@@ -76,12 +76,28 @@ export default function RewardTestPage() {
     return `conic-gradient(${stops.join(', ')})`
   }, [available])
 
+  function targetRotationForPrize(prizeId: number) {
+    const totalWeight = available.reduce((sum, prize) => sum + prize.weight, 0)
+    let cursor = 0
+    let middle = 0
+
+    for (const prize of available) {
+      const angle = totalWeight > 0 ? (prize.weight / totalWeight) * 360 : 360 / Math.max(available.length, 1)
+      if (prize.id === prizeId) middle = cursor + angle / 2
+      cursor += angle
+    }
+
+    const current = ((rotation % 360) + 360) % 360
+    const desired = ((360 - middle) % 360 + 360) % 360
+    return rotation + 1440 + ((desired - current + 360) % 360)
+  }
+
   function spin() {
     if (spinning || remainingSpins <= 0 || available.length === 0) return
     const chosen = weightedPick(available)
     setSpinning(true)
     setResult(null)
-    setRotation((current) => current + 1440 + Math.floor(Math.random() * 330))
+    setRotation(targetRotationForPrize(chosen.id))
 
     window.setTimeout(() => {
       const spinNumber = 4 - remainingSpins
