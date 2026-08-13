@@ -37,6 +37,8 @@ type AppSettings = {
   wheel_rule_notes: string | null
 }
 
+type ViewName = 'today' | 'summary' | 'history' | 'children'
+
 const cards: { name: CardName; label: string; points: number; symbol: string }[] = [
   { name: 'diamond', label: 'Diamond', points: 2, symbol: '◆' },
   { name: 'green', label: 'Green', points: 1, symbol: '●' },
@@ -59,10 +61,48 @@ function localDateString(date = new Date()) {
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
 }
 
-function monthBounds(date = new Date()) {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1)
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+function currentMonthKey() {
+  return localDateString().slice(0, 7)
+}
+
+function monthBoundsFromKey(monthKey: string) {
+  const [year, month] = monthKey.split('-').map(Number)
+  const start = new Date(year, month - 1, 1)
+  const end = new Date(year, month, 0)
   return { start: localDateString(start), end: localDateString(end) }
+}
+
+function monthLabel(monthKey: string) {
+  const [year, month] = monthKey.split('-').map(Number)
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+}
+
+function shiftMonth(monthKey: string, amount: number) {
+  const [year, month] = monthKey.split('-').map(Number)
+  const date = new Date(year, month - 1 + amount, 1)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+function childFullName(child: Child) {
+  return `${child.first_name}${child.last_name ? ` ${child.last_name}` : ''}`
+}
+
+function prettyStatus(status: string | null) {
+  if (!status) return ''
+  return status
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+function prettyCard(card: CardName | null) {
+  if (!card) return ''
+  return card.charAt(0).toUpperCase() + card.slice(1)
+}
+
+function formatPoints(points: number) {
+  const value = Number(points || 0)
+  return `${value > 0 ? '+' : ''}${value}`
 }
 
 export default function Home() {
@@ -77,10 +117,12 @@ export default function Home() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [newChildName, setNewChildName] = useState('')
-  const [activeView, setActiveView] = useState<'today' | 'summary' | 'children'>('today')
+  const [activeView, setActiveView] = useState<ViewName>('today')
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey())
+  const [selectedChildId, setSelectedChildId] = useState<number | null>(null)
 
   const today = localDateString()
-  const bounds = monthBounds()
+  const bounds = useMemo(() => monthBoundsFromKey(selectedMonth), [selectedMonth])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -105,7 +147,7 @@ export default function Home() {
     }
 
     void loadAppData()
-  }, [session])
+  }, [session, selectedMonth])
 
   async function loadAppData() {
     if (!session) return
@@ -121,7 +163,8 @@ export default function Home() {
         .from('behavior_entries')
         .select('id, child_id, entry_date, entry_type, card, day_status, points, note, recorded_by')
         .gte('entry_date', bounds.start)
-        .lte('entry_date', bounds.end),
+        .lte('entry_date', bounds.end)
+        .order('entry_date', { ascending: false }),
     ])
 
     setProfile(profileResult.data as StaffProfile | null)
@@ -222,6 +265,17 @@ export default function Home() {
     return Math.max(0, Math.round(points / pointsPerSpin))
   }
 
+  function goToToday() {
+    setSelectedMonth(currentMonthKey())
+    setActiveView('today')
+  }
+
+  function openHistory(childId?: number) {
+    const fallbackId = children[0]?.id ?? null
+    setSelectedChildId(childId ?? selectedChildId ?? fallbackId)
+    setActiveView('history')
+  }
+
   const todayEntries = useMemo(
     () => new Map(entries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry])),
     [entries, today],
@@ -252,10 +306,34 @@ export default function Home() {
     [childSummaries],
   )
 
-  const completedToday = todayEntries.size
+  const selectedChild = useMemo(
+    () => children.find((child) => child.id === selectedChildId) ?? null,
+    [children, selectedChildId],
+  )
+
+  const selectedChildEntries = useMemo(
+    () => entries.filter((entry) => entry.child_id === selectedChildId).sort((a, b) => b.entry_date.localeCompare(a.entry_date)),
+    [entries, selectedChildId],
+  )
+
+  const selectedChildPoints = useMemo(
+    () => selectedChildEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0),
+    [selectedChildEntries],
+  )
+
+  const completedToday = selectedMonth === currentMonthKey() ? todayEntries.size : 0
   const diamondCount = entries.filter((entry) => entry.card === 'diamond').length
   const greenCount = entries.filter((entry) => entry.card === 'green').length
   const wheelRuleReady = settings?.wheel_rule_mode === 'points_per_spin' && Number(settings.points_per_spin) > 0
+  const historySpins = spinsForPoints(selectedChildPoints)
+
+  const viewTitle = activeView === 'today'
+    ? "Today's Behavior"
+    : activeView === 'summary'
+      ? 'Monthly Summary'
+      : activeView === 'history'
+        ? 'Child History'
+        : 'Children'
 
   if (loading && !session) {
     return <main className="login-wrap"><div className="card login-card">Loading Juanita Hub…</div></main>
@@ -322,22 +400,52 @@ export default function Home() {
       <main className="main">
         <div className="hero">
           <div>
-            <h1>{activeView === 'today' ? "Today's Behavior" : activeView === 'summary' ? 'Monthly Summary' : 'Children'}</h1>
-            <p className="subtle">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            <h1>{viewTitle}</h1>
+            <p className="subtle">
+              {activeView === 'today'
+                ? new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+                : monthLabel(selectedMonth)}
+            </p>
           </div>
           <nav className="nav">
-            <button className={activeView === 'today' ? 'active' : ''} onClick={() => setActiveView('today')}>Today</button>
+            <button className={activeView === 'today' ? 'active' : ''} onClick={goToToday}>Today</button>
             <button className={activeView === 'summary' ? 'active' : ''} onClick={() => setActiveView('summary')}>Monthly Summary</button>
+            <button className={activeView === 'history' ? 'active' : ''} onClick={() => openHistory()}>History</button>
             <button className={activeView === 'children' ? 'active' : ''} onClick={() => setActiveView('children')}>Children</button>
           </nav>
         </div>
+
+        {(activeView === 'summary' || activeView === 'history') && (
+          <section className="month-bar card">
+            <div>
+              <span className="subtle month-label">Viewing month</span>
+              <strong>{monthLabel(selectedMonth)}</strong>
+            </div>
+            <div className="month-controls">
+              <button className="ghost" onClick={() => setSelectedMonth(shiftMonth(selectedMonth, -1))} aria-label="Previous month">←</button>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(event) => event.target.value && setSelectedMonth(event.target.value)}
+                aria-label="Select month"
+              />
+              <button className="ghost" onClick={() => setSelectedMonth(shiftMonth(selectedMonth, 1))} aria-label="Next month">→</button>
+              {selectedMonth !== currentMonthKey() && (
+                <button className="ghost" onClick={() => setSelectedMonth(currentMonthKey())}>This month</button>
+              )}
+            </div>
+          </section>
+        )}
 
         {message && <div className="notice">{message}</div>}
 
         <section className="grid stats">
           <div className="card stat"><span className="subtle">Active children</span><strong>{children.length}</strong></div>
-          <div className="card stat"><span className="subtle">Completed today</span><strong>{completedToday}/{children.length}</strong></div>
-          <div className="card stat"><span className="subtle">Monthly points</span><strong>{monthlyPoints}</strong></div>
+          <div className="card stat">
+            <span className="subtle">{activeView === 'today' ? 'Completed today' : 'Recorded entries'}</span>
+            <strong>{activeView === 'today' ? `${completedToday}/${children.length}` : entries.length}</strong>
+          </div>
+          <div className="card stat"><span className="subtle">{monthLabel(selectedMonth)} points</span><strong>{monthlyPoints}</strong></div>
           <div className="card stat"><span className="subtle">Total wheel spins</span><strong>{wheelRuleReady ? totalWheelSpins : 'Pending'}</strong></div>
         </section>
 
@@ -354,12 +462,12 @@ export default function Home() {
                 return (
                   <div className="child-row" key={child.id}>
                     <div>
-                      <div className="child-name">{child.first_name} {child.last_name ?? ''}</div>
+                      <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
                       <div className="subtle" style={{ fontSize: 13, marginTop: 4 }}>
                         {entry?.entry_type === 'behavior'
-                          ? `${entry.card} card • ${entry.points > 0 ? '+' : ''}${entry.points}`
+                          ? `${prettyCard(entry.card)} card • ${formatPoints(entry.points)}`
                           : entry?.day_status
-                            ? entry.day_status.replace('_', ' ')
+                            ? prettyStatus(entry.day_status)
                             : 'Not entered yet'}
                       </div>
                     </div>
@@ -397,15 +505,18 @@ export default function Home() {
             <div className="card">
               <h2>Points & spins by child</h2>
               <p className="subtle">
-                Current calendar month. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 spin, rounded to the nearest whole spin.` : 'Prize-wheel conversion is pending.'}
+                {monthLabel(selectedMonth)}. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 spin, rounded to the nearest whole spin.` : 'Prize-wheel conversion is pending.'}
               </p>
               {childSummaries.map((child) => (
-                <div className="summary-row" key={child.id}>
+                <div className="summary-row clickable-row" key={child.id} onClick={() => openHistory(child.id)}>
                   <span>
-                    <strong>{child.first_name} {child.last_name ?? ''}</strong><br />
-                    <span className="subtle" style={{ fontSize: 13 }}>{child.entries} recorded days</span>
+                    <strong>{childFullName(child)}</strong><br />
+                    <span className="subtle" style={{ fontSize: 13 }}>{child.entries} recorded {child.entries === 1 ? 'day' : 'days'}</span>
                   </span>
-                  <strong>{child.points} pts • {wheelRuleReady ? `${child.spins} spin${child.spins === 1 ? '' : 's'}` : 'Pending'}</strong>
+                  <span className="summary-actions">
+                    <strong>{child.points} pts • {wheelRuleReady ? `${child.spins} spin${child.spins === 1 ? '' : 's'}` : 'Pending'}</strong>
+                    <span className="history-link">View history →</span>
+                  </span>
                 </div>
               ))}
               {children.length === 0 && <div className="empty">No children to summarize yet.</div>}
@@ -418,6 +529,75 @@ export default function Home() {
               <div className="summary-row"><span>● Yellow</span><strong>{entries.filter((entry) => entry.card === 'yellow').length}</strong></div>
               <div className="summary-row"><span>● Orange</span><strong>{entries.filter((entry) => entry.card === 'orange').length}</strong></div>
               <div className="summary-row"><span>● Red</span><strong>{entries.filter((entry) => entry.card === 'red').length}</strong></div>
+              <div className="summary-row"><span>Statuses / non-behavior days</span><strong>{entries.filter((entry) => entry.entry_type === 'status').length}</strong></div>
+            </div>
+          </section>
+        )}
+
+        {activeView === 'history' && (
+          <section className="history-layout">
+            <aside className="card history-sidebar">
+              <h2>Choose child</h2>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <select
+                  value={selectedChildId ?? ''}
+                  onChange={(event) => setSelectedChildId(Number(event.target.value))}
+                >
+                  <option value="" disabled>Select a child…</option>
+                  {children.map((child) => (
+                    <option key={child.id} value={child.id}>{childFullName(child)}</option>
+                  ))}
+                </select>
+              </div>
+              {selectedChild && (
+                <div className="history-mini-stats">
+                  <div><span className="subtle">Points</span><strong>{selectedChildPoints}</strong></div>
+                  <div><span className="subtle">Spins</span><strong>{wheelRuleReady ? historySpins : 'Pending'}</strong></div>
+                  <div><span className="subtle">Entries</span><strong>{selectedChildEntries.length}</strong></div>
+                </div>
+              )}
+            </aside>
+
+            <div className="card history-panel">
+              {selectedChild ? (
+                <>
+                  <div className="history-heading">
+                    <div>
+                      <h2>{childFullName(selectedChild)}</h2>
+                      <p className="subtle">{monthLabel(selectedMonth)} behavior history</p>
+                    </div>
+                    <button className="ghost" onClick={() => setActiveView('summary')}>Back to summary</button>
+                  </div>
+
+                  {selectedChildEntries.length === 0 ? (
+                    <div className="empty">No entries for {childFullName(selectedChild)} in {monthLabel(selectedMonth)}.</div>
+                  ) : (
+                    <div className="history-list">
+                      {selectedChildEntries.map((entry) => (
+                        <article className="history-entry" key={entry.id}>
+                          <div className="history-date">
+                            <strong>{new Date(`${entry.entry_date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</strong>
+                            <span className="subtle">{new Date(`${entry.entry_date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                          </div>
+                          <div className="history-body">
+                            <div className="history-title-row">
+                              <span className={`entry-pill ${entry.card ?? 'status-pill'}`}>
+                                {entry.entry_type === 'behavior' ? `${prettyCard(entry.card)} card` : prettyStatus(entry.day_status)}
+                              </span>
+                              <strong className={Number(entry.points) < 0 ? 'negative-points' : Number(entry.points) > 0 ? 'positive-points' : ''}>
+                                {formatPoints(entry.points)} pts
+                              </strong>
+                            </div>
+                            {entry.note ? <p className="history-note">{entry.note}</p> : <p className="subtle history-note">No note recorded.</p>}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="empty">Choose a child to view their history.</div>
+              )}
             </div>
           </section>
         )}
@@ -438,8 +618,11 @@ export default function Home() {
             )}
             {children.map((child) => (
               <div className="summary-row" key={child.id}>
-                <span>{child.first_name} {child.last_name ?? ''}</span>
-                <span className="badge">Active</span>
+                <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
+                <span className="toolbar">
+                  <button className="ghost compact-button" onClick={() => openHistory(child.id)}>View history</button>
+                  <span className="badge">Active</span>
+                </span>
               </div>
             ))}
             {children.length === 0 && <div className="empty">The active roster is empty.</div>}
