@@ -152,6 +152,7 @@ h1 { font-size: clamp(28px, 4vw, 42px); margin-bottom: 8px; }
 .clickable-row:hover { background: #f8faff; }
 .summary-actions { display: grid; justify-items: end; gap: 4px; text-align: right; }
 .history-link { color: var(--brand); font-size: 12px; font-weight: 700; }
+.archived-badge { margin-left: 7px; background: #f2f4f7; color: #475467; vertical-align: middle; }
 
 .history-layout {
   display: grid;
@@ -201,6 +202,28 @@ h1 { font-size: clamp(28px, 4vw, 42px); margin-bottom: 8px; }
 .audit-item span { color: var(--muted); font-size: 12px; }
 .audit-item p { margin: 5px 0 0; font-size: 13px; line-height: 1.4; }
 
+.children-sections { display: grid; gap: 16px; margin-top: 16px; }
+.section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.section-heading h2 { margin-bottom: 5px; }
+.section-heading p { margin-bottom: 0; }
+.roster-management-row { min-height: 52px; }
+.roster-actions { justify-content: flex-end; }
+.inline-name-editor { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 260px; }
+.inline-name-editor input {
+  min-width: 180px;
+  flex: 1;
+  border: 1px solid #aab8ff;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: white;
+  color: var(--ink);
+}
+.danger-button { color: #b42318; border-color: #f3b5ad; }
+.danger-button:hover { background: #fff4f2; border-color: #f29b91; }
+.archived-section { background: #fbfcfe; }
+.archived-row .name-link { color: #475467; }
+.archived-row { opacity: .95; }
+
 @media (max-width: 850px) {
   .stats, .panel-grid { grid-template-columns: 1fr 1fr; }
   .panel-grid { grid-template-columns: 1fr; }
@@ -210,12 +233,16 @@ h1 { font-size: clamp(28px, 4vw, 42px); margin-bottom: 8px; }
   .history-sidebar { position: static; }
 }
 @media (max-width: 680px) {
-  .hero, .month-bar, .history-heading { flex-direction: column; align-items: stretch; }
+  .hero, .month-bar, .history-heading, .section-heading { flex-direction: column; align-items: stretch; }
   .month-controls { width: 100%; }
   .month-controls input { flex: 1; min-width: 155px; }
   .summary-row { align-items: flex-start; }
   .summary-actions { justify-items: end; }
   .editor-grid { grid-template-columns: 1fr; gap: 0; }
+  .roster-management-row { flex-direction: column; align-items: stretch; }
+  .roster-actions { justify-content: flex-start; }
+  .inline-name-editor { min-width: 0; width: 100%; flex-wrap: wrap; }
+  .inline-name-editor input { min-width: 100%; }
 }
 @media (max-width: 560px) {
   .stats { grid-template-columns: 1fr 1fr; }
