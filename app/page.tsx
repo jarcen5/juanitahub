@@ -121,6 +121,9 @@ export default function Home() {
   const [activeView, setActiveView] = useState<ViewName>('today')
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey())
   const [selectedChildId, setSelectedChildId] = useState<number | null>(null)
+  const [editingChildId, setEditingChildId] = useState<number | null>(null)
+  const [editingChildName, setEditingChildName] = useState('')
+  const [childActionBusy, setChildActionBusy] = useState<number | null>(null)
 
   const today = localDateString()
   const bounds = useMemo(() => monthBoundsFromKey(selectedMonth), [selectedMonth])
@@ -158,7 +161,7 @@ export default function Home() {
     const [profileResult, settingsResult, childrenResult, entriesResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('app_settings').select('wheel_rule_mode, points_per_spin, wheel_rule_notes').eq('id', 1).maybeSingle(),
-      supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name'),
+      supabase.from('children').select('id, first_name, last_name, active').order('first_name').order('last_name'),
       supabase
         .from('behavior_entries')
         .select('id, child_id, entry_date, entry_type, card, day_status, points, note, recorded_by')
@@ -269,6 +272,73 @@ export default function Home() {
     await loadAppData()
   }
 
+  function startEditingChild(child: Child) {
+    setEditingChildId(child.id)
+    setEditingChildName(childFullName(child))
+    setMessage('')
+  }
+
+  async function saveChildName(childId: number) {
+    if (profile?.role !== 'admin') return
+
+    const trimmedName = editingChildName.trim()
+    if (!trimmedName) {
+      setMessage('Enter a name before saving.')
+      return
+    }
+
+    const parts = trimmedName.split(/\s+/)
+    const firstName = parts.shift() ?? ''
+    const lastName = parts.join(' ') || null
+    setChildActionBusy(childId)
+
+    const { error } = await supabase
+      .from('children')
+      .update({ first_name: firstName, last_name: lastName })
+      .eq('id', childId)
+
+    if (error) {
+      setMessage(error.message)
+      setChildActionBusy(null)
+      return
+    }
+
+    setEditingChildId(null)
+    setEditingChildName('')
+    setMessage('Child name updated. Existing history remains linked to this child.')
+    await loadAppData()
+    setChildActionBusy(null)
+  }
+
+  async function setChildActive(child: Child, active: boolean) {
+    if (profile?.role !== 'admin') return
+
+    if (!active) {
+      const confirmed = window.confirm(`Archive ${childFullName(child)}? They will be removed from the daily roster, but all history will be kept.`)
+      if (!confirmed) return
+    }
+
+    setChildActionBusy(child.id)
+    const { error } = await supabase.from('children').update({ active }).eq('id', child.id)
+
+    if (error) {
+      setMessage(error.message)
+      setChildActionBusy(null)
+      return
+    }
+
+    if (editingChildId === child.id) {
+      setEditingChildId(null)
+      setEditingChildName('')
+    }
+
+    setMessage(active
+      ? `${childFullName(child)} was reactivated and is back on the daily roster.`
+      : `${childFullName(child)} was archived. Their history was preserved.`)
+    await loadAppData()
+    setChildActionBusy(null)
+  }
+
   function spinsForPoints(points: number) {
     const pointsPerSpin = Number(settings?.points_per_spin ?? 0)
     if (settings?.wheel_rule_mode !== 'points_per_spin' || pointsPerSpin <= 0) return 0
@@ -281,10 +351,13 @@ export default function Home() {
   }
 
   function openHistory(childId?: number) {
-    const fallbackId = children[0]?.id ?? null
+    const fallbackId = activeChildren[0]?.id ?? children[0]?.id ?? null
     setSelectedChildId(childId ?? selectedChildId ?? fallbackId)
     setActiveView('history')
   }
+
+  const activeChildren = useMemo(() => children.filter((child) => child.active), [children])
+  const archivedChildren = useMemo(() => children.filter((child) => !child.active), [children])
 
   const todayEntries = useMemo(
     () => new Map(entries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry])),
@@ -296,8 +369,13 @@ export default function Home() {
     [entries],
   )
 
+  const summaryChildren = useMemo(() => {
+    const childrenWithEntries = new Set(entries.map((entry) => entry.child_id))
+    return children.filter((child) => child.active || childrenWithEntries.has(child.id))
+  }, [children, entries])
+
   const childSummaries = useMemo(
-    () => children.map((child) => {
+    () => summaryChildren.map((child) => {
       const childEntries = entries.filter((entry) => entry.child_id === child.id)
       const points = childEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
       return {
@@ -307,7 +385,7 @@ export default function Home() {
         entries: childEntries.length,
       }
     }),
-    [children, entries, settings],
+    [summaryChildren, entries, settings],
   )
 
   const totalWheelSpins = useMemo(
@@ -330,7 +408,9 @@ export default function Home() {
     [selectedChildEntries],
   )
 
-  const completedToday = selectedMonth === currentMonthKey() ? todayEntries.size : 0
+  const completedToday = selectedMonth === currentMonthKey()
+    ? activeChildren.filter((child) => todayEntries.has(child.id)).length
+    : 0
   const diamondCount = entries.filter((entry) => entry.card === 'diamond').length
   const greenCount = entries.filter((entry) => entry.card === 'green').length
   const wheelRuleReady = settings?.wheel_rule_mode === 'points_per_spin' && Number(settings.points_per_spin) > 0
@@ -449,10 +529,10 @@ export default function Home() {
         {message && <div className="notice">{message}</div>}
 
         <section className="grid stats">
-          <div className="card stat"><span className="subtle">Active children</span><strong>{children.length}</strong></div>
+          <div className="card stat"><span className="subtle">Active children</span><strong>{activeChildren.length}</strong></div>
           <div className="card stat">
             <span className="subtle">{activeView === 'today' ? 'Completed today' : 'Recorded entries'}</span>
-            <strong>{activeView === 'today' ? `${completedToday}/${children.length}` : entries.length}</strong>
+            <strong>{activeView === 'today' ? `${completedToday}/${activeChildren.length}` : entries.length}</strong>
           </div>
           <div className="card stat"><span className="subtle">{monthLabel(selectedMonth)} points</span><strong>{monthlyPoints}</strong></div>
           <div className="card stat"><span className="subtle">Total wheel spins</span><strong>{wheelRuleReady ? totalWheelSpins : 'Pending'}</strong></div>
@@ -465,8 +545,8 @@ export default function Home() {
               <p className="subtle">Choose one behavior card or a non-behavior status for each child. Selecting again replaces today's entry and records the correction in the audit trail.</p>
             </div>
             <div className="roster">
-              {children.length === 0 && <div className="empty">No active children yet. An admin can add the first child from the Children tab.</div>}
-              {children.map((child) => {
+              {activeChildren.length === 0 && <div className="empty">No active children yet. An admin can add or reactivate a child from the Children tab.</div>}
+              {activeChildren.map((child) => {
                 const entry = todayEntries.get(child.id)
                 return (
                   <div className="child-row" key={child.id}>
@@ -514,12 +594,12 @@ export default function Home() {
             <div className="card">
               <h2>Points & spins by child</h2>
               <p className="subtle">
-                {monthLabel(selectedMonth)}. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 spin, rounded to the nearest whole spin.` : 'Prize-wheel conversion is pending.'}
+                {monthLabel(selectedMonth)}. Archived children remain here when they have records for the selected month. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 spin, rounded to the nearest whole spin.` : 'Prize-wheel conversion is pending.'}
               </p>
               {childSummaries.map((child) => (
                 <div className="summary-row clickable-row" key={child.id} onClick={() => openHistory(child.id)}>
                   <span>
-                    <strong>{childFullName(child)}</strong><br />
+                    <strong>{childFullName(child)}</strong>{!child.active && <span className="badge archived-badge">Archived</span>}<br />
                     <span className="subtle" style={{ fontSize: 13 }}>{child.entries} recorded {child.entries === 1 ? 'day' : 'days'}</span>
                   </span>
                   <span className="summary-actions">
@@ -528,7 +608,7 @@ export default function Home() {
                   </span>
                 </div>
               ))}
-              {children.length === 0 && <div className="empty">No children to summarize yet.</div>}
+              {childSummaries.length === 0 && <div className="empty">No children to summarize yet.</div>}
             </div>
 
             <div className="card">
@@ -551,7 +631,7 @@ export default function Home() {
                 <select value={selectedChildId ?? ''} onChange={(event) => setSelectedChildId(Number(event.target.value))}>
                   <option value="" disabled>Select a child…</option>
                   {children.map((child) => (
-                    <option key={child.id} value={child.id}>{childFullName(child)}</option>
+                    <option key={child.id} value={child.id}>{childFullName(child)}{child.active ? '' : ' (Archived)'}</option>
                   ))}
                 </select>
               </div>
@@ -569,7 +649,7 @@ export default function Home() {
                 <>
                   <div className="history-heading">
                     <div>
-                      <h2>{childFullName(selectedChild)}</h2>
+                      <h2>{childFullName(selectedChild)} {!selectedChild.active && <span className="badge archived-badge">Archived</span>}</h2>
                       <p className="subtle">{monthLabel(selectedMonth)} behavior history</p>
                     </div>
                     <button className="ghost" onClick={() => setActiveView('summary')}>Back to summary</button>
@@ -589,29 +669,113 @@ export default function Home() {
         )}
 
         {activeView === 'children' && (
-          <section className="card" style={{ marginTop: 16 }}>
-            <h2>Active roster</h2>
-            {profile.role === 'admin' && (
-              <div className="toolbar" style={{ marginBottom: 18 }}>
-                <input
-                  value={newChildName}
-                  onChange={(event) => setNewChildName(event.target.value)}
-                  placeholder="Child name"
-                  style={{ minWidth: 260, border: '1px solid #cfd4dc', borderRadius: 10, padding: '10px 12px' }}
-                />
-                <button className="primary" onClick={addChild}>Add child</button>
+          <section className="children-sections">
+            <div className="card">
+              <div className="section-heading">
+                <div>
+                  <h2>Active roster</h2>
+                  <p className="subtle">{activeChildren.length} active {activeChildren.length === 1 ? 'child' : 'children'} shown on the Today screen.</p>
+                </div>
               </div>
-            )}
-            {children.map((child) => (
-              <div className="summary-row" key={child.id}>
-                <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
-                <span className="toolbar">
-                  <button className="ghost compact-button" onClick={() => openHistory(child.id)}>View history</button>
-                  <span className="badge">Active</span>
-                </span>
+
+              {profile.role === 'admin' && (
+                <div className="toolbar" style={{ marginBottom: 18 }}>
+                  <input
+                    value={newChildName}
+                    onChange={(event) => setNewChildName(event.target.value)}
+                    placeholder="Child name"
+                    style={{ minWidth: 260, border: '1px solid #cfd4dc', borderRadius: 10, padding: '10px 12px' }}
+                  />
+                  <button className="primary" onClick={addChild}>Add child</button>
+                </div>
+              )}
+
+              {activeChildren.map((child) => (
+                <div className="summary-row roster-management-row" key={child.id}>
+                  {editingChildId === child.id ? (
+                    <div className="inline-name-editor">
+                      <input
+                        value={editingChildName}
+                        onChange={(event) => setEditingChildName(event.target.value)}
+                        onKeyDown={(event) => event.key === 'Enter' && void saveChildName(child.id)}
+                        autoFocus
+                        aria-label={`Edit ${childFullName(child)} name`}
+                      />
+                      <button className="primary compact-button" disabled={childActionBusy === child.id} onClick={() => saveChildName(child.id)}>Save</button>
+                      <button className="ghost compact-button" disabled={childActionBusy === child.id} onClick={() => setEditingChildId(null)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
+                  )}
+
+                  <span className="toolbar roster-actions">
+                    <button className="ghost compact-button" onClick={() => openHistory(child.id)}>View history</button>
+                    {profile.role === 'admin' && editingChildId !== child.id && (
+                      <>
+                        <button className="ghost compact-button" onClick={() => startEditingChild(child)}>Edit name</button>
+                        <button
+                          className="ghost compact-button danger-button"
+                          disabled={childActionBusy === child.id}
+                          onClick={() => setChildActive(child, false)}
+                        >
+                          {childActionBusy === child.id ? 'Archiving…' : 'Archive'}
+                        </button>
+                      </>
+                    )}
+                    <span className="badge">Active</span>
+                  </span>
+                </div>
+              ))}
+              {activeChildren.length === 0 && <div className="empty">The active roster is empty.</div>}
+            </div>
+
+            <div className="card archived-section">
+              <div className="section-heading">
+                <div>
+                  <h2>Archived children</h2>
+                  <p className="subtle">Archived children are hidden from Today, but all cards, points, notes, and audit history remain available.</p>
+                </div>
+                <span className="badge archived-badge">{archivedChildren.length} archived</span>
               </div>
-            ))}
-            {children.length === 0 && <div className="empty">The active roster is empty.</div>}
+
+              {archivedChildren.map((child) => (
+                <div className="summary-row roster-management-row archived-row" key={child.id}>
+                  {editingChildId === child.id ? (
+                    <div className="inline-name-editor">
+                      <input
+                        value={editingChildName}
+                        onChange={(event) => setEditingChildName(event.target.value)}
+                        onKeyDown={(event) => event.key === 'Enter' && void saveChildName(child.id)}
+                        autoFocus
+                        aria-label={`Edit ${childFullName(child)} name`}
+                      />
+                      <button className="primary compact-button" disabled={childActionBusy === child.id} onClick={() => saveChildName(child.id)}>Save</button>
+                      <button className="ghost compact-button" disabled={childActionBusy === child.id} onClick={() => setEditingChildId(null)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
+                  )}
+
+                  <span className="toolbar roster-actions">
+                    <button className="ghost compact-button" onClick={() => openHistory(child.id)}>View history</button>
+                    {profile.role === 'admin' && editingChildId !== child.id && (
+                      <>
+                        <button className="ghost compact-button" onClick={() => startEditingChild(child)}>Edit name</button>
+                        <button
+                          className="primary compact-button"
+                          disabled={childActionBusy === child.id}
+                          onClick={() => setChildActive(child, true)}
+                        >
+                          {childActionBusy === child.id ? 'Reactivating…' : 'Reactivate'}
+                        </button>
+                      </>
+                    )}
+                    <span className="badge archived-badge">Archived</span>
+                  </span>
+                </div>
+              ))}
+              {archivedChildren.length === 0 && <div className="empty">No children are archived.</div>}
+            </div>
           </section>
         )}
       </main>
