@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import RewardWheel from '@/components/RewardWheel'
 import { supabase } from '@/lib/supabase'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
@@ -21,7 +20,8 @@ type RewardChild = {
 type Category = { id: number; slug: string; name: string; display_order: number }
 type Tier = { id: number; slug: string; name: string; min_spins: number; display_order: number }
 type Prize = { id: number; category_id: number; name: string; required_tier_id: number; active: boolean }
-type Inventory = { prize_id: number; quantity_remaining: number; weight: number; enabled: boolean }
+type Inventory = { id: number; prize_id: number; quantity_start: number; quantity_remaining: number; weight: number; enabled: boolean }
+type InventoryEdit = { remaining: number; weight: number; enabled: boolean }
 type Win = {
   id: number
   child_id: number
@@ -42,6 +42,8 @@ type SpinResult = {
   remaining_spins: number
   quantity_remaining: number
 }
+
+const wheelColors = ['#5b8def', '#28a745', '#e8b923', '#ef7d23', '#d64545', '#8b5cf6', '#0ea5a4', '#ec4899']
 
 function localMonth() {
   const date = new Date()
@@ -67,6 +69,7 @@ export default function RewardsPage() {
   const [tiers, setTiers] = useState<Tier[]>([])
   const [prizes, setPrizes] = useState<Prize[]>([])
   const [inventory, setInventory] = useState<Inventory[]>([])
+  const [inventoryEdits, setInventoryEdits] = useState<Record<number, InventoryEdit>>({})
   const [wins, setWins] = useState<Win[]>([])
   const [selectedChildId, setSelectedChildId] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState('candy')
@@ -75,6 +78,12 @@ export default function RewardsPage() {
   const [rotation, setRotation] = useState(0)
   const [result, setResult] = useState<SpinResult | null>(null)
   const [message, setMessage] = useState('')
+  const [newPrizeName, setNewPrizeName] = useState('')
+  const [newPrizeCategory, setNewPrizeCategory] = useState<number | null>(null)
+  const [newPrizeTier, setNewPrizeTier] = useState<number | null>(null)
+  const [newPrizeStock, setNewPrizeStock] = useState(1)
+  const [newPrizeWeight, setNewPrizeWeight] = useState(1)
+  const [savingPrizeId, setSavingPrizeId] = useState<number | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -110,7 +119,7 @@ export default function RewardsPage() {
       supabase.from('wheel_categories').select('id, slug, name, display_order').eq('active', true).order('display_order'),
       supabase.from('wheel_tiers').select('id, slug, name, min_spins, display_order').eq('active', true).order('display_order'),
       supabase.from('wheel_prizes').select('id, category_id, name, required_tier_id, active').eq('active', true).order('name'),
-      supabase.from('wheel_inventory').select('prize_id, quantity_remaining, weight, enabled').eq('month_start', start),
+      supabase.from('wheel_inventory').select('id, prize_id, quantity_start, quantity_remaining, weight, enabled').eq('month_start', start),
     ])
 
     const error = profileResult.error || rosterResult.error || categoryResult.error || tierResult.error || prizeResult.error || inventoryResult.error
@@ -118,12 +127,19 @@ export default function RewardsPage() {
 
     const nextProfile = profileResult.data as Profile | null
     const nextRoster = (rosterResult.data ?? []) as RewardChild[]
+    const nextCategories = (categoryResult.data ?? []) as Category[]
+    const nextTiers = (tierResult.data ?? []) as Tier[]
+    const nextInventory = (inventoryResult.data ?? []) as Inventory[]
+
     setProfile(nextProfile)
     setRoster(nextRoster)
-    setCategories((categoryResult.data ?? []) as Category[])
-    setTiers((tierResult.data ?? []) as Tier[])
+    setCategories(nextCategories)
+    setTiers(nextTiers)
     setPrizes((prizeResult.data ?? []) as Prize[])
-    setInventory((inventoryResult.data ?? []) as Inventory[])
+    setInventory(nextInventory)
+    setInventoryEdits(Object.fromEntries(nextInventory.map((row) => [row.prize_id, { remaining: Number(row.quantity_remaining), weight: Number(row.weight), enabled: row.enabled }])))
+    setNewPrizeCategory((current) => current ?? nextCategories[0]?.id ?? null)
+    setNewPrizeTier((current) => current ?? nextTiers[0]?.id ?? null)
 
     const stillEligible = nextRoster.find((child) => child.child_id === selectedChildId && child.remaining_spins > 0)
     const firstEligible = nextRoster.find((child) => child.remaining_spins > 0)
@@ -147,13 +163,13 @@ export default function RewardsPage() {
     () => roster.find((child) => child.child_id === selectedChildId) ?? null,
     [roster, selectedChildId],
   )
-
   const category = useMemo(
     () => categories.find((item) => item.slug === selectedCategory) ?? categories[0] ?? null,
     [categories, selectedCategory],
   )
-
   const tierMinById = useMemo(() => new Map(tiers.map((tier) => [tier.id, tier.min_spins])), [tiers])
+  const tierNameById = useMemo(() => new Map(tiers.map((tier) => [tier.id, tier.name])), [tiers])
+  const categoryNameById = useMemo(() => new Map(categories.map((item) => [item.id, item.name])), [categories])
   const inventoryByPrize = useMemo(() => new Map(inventory.map((row) => [row.prize_id, row])), [inventory])
 
   const availablePrizes = useMemo(() => {
@@ -166,6 +182,19 @@ export default function RewardsPage() {
       .map(({ prize, inventory: row }) => ({ id: prize.id, name: prize.name, weight: Number(row?.weight ?? 1) }))
   }, [selectedChild, category, prizes, tierMinById, inventoryByPrize])
 
+  const weightedGradient = useMemo(() => {
+    if (!availablePrizes.length) return '#f2f4f7'
+    const total = availablePrizes.reduce((sum, prize) => sum + prize.weight, 0)
+    let cursor = 0
+    const stops: string[] = []
+    availablePrizes.forEach((prize, index) => {
+      const start = cursor
+      cursor += total ? (prize.weight / total) * 100 : 100 / availablePrizes.length
+      stops.push(`${wheelColors[index % wheelColors.length]} ${start}% ${cursor}%`)
+    })
+    return `conic-gradient(${stops.join(', ')})`
+  }, [availablePrizes])
+
   function targetRotationForPrize(prizeId: number) {
     const totalWeight = availablePrizes.reduce((sum, prize) => sum + prize.weight, 0)
     let cursor = 0
@@ -177,13 +206,11 @@ export default function RewardsPage() {
     }
     const current = ((rotation % 360) + 360) % 360
     const desired = ((360 - middle) % 360 + 360) % 360
-    const adjustment = (desired - current + 360) % 360
-    return rotation + 1440 + adjustment
+    return rotation + 1440 + ((desired - current + 360) % 360)
   }
 
   async function spinReward() {
     if (!selectedChild || !category || spinning || selectedChild.remaining_spins <= 0 || availablePrizes.length === 0) return
-
     setMessage('')
     setResult(null)
     setSpinning(true)
@@ -211,141 +238,165 @@ export default function RewardsPage() {
     }, 4200)
   }
 
-  if (loading && !session) {
-    return <main className="login-wrap"><div className="card login-card">Loading Reward Center…</div></main>
+  async function addPrize() {
+    if (profile?.role !== 'admin' || !newPrizeName.trim() || !newPrizeCategory || !newPrizeTier) return
+    setMessage('')
+    const { data, error } = await supabase
+      .from('wheel_prizes')
+      .insert({ category_id: newPrizeCategory, name: newPrizeName.trim(), required_tier_id: newPrizeTier })
+      .select('id')
+      .single()
+    if (error || !data) {
+      setMessage(error?.message ?? 'Prize could not be added.')
+      return
+    }
+    const quantity = Math.max(0, Math.floor(Number(newPrizeStock) || 0))
+    const weight = Math.max(0.01, Number(newPrizeWeight) || 1)
+    const inventoryResult = await supabase.from('wheel_inventory').insert({
+      prize_id: data.id,
+      month_start: monthStart(month),
+      quantity_start: quantity,
+      quantity_remaining: quantity,
+      weight,
+      enabled: quantity > 0,
+    })
+    if (inventoryResult.error) {
+      setMessage(inventoryResult.error.message)
+      return
+    }
+    setNewPrizeName('')
+    setNewPrizeStock(1)
+    setNewPrizeWeight(1)
+    setMessage('Prize added to this month’s reward inventory.')
+    await loadRewardData()
   }
 
+  async function saveInventory(prizeId: number) {
+    if (profile?.role !== 'admin') return
+    const edit = inventoryEdits[prizeId] ?? { remaining: 0, weight: 1, enabled: false }
+    const existing = inventoryByPrize.get(prizeId)
+    const remaining = Math.max(0, Math.floor(Number(edit.remaining) || 0))
+    const weight = Math.max(0.01, Number(edit.weight) || 1)
+    const alreadyUsed = existing ? Math.max(0, Number(existing.quantity_start) - Number(existing.quantity_remaining)) : 0
+    setSavingPrizeId(prizeId)
+    setMessage('')
+
+    const { error } = await supabase.from('wheel_inventory').upsert({
+      prize_id: prizeId,
+      month_start: monthStart(month),
+      quantity_start: alreadyUsed + remaining,
+      quantity_remaining: remaining,
+      weight,
+      enabled: edit.enabled && remaining > 0,
+    }, { onConflict: 'prize_id,month_start' })
+
+    setSavingPrizeId(null)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage('Inventory updated.')
+    await loadRewardData()
+  }
+
+  function updateInventoryEdit(prizeId: number, patch: Partial<InventoryEdit>) {
+    const existing = inventoryByPrize.get(prizeId)
+    setInventoryEdits((current) => ({
+      ...current,
+      [prizeId]: {
+        remaining: current[prizeId]?.remaining ?? Number(existing?.quantity_remaining ?? 0),
+        weight: current[prizeId]?.weight ?? Number(existing?.weight ?? 1),
+        enabled: current[prizeId]?.enabled ?? Boolean(existing?.enabled),
+        ...patch,
+      },
+    }))
+  }
+
+  if (loading && !session) return <main className="login-wrap"><div className="card login-card">Loading Reward Center…</div></main>
+
   if (!session) {
-    return (
-      <main className="login-wrap">
-        <section className="card login-card">
-          <h1>Reward Center</h1>
-          <p className="subtle">Sign in through Juanita Hub before opening monthly behavior rewards.</p>
-          <Link className="primary link-button" href="/">Go to sign in</Link>
-        </section>
-      </main>
-    )
+    return <main className="login-wrap"><section className="card login-card"><h1>Reward Center</h1><p className="subtle">Sign in through Juanita Hub before opening monthly behavior rewards.</p><Link className="primary" style={{ display: 'inline-block', textDecoration: 'none' }} href="/">Go to sign in</Link></section></main>
   }
 
   if (!profile?.active) {
-    return (
-      <main className="login-wrap">
-        <section className="card login-card">
-          <h1>Reward Center</h1>
-          <div className="notice">Your staff account must be approved before behavior rewards are available.</div>
-          <Link className="ghost link-button" href="/">Back to Juanita Hub</Link>
-        </section>
-      </main>
-    )
+    return <main className="login-wrap"><section className="card login-card"><h1>Reward Center</h1><div className="notice">Your staff account must be approved before behavior rewards are available.</div><Link className="ghost" style={{ display: 'inline-block', textDecoration: 'none' }} href="/">Back to Juanita Hub</Link></section></main>
   }
 
   return (
     <div className="shell">
       <header className="topbar">
         <div className="brand">Juanita Hub<small>Behavior Reward Center</small></div>
-        <div className="toolbar">
-          {profile.role === 'admin' && <Link className="ghost link-button" href="/rewards/setup">Wheel setup</Link>}
-          <Link className="ghost link-button" href="/">Dashboard</Link>
-        </div>
+        <div className="toolbar"><Link className="ghost" style={{ textDecoration: 'none' }} href="/">Dashboard</Link></div>
       </header>
 
-      <main className="main reward-main">
+      <main className="main">
         <div className="hero">
-          <div>
-            <h1>Reward Center</h1>
-            <p className="subtle">Choose a child and reward category. The recorded monthly points determine earned spins and the unlocked tier.</p>
-          </div>
-          <label className="month-control-standalone">
-            <span>Reward month</span>
-            <input type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} />
-          </label>
+          <div><h1>Reward Center</h1><p className="subtle">Earned monthly spins determine the tier. The unlocked tier stays available for the full reward session.</p></div>
+          <label className="field" style={{ minWidth: 180, marginBottom: 0 }}><span style={{ fontWeight: 650 }}>Reward month</span><input type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} /></label>
         </div>
 
-        {message && <div className="notice error">{message}</div>}
+        {message && <div className="notice">{message}</div>}
 
-        <section className="reward-layout">
-          <aside className="card reward-sidebar">
-            <h2>Ready to reward</h2>
-            <p className="subtle">{monthLabel(month)}</p>
-            <div className="field">
-              <label>Child</label>
-              <select value={selectedChildId ?? ''} onChange={(event) => { setSelectedChildId(Number(event.target.value)); setResult(null) }}>
-                {roster.map((child) => (
-                  <option key={child.child_id} value={child.child_id}>
-                    {child.child_name} — {child.remaining_spins} remaining
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {selectedChild && (
-              <div className="reward-child-stats">
-                <div><span>Earned</span><strong>{selectedChild.earned_spins}</strong></div>
-                <div><span>Used</span><strong>{selectedChild.used_spins}</strong></div>
-                <div><span>Remaining</span><strong>{selectedChild.remaining_spins}</strong></div>
-              </div>
-            )}
-
-            {selectedChild && <div className={`reward-tier-badge tier-${selectedChild.tier_slug}`}>{selectedChild.tier_name} tier unlocked</div>}
-
+        <section style={{ display: 'grid', gridTemplateColumns: 'minmax(270px, 320px) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
+          <aside className="card">
+            <h2>Ready to reward</h2><p className="subtle">{monthLabel(month)}</p>
+            <div className="field"><label>Child</label><select value={selectedChildId ?? ''} onChange={(event) => { setSelectedChildId(Number(event.target.value)); setResult(null) }}>{roster.map((child) => <option key={child.child_id} value={child.child_id}>{child.child_name} — {child.remaining_spins} remaining</option>)}</select></div>
+            {selectedChild && <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>{[['Earned', selectedChild.earned_spins], ['Used', selectedChild.used_spins], ['Remaining', selectedChild.remaining_spins]].map(([label, value]) => <div key={String(label)} style={{ background: '#f8fafc', border: '1px solid #e4e7ec', borderRadius: 10, padding: 9, textAlign: 'center' }}><span className="subtle" style={{ display: 'block', fontSize: 11 }}>{label}</span><strong style={{ fontSize: 20 }}>{value}</strong></div>)}</div>}
+            {selectedChild && <div className="notice" style={{ textAlign: 'center', marginTop: 0 }}><strong>{selectedChild.tier_name} tier unlocked</strong></div>}
             <h3>Choose category</h3>
-            <div className="reward-category-grid">
-              {categories.map((item) => (
-                <button
-                  key={item.id}
-                  className={`reward-category-button ${selectedCategory === item.slug ? 'selected' : ''}`}
-                  onClick={() => { setSelectedCategory(item.slug); setResult(null) }}
-                >
-                  <span>{item.slug === 'candy' ? '🍬' : item.slug === 'toys' ? '🧸' : '🍕'}</span>
-                  {item.name}
-                </button>
-              ))}
-            </div>
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>{categories.map((item) => <button key={item.id} className={selectedCategory === item.slug ? 'primary' : 'ghost'} style={{ padding: '10px 5px' }} onClick={() => { setSelectedCategory(item.slug); setResult(null) }}>{item.slug === 'candy' ? '🍬' : item.slug === 'toys' ? '🧸' : '🍕'}<br />{item.name}</button>)}</div>
           </aside>
 
-          <section className="card reward-wheel-card">
-            <div className="section-heading">
-              <div>
-                <h2>{category?.name ?? 'Reward'} selection</h2>
-                <p className="subtle">The size of each section reflects its configured weight. Out-of-stock items are automatically excluded.</p>
+          <section className="card">
+            <div className="section-heading"><div><h2>{category?.name ?? 'Reward'} wheel</h2><p className="subtle">Section sizes reflect your configured weights. Items with zero stock are excluded automatically.</p></div><span className="badge">{availablePrizes.length} available</span></div>
+            <div style={{ position: 'relative', width: 'min(500px, 92%)', aspectRatio: '1', margin: '22px auto' }}>
+              <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', zIndex: 2, fontSize: 34 }}>▼</div>
+              <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: weightedGradient, border: '8px solid white', boxShadow: '0 4px 18px rgba(16,24,40,.16)', transform: `rotate(${rotation}deg)`, transition: 'transform 4s cubic-bezier(.12,.72,.15,1)', display: 'grid', placeItems: 'center' }}>
+                <div style={{ width: 82, height: 82, borderRadius: '50%', background: '#111827', color: 'white', display: 'grid', placeItems: 'center', border: '5px solid white', fontWeight: 800 }}>REWARD</div>
               </div>
-              <span className="badge">{availablePrizes.length} available</span>
             </div>
-
-            <RewardWheel prizes={availablePrizes} rotation={rotation} spinning={spinning} resultName={result?.prize_name ?? null} />
-
-            <button
-              className="primary reward-spin-button"
-              disabled={spinning || !selectedChild || selectedChild.remaining_spins <= 0 || availablePrizes.length === 0}
-              onClick={spinReward}
-            >
-              {spinning ? 'Selecting reward…' : selectedChild?.remaining_spins ? `Select reward • ${selectedChild.remaining_spins} spin${selectedChild.remaining_spins === 1 ? '' : 's'} left` : 'No spins remaining'}
-            </button>
-
-            {availablePrizes.length === 0 && (
-              <div className="notice">No eligible in-stock {category?.name.toLowerCase()} prizes are configured for this child's tier in {monthLabel(month)}.</div>
-            )}
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginBottom: 14 }}>{availablePrizes.map((prize, index) => <div key={prize.id} style={{ display: 'flex', gap: 8, alignItems: 'center', border: '1px solid #e4e7ec', borderRadius: 9, padding: 8 }}><span style={{ width: 13, height: 13, borderRadius: 99, background: wheelColors[index % wheelColors.length], flex: '0 0 auto' }} /><span><strong>{prize.name}</strong><br /><span className="subtle" style={{ fontSize: 12 }}>Weight {prize.weight}</span></span></div>)}</div>
+            {result && !spinning && <div className="notice success" style={{ textAlign: 'center', fontSize: 18 }}>🎉 <strong>{selectedChild?.child_name} won {result.prize_name}!</strong></div>}
+            <button className="primary" style={{ display: 'block', width: 'min(520px, 100%)', margin: '0 auto', padding: 14, fontSize: 17 }} disabled={spinning || !selectedChild || selectedChild.remaining_spins <= 0 || availablePrizes.length === 0} onClick={spinReward}>{spinning ? 'Selecting reward…' : selectedChild?.remaining_spins ? `SPIN • ${selectedChild.remaining_spins} remaining` : 'No spins remaining'}</button>
+            {availablePrizes.length === 0 && <div className="notice">No eligible in-stock {category?.name.toLowerCase()} prizes are configured for this tier in {monthLabel(month)}.</div>}
           </section>
         </section>
 
-        <section className="card reward-history-card">
-          <div className="section-heading">
-            <div>
-              <h2>{selectedChild?.child_name ?? 'Child'} reward history</h2>
-              <p className="subtle">Every completed selection is recorded automatically.</p>
-            </div>
-          </div>
-          {wins.length === 0 ? (
-            <div className="empty">No rewards have been recorded for this child in {monthLabel(month)}.</div>
-          ) : (
-            wins.map((win) => (
-              <div className="summary-row" key={win.id}>
-                <span><strong>Spin {win.spin_number}: {win.prize_name_snapshot}</strong><br /><span className="subtle">{win.category_name_snapshot} • {win.tier_name_snapshot}</span></span>
-                <span className="subtle">{new Date(win.won_at).toLocaleString()}</span>
-              </div>
-            ))
-          )}
+        <section className="card" style={{ marginTop: 16 }}>
+          <h2>{selectedChild?.child_name ?? 'Child'} reward history</h2><p className="subtle">Every completed reward is recorded automatically.</p>
+          {wins.length === 0 ? <div className="empty">No rewards recorded for this child in {monthLabel(month)}.</div> : wins.map((win) => <div className="summary-row" key={win.id}><span><strong>Spin {win.spin_number}: {win.prize_name_snapshot}</strong><br /><span className="subtle">{win.category_name_snapshot} • {win.tier_name_snapshot}</span></span><span className="subtle">{new Date(win.won_at).toLocaleString()}</span></div>)}
         </section>
+
+        {profile.role === 'admin' && (
+          <details id="reward-setup" className="card" style={{ marginTop: 16 }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 800, fontSize: 20 }}>Admin: Monthly inventory & weights</summary>
+            <p className="subtle" style={{ marginTop: 12 }}>Configure the physical prizes available for {monthLabel(month)}. Weight 1 is rare relative to weight 10. Disabling a prize removes it without deleting it.</p>
+
+            <div className="card" style={{ boxShadow: 'none', marginBottom: 16 }}>
+              <h3>Add a prize</h3>
+              <div className="grid" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 10 }}>
+                <div className="field"><label>Prize name</label><input value={newPrizeName} onChange={(event) => setNewPrizeName(event.target.value)} placeholder="Airheads" /></div>
+                <div className="field"><label>Category</label><select value={newPrizeCategory ?? ''} onChange={(event) => setNewPrizeCategory(Number(event.target.value))}>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
+                <div className="field"><label>Minimum tier</label><select value={newPrizeTier ?? ''} onChange={(event) => setNewPrizeTier(Number(event.target.value))}>{tiers.map((tier) => <option key={tier.id} value={tier.id}>{tier.name} ({tier.min_spins}+)</option>)}</select></div>
+                <div className="field"><label>Stock</label><input type="number" min="0" step="1" value={newPrizeStock} onChange={(event) => setNewPrizeStock(Number(event.target.value))} /></div>
+                <div className="field"><label>Weight</label><input type="number" min="0.01" step="0.25" value={newPrizeWeight} onChange={(event) => setNewPrizeWeight(Number(event.target.value))} /></div>
+              </div>
+              <button className="primary" onClick={addPrize}>Add to {monthLabel(month)}</button>
+            </div>
+
+            {categories.map((item) => (
+              <section key={item.id} style={{ marginTop: 20 }}>
+                <h3>{item.slug === 'candy' ? '🍬' : item.slug === 'toys' ? '🧸' : '🍕'} {item.name}</h3>
+                {prizes.filter((prize) => prize.category_id === item.id).length === 0 && <div className="empty">No {item.name.toLowerCase()} prizes yet.</div>}
+                {prizes.filter((prize) => prize.category_id === item.id).map((prize) => {
+                  const row = inventoryByPrize.get(prize.id)
+                  const edit = inventoryEdits[prize.id] ?? { remaining: Number(row?.quantity_remaining ?? 0), weight: Number(row?.weight ?? 1), enabled: Boolean(row?.enabled) }
+                  return <div className="summary-row" key={prize.id} style={{ alignItems: 'end', flexWrap: 'wrap' }}><span style={{ minWidth: 180 }}><strong>{prize.name}</strong><br /><span className="subtle">{tierNameById.get(prize.required_tier_id)} tier • {row ? `${Number(row.quantity_start) - Number(row.quantity_remaining)} already given` : 'Not stocked this month'}</span></span><span className="toolbar"><label className="field" style={{ margin: 0, width: 90 }}><span>Remaining</span><input type="number" min="0" step="1" value={edit.remaining} onChange={(event) => updateInventoryEdit(prize.id, { remaining: Number(event.target.value) })} /></label><label className="field" style={{ margin: 0, width: 85 }}><span>Weight</span><input type="number" min="0.01" step="0.25" value={edit.weight} onChange={(event) => updateInventoryEdit(prize.id, { weight: Number(event.target.value) })} /></label><label style={{ display: 'flex', gap: 6, alignItems: 'center', paddingBottom: 10 }}><input type="checkbox" checked={edit.enabled} onChange={(event) => updateInventoryEdit(prize.id, { enabled: event.target.checked })} /> Enabled</label><button className="ghost" disabled={savingPrizeId === prize.id} onClick={() => saveInventory(prize.id)}>{savingPrizeId === prize.id ? 'Saving…' : 'Save'}</button></span></div>
+                })}
+              </section>
+            ))}
+          </details>
+        )}
       </main>
     </div>
   )
