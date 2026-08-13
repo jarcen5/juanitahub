@@ -68,7 +68,6 @@ export default function StaffManagementPage() {
     if (!session) return
 
     setLoading(true)
-    setMessage('')
 
     const { data: myProfile } = await supabase
       .from('staff_profiles')
@@ -141,39 +140,47 @@ export default function StaffManagementPage() {
     }))
   }
 
+  async function runStaffUpdate(
+    profile: StaffProfile,
+    draft: Draft,
+    active: boolean,
+    successMessage: string,
+  ) {
+    setBusyId(profile.user_id)
+    setMessage('')
+
+    const { error } = await supabase.rpc('manage_staff_profile', {
+      p_user_id: profile.user_id,
+      p_display_name: draft.display_name.trim(),
+      p_role: draft.role,
+      p_active: active,
+    })
+
+    if (error) {
+      setMessage(error.message)
+      setBusyId(null)
+      return false
+    }
+
+    await loadStaff()
+    setMessage(successMessage)
+    setBusyId(null)
+    return true
+  }
+
   async function approve(profile: StaffProfile) {
-    if (!session) return
     const draft = drafts[profile.user_id] ?? { display_name: profile.display_name, role: profile.role }
     if (!draft.display_name.trim()) {
       setMessage('Enter a staff display name before approving the account.')
       return
     }
 
-    setBusyId(profile.user_id)
-    setMessage('')
-
-    const now = new Date().toISOString()
-    const { error } = await supabase
-      .from('staff_profiles')
-      .update({
-        display_name: draft.display_name.trim(),
-        role: draft.role,
-        active: true,
-        approved_at: now,
-        approved_by: session.user.id,
-        updated_at: now,
-      })
-      .eq('user_id', profile.user_id)
-
-    if (error) {
-      setMessage(error.message)
-      setBusyId(null)
-      return
-    }
-
-    setMessage(`${draft.display_name.trim()} was approved as ${draft.role === 'admin' ? 'an administrator' : 'staff'}.`)
-    await loadStaff()
-    setBusyId(null)
+    await runStaffUpdate(
+      profile,
+      draft,
+      true,
+      `${draft.display_name.trim()} was approved as ${draft.role === 'admin' ? 'an administrator' : 'staff'}.`,
+    )
   }
 
   async function saveProfile(profile: StaffProfile) {
@@ -183,55 +190,26 @@ export default function StaffManagementPage() {
       return
     }
 
-    setBusyId(profile.user_id)
-    setMessage('')
+    const safeDraft = session?.user.id === profile.user_id
+      ? { ...draft, role: profile.role }
+      : draft
 
-    const updates: Record<string, unknown> = {
-      display_name: draft.display_name.trim(),
-      updated_at: new Date().toISOString(),
-    }
-
-    if (session?.user.id !== profile.user_id) updates.role = draft.role
-
-    const { error } = await supabase
-      .from('staff_profiles')
-      .update(updates)
-      .eq('user_id', profile.user_id)
-
-    if (error) {
-      setMessage(error.message)
-      setBusyId(null)
-      return
-    }
-
-    setMessage('Staff profile updated.')
-    await loadStaff()
-    setBusyId(null)
+    await runStaffUpdate(
+      profile,
+      safeDraft,
+      profile.active,
+      `${safeDraft.display_name.trim()} is now ${safeDraft.role === 'admin' ? 'an administrator' : 'staff'}.`,
+    )
   }
 
   async function deactivate(profile: StaffProfile) {
     if (session?.user.id === profile.user_id) return
 
-    const name = drafts[profile.user_id]?.display_name || profile.display_name
+    const draft = drafts[profile.user_id] ?? { display_name: profile.display_name, role: profile.role }
+    const name = draft.display_name || profile.display_name
     if (!window.confirm(`Deactivate ${name}? They will immediately lose access to Juanita Hub, but their past activity remains intact.`)) return
 
-    setBusyId(profile.user_id)
-    setMessage('')
-
-    const { error } = await supabase
-      .from('staff_profiles')
-      .update({ active: false, updated_at: new Date().toISOString() })
-      .eq('user_id', profile.user_id)
-
-    if (error) {
-      setMessage(error.message)
-      setBusyId(null)
-      return
-    }
-
-    setMessage(`${name} was deactivated.`)
-    await loadStaff()
-    setBusyId(null)
+    await runStaffUpdate(profile, draft, false, `${name} was deactivated.`)
   }
 
   async function reactivate(profile: StaffProfile) {
@@ -241,28 +219,7 @@ export default function StaffManagementPage() {
       return
     }
 
-    setBusyId(profile.user_id)
-    setMessage('')
-
-    const { error } = await supabase
-      .from('staff_profiles')
-      .update({
-        display_name: draft.display_name.trim(),
-        role: draft.role,
-        active: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', profile.user_id)
-
-    if (error) {
-      setMessage(error.message)
-      setBusyId(null)
-      return
-    }
-
-    setMessage(`${draft.display_name.trim()} was reactivated.`)
-    await loadStaff()
-    setBusyId(null)
+    await runStaffUpdate(profile, draft, true, `${draft.display_name.trim()} was reactivated.`)
   }
 
   function StaffRow({ profile, mode }: { profile: StaffProfile; mode: 'pending' | 'active' | 'deactivated' }) {
@@ -407,7 +364,7 @@ export default function StaffManagementPage() {
 
         <section className="card" style={{ marginBottom: 18 }}>
           <h2>Active staff</h2>
-          <p className="subtle">Staff can record and correct behavior entries. Admins can also manage children and staff access.</p>
+          <p className="subtle">Staff can record and correct behavior entries. Admins can also manage children, prizes, and staff access.</p>
           <div className="grid">
             {activeStaff.map((profile) => <StaffRow key={profile.user_id} profile={profile} mode="active" />)}
           </div>
