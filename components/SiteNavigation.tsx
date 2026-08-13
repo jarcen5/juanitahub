@@ -53,6 +53,7 @@ export default function SiteNavigation() {
 
   const links = [
     { href: '/', label: 'Dashboard', adminOnly: false },
+    { href: '/missed-cards', label: 'Missed Cards', adminOnly: false },
     { href: '/rewards', label: 'Reward Center', adminOnly: false },
     { href: '/rewards/test', label: 'Test Mode', adminOnly: false },
     { href: '/rewards/manage', label: 'Prize Management', adminOnly: true },
