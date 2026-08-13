@@ -339,10 +339,11 @@ export default function Home() {
     setChildActionBusy(null)
   }
 
-  function spinsForPoints(points: number) {
+  function spinsForPoints(points: number, diamondBonusSpins = 0) {
     const pointsPerSpin = Number(settings?.points_per_spin ?? 0)
     if (settings?.wheel_rule_mode !== 'points_per_spin' || pointsPerSpin <= 0) return 0
-    return Math.max(0, Math.round(points / pointsPerSpin))
+    const baseSpins = Math.max(0, Math.round(points / pointsPerSpin))
+    return baseSpins + Math.max(0, diamondBonusSpins)
   }
 
   function goToToday() {
@@ -378,10 +379,12 @@ export default function Home() {
     () => summaryChildren.map((child) => {
       const childEntries = entries.filter((entry) => entry.child_id === child.id)
       const points = childEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
+      const diamonds = childEntries.filter((entry) => entry.card === 'diamond').length
       return {
         ...child,
         points,
-        spins: spinsForPoints(points),
+        diamonds,
+        spins: spinsForPoints(points, diamonds),
         entries: childEntries.length,
       }
     }),
@@ -408,13 +411,18 @@ export default function Home() {
     [selectedChildEntries],
   )
 
+  const selectedChildDiamonds = useMemo(
+    () => selectedChildEntries.filter((entry) => entry.card === 'diamond').length,
+    [selectedChildEntries],
+  )
+
   const completedToday = selectedMonth === currentMonthKey()
     ? activeChildren.filter((child) => todayEntries.has(child.id)).length
     : 0
   const diamondCount = entries.filter((entry) => entry.card === 'diamond').length
   const greenCount = entries.filter((entry) => entry.card === 'green').length
   const wheelRuleReady = settings?.wheel_rule_mode === 'points_per_spin' && Number(settings.points_per_spin) > 0
-  const historySpins = spinsForPoints(selectedChildPoints)
+  const historySpins = spinsForPoints(selectedChildPoints, selectedChildDiamonds)
 
   const viewTitle = activeView === 'today'
     ? "Today's Behavior"
@@ -542,7 +550,7 @@ export default function Home() {
           <section className="card" style={{ marginTop: 16 }}>
             <div style={{ marginBottom: 18 }}>
               <h2>Daily cards</h2>
-              <p className="subtle">Choose one behavior card or a non-behavior status for each child. Selecting again replaces today's entry and records the correction in the audit trail.</p>
+              <p className="subtle">Choose one behavior card or a non-behavior status for each child. Selecting again replaces today's entry and records the correction in the audit trail. Diamond cards add +2 points and 1 bonus monthly spin.</p>
             </div>
             <div className="roster">
               {activeChildren.length === 0 && <div className="empty">No active children yet. An admin can add or reactivate a child from the Children tab.</div>}
@@ -554,7 +562,7 @@ export default function Home() {
                       <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
                       <div className="subtle" style={{ fontSize: 13, marginTop: 4 }}>
                         {entry?.entry_type === 'behavior'
-                          ? `${prettyCard(entry.card)} card • ${formatPoints(entry.points)}`
+                          ? `${prettyCard(entry.card)} card • ${formatPoints(entry.points)}${entry.card === 'diamond' ? ' • +1 bonus spin' : ''}`
                           : entry?.day_status
                             ? prettyStatus(entry.day_status)
                             : 'Not entered yet'}
@@ -567,9 +575,11 @@ export default function Home() {
                             key={card.name}
                             className={`behavior-button ${card.name} ${entry?.card === card.name ? 'selected' : ''}`}
                             onClick={() => saveBehavior(child.id, card.name)}
-                            title={`${card.label}: ${card.points > 0 ? '+' : ''}${card.points} points`}
+                            title={card.name === 'diamond'
+                              ? 'Diamond: +2 points and +1 bonus monthly spin'
+                              : `${card.label}: ${card.points > 0 ? '+' : ''}${card.points} points`}
                           >
-                            {card.symbol} {card.points > 0 ? '+' : ''}{card.points}
+                            {card.symbol} {card.points > 0 ? '+' : ''}{card.points}{card.name === 'diamond' ? ' + spin' : ''}
                           </button>
                         ))}
                         <select
@@ -594,13 +604,15 @@ export default function Home() {
             <div className="card">
               <h2>Points & spins by child</h2>
               <p className="subtle">
-                {monthLabel(selectedMonth)}. Archived children remain here when they have records for the selected month. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 spin, rounded to the nearest whole spin.` : 'Prize-wheel conversion is pending.'}
+                {monthLabel(selectedMonth)}. Archived children remain here when they have records for the selected month. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 base spin, rounded to the nearest whole spin. Each Diamond card adds 1 bonus spin.` : 'Prize-wheel conversion is pending.'}
               </p>
               {childSummaries.map((child) => (
                 <div className="summary-row clickable-row" key={child.id} onClick={() => openHistory(child.id)}>
                   <span>
                     <strong>{childFullName(child)}</strong>{!child.active && <span className="badge archived-badge">Archived</span>}<br />
-                    <span className="subtle" style={{ fontSize: 13 }}>{child.entries} recorded {child.entries === 1 ? 'day' : 'days'}</span>
+                    <span className="subtle" style={{ fontSize: 13 }}>
+                      {child.entries} recorded {child.entries === 1 ? 'day' : 'days'}{child.diamonds > 0 ? ` • ${child.diamonds} Diamond bonus ${child.diamonds === 1 ? 'spin' : 'spins'}` : ''}
+                    </span>
                   </span>
                   <span className="summary-actions">
                     <strong>{child.points} pts • {wheelRuleReady ? `${child.spins} spin${child.spins === 1 ? '' : 's'}` : 'Pending'}</strong>
@@ -613,7 +625,7 @@ export default function Home() {
 
             <div className="card">
               <h2>Card totals</h2>
-              <div className="summary-row"><span>◆ Diamond</span><strong>{diamondCount}</strong></div>
+              <div className="summary-row"><span>◆ Diamond (+1 bonus spin each)</span><strong>{diamondCount}</strong></div>
               <div className="summary-row"><span>● Green</span><strong>{greenCount}</strong></div>
               <div className="summary-row"><span>● Yellow</span><strong>{entries.filter((entry) => entry.card === 'yellow').length}</strong></div>
               <div className="summary-row"><span>● Orange</span><strong>{entries.filter((entry) => entry.card === 'orange').length}</strong></div>
@@ -639,6 +651,7 @@ export default function Home() {
                 <div className="history-mini-stats">
                   <div><span className="subtle">Points</span><strong>{selectedChildPoints}</strong></div>
                   <div><span className="subtle">Spins</span><strong>{wheelRuleReady ? historySpins : 'Pending'}</strong></div>
+                  <div><span className="subtle">Diamond bonus</span><strong>{selectedChildDiamonds}</strong></div>
                   <div><span className="subtle">Entries</span><strong>{selectedChildEntries.length}</strong></div>
                 </div>
               )}
