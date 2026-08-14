@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import DailyCardNotes from '@/components/DailyCardNotes'
 
 type AccessState = {
   active: boolean
@@ -66,61 +67,64 @@ export default function SiteNavigation() {
   }
 
   return (
-    <nav
-      aria-label="Juanita Hub site navigation"
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '10px 18px',
-        overflowX: 'auto',
-        background: '#111827',
-        borderBottom: '1px solid rgba(255,255,255,.12)',
-        boxShadow: '0 2px 12px rgba(16,24,40,.14)',
-      }}
-    >
-      <Link
-        href="/"
+    <>
+      <nav
+        aria-label="Juanita Hub site navigation"
         style={{
-          flex: '0 0 auto',
-          color: 'white',
-          textDecoration: 'none',
-          fontWeight: 850,
-          fontSize: 18,
-          marginRight: 8,
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '10px 18px',
+          overflowX: 'auto',
+          background: '#111827',
+          borderBottom: '1px solid rgba(255,255,255,.12)',
+          boxShadow: '0 2px 12px rgba(16,24,40,.14)',
         }}
       >
-        Juanita Hub
-      </Link>
+        <Link
+          href="/"
+          style={{
+            flex: '0 0 auto',
+            color: 'white',
+            textDecoration: 'none',
+            fontWeight: 850,
+            fontSize: 18,
+            marginRight: 8,
+          }}
+        >
+          Juanita Hub
+        </Link>
 
-      {links
-        .filter((link) => !link.adminOnly || access.role === 'admin')
-        .map((link) => {
-          const current = isCurrent(link.href)
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              aria-current={current ? 'page' : undefined}
-              style={{
-                flex: '0 0 auto',
-                color: current ? '#111827' : '#f8fafc',
-                background: current ? 'white' : 'transparent',
-                border: '1px solid rgba(255,255,255,.2)',
-                borderRadius: 999,
-                padding: '8px 12px',
-                textDecoration: 'none',
-                fontWeight: 700,
-                fontSize: 14,
-              }}
-            >
-              {link.label}
-            </Link>
-          )
-        })}
-    </nav>
+        {links
+          .filter((link) => !link.adminOnly || access.role === 'admin')
+          .map((link) => {
+            const current = isCurrent(link.href)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={current ? 'page' : undefined}
+                style={{
+                  flex: '0 0 auto',
+                  color: current ? '#111827' : '#f8fafc',
+                  background: current ? 'white' : 'transparent',
+                  border: '1px solid rgba(255,255,255,.2)',
+                  borderRadius: 999,
+                  padding: '8px 12px',
+                  textDecoration: 'none',
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
+      </nav>
+      <DailyCardNotes />
+    </>
   )
 }
