@@ -29,6 +29,7 @@ type Win = {
   prize_name_snapshot: string
   category_name_snapshot: string
   tier_name_snapshot: string
+  inventory_month_start: string
   won_at: string
 }
 type SpinResult = {
@@ -41,6 +42,8 @@ type SpinResult = {
   used_spins: number
   remaining_spins: number
   quantity_remaining: number
+  reward_month_start: string
+  inventory_month_start: string
 }
 
 const wheelColors = ['#5b8def', '#28a745', '#e8b923', '#ef7d23', '#d64545', '#8b5cf6', '#0ea5a4', '#ec4899']
@@ -60,10 +63,16 @@ function monthLabel(month: string) {
   return new Date(year, number - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 }
 
+function monthLabelFromDate(value: string) {
+  return monthLabel(value.slice(0, 7))
+}
+
 export default function RewardsPage() {
+  const currentMonth = localMonth()
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [month, setMonth] = useState(localMonth())
+  const [rewardMonth, setRewardMonth] = useState(currentMonth)
+  const [inventoryMonth, setInventoryMonth] = useState(currentMonth)
   const [roster, setRoster] = useState<RewardChild[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [tiers, setTiers] = useState<Tier[]>([])
@@ -98,8 +107,9 @@ export default function RewardsPage() {
 
   useEffect(() => {
     if (!session) return
+    setResult(null)
     void loadRewardData()
-  }, [session, month])
+  }, [session, rewardMonth, inventoryMonth])
 
   useEffect(() => {
     if (!session || !selectedChildId) {
@@ -107,7 +117,7 @@ export default function RewardsPage() {
       return
     }
     void loadWins(selectedChildId)
-  }, [session, selectedChildId, month])
+  }, [session, selectedChildId, rewardMonth])
 
   function showMessage(text: string, kind: 'info' | 'error' | 'success' = 'info') {
     setMessage(text)
@@ -118,14 +128,15 @@ export default function RewardsPage() {
     if (!session) return
     setLoading(true)
 
-    const start = monthStart(month)
+    const rewardStart = monthStart(rewardMonth)
+    const inventoryStart = monthStart(inventoryMonth)
     const [profileResult, rosterResult, categoryResult, tierResult, prizeResult, inventoryResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
-      supabase.rpc('get_reward_roster', { p_month_start: start }),
+      supabase.rpc('get_reward_roster', { p_month_start: rewardStart }),
       supabase.from('wheel_categories').select('id, slug, name, display_order').eq('active', true).order('display_order'),
       supabase.from('wheel_tiers').select('id, slug, name, min_spins, display_order').eq('active', true).order('display_order'),
       supabase.from('wheel_prizes').select('id, category_id, name, required_tier_id, active').eq('active', true).order('name'),
-      supabase.from('wheel_inventory').select('id, prize_id, quantity_start, quantity_remaining, weight, enabled').eq('month_start', start),
+      supabase.from('wheel_inventory').select('id, prize_id, quantity_start, quantity_remaining, weight, enabled').eq('month_start', inventoryStart),
     ])
 
     const error = profileResult.error || rosterResult.error || categoryResult.error || tierResult.error || prizeResult.error || inventoryResult.error
@@ -160,9 +171,9 @@ export default function RewardsPage() {
   async function loadWins(childId: number) {
     const { data, error } = await supabase
       .from('prize_wins')
-      .select('id, child_id, spin_number, prize_name_snapshot, category_name_snapshot, tier_name_snapshot, won_at')
+      .select('id, child_id, spin_number, prize_name_snapshot, category_name_snapshot, tier_name_snapshot, inventory_month_start, won_at')
       .eq('child_id', childId)
-      .eq('month_start', monthStart(month))
+      .eq('month_start', monthStart(rewardMonth))
       .order('spin_number', { ascending: true })
 
     if (error) showMessage(error.message, 'error')
@@ -226,9 +237,10 @@ export default function RewardsPage() {
     setResult(null)
     setSpinning(true)
 
-    const { data, error } = await supabase.rpc('spin_reward_wheel', {
+    const { data, error } = await supabase.rpc('spin_monthly_reward_wheel', {
       p_child_id: selectedChild.child_id,
-      p_month_start: monthStart(month),
+      p_reward_month_start: monthStart(rewardMonth),
+      p_inventory_month_start: monthStart(inventoryMonth),
       p_category_slug: category.slug,
     })
 
@@ -272,7 +284,7 @@ export default function RewardsPage() {
       p_name: newPrizeName.trim(),
       p_category_id: newPrizeCategory,
       p_tier_id: newPrizeTier,
-      p_month_start: monthStart(month),
+      p_month_start: monthStart(inventoryMonth),
       p_quantity: quantity,
       p_weight: weight,
     })
@@ -286,7 +298,7 @@ export default function RewardsPage() {
     setNewPrizeName('')
     setNewPrizeStock(1)
     setNewPrizeWeight(1)
-    showMessage(`Prize added to ${monthLabel(month)} inventory.`, 'success')
+    showMessage(`Prize added to ${monthLabel(inventoryMonth)} inventory.`, 'success')
     await loadRewardData()
   }
 
@@ -302,7 +314,7 @@ export default function RewardsPage() {
 
     const { error } = await supabase.from('wheel_inventory').upsert({
       prize_id: prizeId,
-      month_start: monthStart(month),
+      month_start: monthStart(inventoryMonth),
       quantity_start: alreadyUsed + remaining,
       quantity_remaining: remaining,
       weight,
@@ -314,7 +326,7 @@ export default function RewardsPage() {
       showMessage(error.message, 'error')
       return
     }
-    showMessage('Inventory updated.', 'success')
+    showMessage(`${monthLabel(inventoryMonth)} inventory updated.`, 'success')
     await loadRewardData()
   }
 
@@ -370,23 +382,35 @@ export default function RewardsPage() {
       </header>
 
       <main className="main">
-        <div className="hero">
+        <div className="hero" style={{ alignItems: 'end' }}>
           <div>
             <h1>Reward Center</h1>
-            <p className="subtle">Earned monthly spins determine the tier. The unlocked tier stays available for the full reward session.</p>
+            <p className="subtle">Choose which month the spins were earned in, then choose which month of physical prize inventory to use.</p>
           </div>
-          <label className="field" style={{ minWidth: 180, marginBottom: 0 }}>
-            <span style={{ fontWeight: 650 }}>Reward month</span>
-            <input type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} />
-          </label>
+          <div className="toolbar" style={{ alignItems: 'end', flexWrap: 'wrap' }}>
+            <label className="field" style={{ minWidth: 185, marginBottom: 0 }}>
+              <span style={{ fontWeight: 700 }}>Spins earned in</span>
+              <input type="month" value={rewardMonth} onChange={(event) => event.target.value && setRewardMonth(event.target.value)} />
+            </label>
+            <label className="field" style={{ minWidth: 185, marginBottom: 0 }}>
+              <span style={{ fontWeight: 700 }}>Inventory to use</span>
+              <input type="month" value={inventoryMonth} onChange={(event) => event.target.value && setInventoryMonth(event.target.value)} />
+            </label>
+          </div>
         </div>
+
+        {rewardMonth !== inventoryMonth && (
+          <div className="notice success">
+            <strong>Catch-up mode:</strong> You are awarding <strong>{monthLabel(rewardMonth)}</strong> earned spins using <strong>{monthLabel(inventoryMonth)}</strong> prize inventory. The win counts against {monthLabel(rewardMonth)} only.
+          </div>
+        )}
 
         {message && <div className={`notice ${messageKind === 'error' ? 'error' : messageKind === 'success' ? 'success' : ''}`}>{message}</div>}
 
         <section style={{ display: 'grid', gridTemplateColumns: 'minmax(270px, 320px) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
           <aside className="card">
             <h2>Ready to reward</h2>
-            <p className="subtle">{monthLabel(month)}</p>
+            <p className="subtle"><strong>{monthLabel(rewardMonth)}</strong> spins • {monthLabel(inventoryMonth)} inventory</p>
             <div className="field">
               <label>Child</label>
               <select
@@ -441,7 +465,7 @@ export default function RewardsPage() {
             <div className="section-heading">
               <div>
                 <h2>{category?.name ?? 'Reward'} wheel</h2>
-                <p className="subtle">Section sizes reflect your configured weights. Items with zero stock are excluded automatically.</p>
+                <p className="subtle">Prize eligibility comes from the {monthLabel(rewardMonth)} tier. Stock and weights come from {monthLabel(inventoryMonth)} inventory.</p>
               </div>
               <span className="badge">{availablePrizes.length} available</span>
             </div>
@@ -473,7 +497,12 @@ export default function RewardsPage() {
               ))}
             </div>
 
-            {result && !spinning && <div className="notice success" style={{ textAlign: 'center', fontSize: 18 }}>🎉 <strong>{selectedChild?.child_name} won {result.prize_name}!</strong></div>}
+            {result && !spinning && (
+              <div className="notice success" style={{ textAlign: 'center', fontSize: 18 }}>
+                🎉 <strong>{selectedChild?.child_name} won {result.prize_name}!</strong><br />
+                <span style={{ fontSize: 13 }}>{monthLabel(rewardMonth)} reward • {monthLabel(inventoryMonth)} inventory</span>
+              </div>
+            )}
 
             <button
               className="primary"
@@ -481,21 +510,29 @@ export default function RewardsPage() {
               disabled={spinning || !selectedChild || selectedChild.remaining_spins <= 0 || availablePrizes.length === 0}
               onClick={spinReward}
             >
-              {spinning ? 'Selecting reward…' : selectedChild?.remaining_spins ? `SPIN • ${selectedChild.remaining_spins} remaining` : 'No spins remaining'}
+              {spinning ? 'Selecting reward…' : selectedChild?.remaining_spins ? `SPIN FOR ${monthLabel(rewardMonth).toUpperCase()} • ${selectedChild.remaining_spins} remaining` : `No ${monthLabel(rewardMonth)} spins remaining`}
             </button>
 
-            {availablePrizes.length === 0 && <div className="notice">No eligible in-stock {category?.name.toLowerCase()} prizes are configured for this tier in {monthLabel(month)}.</div>}
+            {availablePrizes.length === 0 && (
+              <div className="notice">No eligible in-stock {category?.name.toLowerCase()} prizes are configured in {monthLabel(inventoryMonth)} inventory for this tier.</div>
+            )}
           </section>
         </section>
 
         <section className="card" style={{ marginTop: 16 }}>
-          <h2>{selectedChild?.child_name ?? 'Child'} reward history</h2>
-          <p className="subtle">Every completed reward is recorded automatically.</p>
+          <h2>{selectedChild?.child_name ?? 'Child'} — {monthLabel(rewardMonth)} reward history</h2>
+          <p className="subtle">Each completed spin is charged only to the selected earned-spin month. The inventory month used is stored separately.</p>
           {wins.length === 0 ? (
-            <div className="empty">No rewards recorded for this child in {monthLabel(month)}.</div>
+            <div className="empty">No monthly rewards recorded for this child for {monthLabel(rewardMonth)}.</div>
           ) : wins.map((win) => (
             <div className="summary-row" key={win.id}>
-              <span><strong>Spin {win.spin_number}: {win.prize_name_snapshot}</strong><br /><span className="subtle">{win.category_name_snapshot} • {win.tier_name_snapshot}</span></span>
+              <span>
+                <strong>Spin {win.spin_number}: {win.prize_name_snapshot}</strong><br />
+                <span className="subtle">
+                  {win.category_name_snapshot} • {win.tier_name_snapshot}
+                  {win.inventory_month_start && win.inventory_month_start.slice(0, 7) !== rewardMonth ? ` • Used ${monthLabelFromDate(win.inventory_month_start)} inventory` : ''}
+                </span>
+              </span>
               <span className="subtle">{new Date(win.won_at).toLocaleString()}</span>
             </div>
           ))}
@@ -503,8 +540,8 @@ export default function RewardsPage() {
 
         {profile.role === 'admin' && (
           <details open id="reward-setup" className="card" style={{ marginTop: 16 }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 800, fontSize: 20 }}>Admin: Monthly inventory & weights</summary>
-            <p className="subtle" style={{ marginTop: 12 }}>Add physical prizes for {monthLabel(month)} before reward day. A larger weight makes an item more likely to be selected; stock reaches zero automatically as items are awarded.</p>
+            <summary style={{ cursor: 'pointer', fontWeight: 800, fontSize: 20 }}>Admin: {monthLabel(inventoryMonth)} inventory & weights</summary>
+            <p className="subtle" style={{ marginTop: 12 }}>These stock quantities are the physical prizes used by both monthly rewards and free spins when {monthLabel(inventoryMonth)} inventory is selected.</p>
 
             <section style={{ border: '1px solid #e4e7ec', borderRadius: 14, padding: 16, marginBottom: 16, background: '#f8fafc' }}>
               <h3>Add a prize</h3>
@@ -535,7 +572,7 @@ export default function RewardsPage() {
                 </div>
               </div>
               <button className="primary" disabled={addingPrize || !newPrizeName.trim()} onClick={addPrize}>
-                {addingPrize ? 'Adding prize…' : `Add prize to ${monthLabel(month)}`}
+                {addingPrize ? 'Adding prize…' : `Add prize to ${monthLabel(inventoryMonth)}`}
               </button>
             </section>
 
@@ -556,7 +593,7 @@ export default function RewardsPage() {
                     <div className="summary-row" key={prize.id} style={{ alignItems: 'end', flexWrap: 'wrap' }}>
                       <span style={{ minWidth: 180 }}>
                         <strong>{prize.name}</strong><br />
-                        <span className="subtle">{tierNameById.get(prize.required_tier_id)} tier • {row ? `${Number(row.quantity_start) - Number(row.quantity_remaining)} already given` : 'Not stocked this month'}</span>
+                        <span className="subtle">{tierNameById.get(prize.required_tier_id)} tier • {row ? `${Number(row.quantity_start) - Number(row.quantity_remaining)} already given` : `Not stocked in ${monthLabel(inventoryMonth)}`}</span>
                       </span>
                       <span className="toolbar">
                         <label className="field" style={{ margin: 0, width: 90 }}>
