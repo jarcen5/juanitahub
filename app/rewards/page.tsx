@@ -150,9 +150,9 @@ export default function RewardsPage() {
     setNewPrizeCategory((current) => current ?? nextCategories[0]?.id ?? null)
     setNewPrizeTier((current) => current ?? nextTiers[0]?.id ?? null)
 
-    const stillEligible = nextRoster.find((child) => child.child_id === selectedChildId && child.remaining_spins > 0)
+    const stillSelected = nextRoster.find((child) => child.child_id === selectedChildId)
     const firstEligible = nextRoster.find((child) => child.remaining_spins > 0)
-    setSelectedChildId(stillEligible?.child_id ?? firstEligible?.child_id ?? nextRoster[0]?.child_id ?? null)
+    setSelectedChildId(stillSelected?.child_id ?? firstEligible?.child_id ?? nextRoster[0]?.child_id ?? null)
     setLoading(false)
   }
 
