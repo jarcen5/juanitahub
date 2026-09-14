@@ -11,9 +11,78 @@ type AccessState = {
   role: 'staff' | 'admin' | null
 }
 
+type NavItem = {
+  href?: string
+  label: string
+  description?: string
+  adminOnly?: boolean
+  comingSoon?: boolean
+}
+
+type NavGroup = {
+  label: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'Daily Operations',
+    items: [
+      {
+        href: '/missed-cards',
+        label: 'Missed Cards',
+        description: 'Backfill a card or status from a previous day.',
+      },
+      {
+        label: 'Attendance',
+        description: 'Tablet and phone check-in for center attendance.',
+        comingSoon: true,
+      },
+    ],
+  },
+  {
+    label: 'Rewards',
+    items: [
+      {
+        href: '/rewards',
+        label: 'Reward Center',
+        description: 'Use monthly earned spins and shared prize inventory.',
+      },
+      {
+        href: '/rewards/free',
+        label: 'Free Spins',
+        description: 'Award a bonus spin without using monthly spins.',
+      },
+      {
+        href: '/rewards/test',
+        label: 'Test Mode',
+        description: 'Practice the wheel without changing real records.',
+      },
+      {
+        href: '/rewards/manage',
+        label: 'Prize Management',
+        description: 'Rename, review, or remove prize items.',
+        adminOnly: true,
+      },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      {
+        href: '/staff',
+        label: 'Staff Management',
+        description: 'Approve accounts and manage staff access.',
+        adminOnly: true,
+      },
+    ],
+  },
+]
+
 export default function SiteNavigation() {
   const pathname = usePathname()
   const [access, setAccess] = useState<AccessState>({ active: false, role: null })
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -50,80 +119,112 @@ export default function SiteNavigation() {
     }
   }, [])
 
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
   if (!access.active) return null
 
-  const links = [
-    { href: '/', label: 'Dashboard', adminOnly: false },
-    { href: '/missed-cards', label: 'Missed Cards', adminOnly: false },
-    { href: '/rewards', label: 'Reward Center', adminOnly: false },
-    { href: '/rewards/free', label: 'Free Spins', adminOnly: false },
-    { href: '/rewards/test', label: 'Test Mode', adminOnly: false },
-    { href: '/rewards/manage', label: 'Prize Management', adminOnly: true },
-    { href: '/staff', label: 'Staff Management', adminOnly: true },
-  ]
-
-  function isCurrent(href: string) {
+  function isCurrent(href?: string) {
+    if (!href) return false
     if (href === '/') return pathname === '/'
     return pathname === href
   }
 
+  function groupIsCurrent(group: NavGroup) {
+    return group.items.some((item) => item.href && isCurrent(item.href))
+  }
+
+  function visibleItems(group: NavGroup) {
+    return group.items.filter((item) => !item.adminOnly || access.role === 'admin')
+  }
+
   return (
     <>
-      <nav
-        aria-label="Juanita Hub site navigation"
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '10px 18px',
-          overflowX: 'auto',
-          background: '#111827',
-          borderBottom: '1px solid rgba(255,255,255,.12)',
-          boxShadow: '0 2px 12px rgba(16,24,40,.14)',
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            flex: '0 0 auto',
-            color: 'white',
-            textDecoration: 'none',
-            fontWeight: 850,
-            fontSize: 18,
-            marginRight: 8,
-          }}
-        >
-          Juanita Hub
-        </Link>
+      <nav className="site-nav" aria-label="Juanita Hub site navigation">
+        <div className="site-nav-inner">
+          <Link className="site-nav-brand" href="/" aria-label="Juanita Hub dashboard">
+            <span className="site-nav-mark" aria-hidden="true">JH</span>
+            <span>
+              <strong>Juanita Hub</strong>
+              <small>Community Center Operations</small>
+            </span>
+          </Link>
 
-        {links
-          .filter((link) => !link.adminOnly || access.role === 'admin')
-          .map((link) => {
-            const current = isCurrent(link.href)
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                aria-current={current ? 'page' : undefined}
-                style={{
-                  flex: '0 0 auto',
-                  color: current ? '#111827' : '#f8fafc',
-                  background: current ? 'white' : 'transparent',
-                  border: '1px solid rgba(255,255,255,.2)',
-                  borderRadius: 999,
-                  padding: '8px 12px',
-                  textDecoration: 'none',
-                  fontWeight: 700,
-                  fontSize: 14,
-                }}
-              >
-                {link.label}
-              </Link>
-            )
-          })}
+          <button
+            className="site-nav-toggle"
+            type="button"
+            aria-expanded={mobileOpen}
+            aria-controls="juanita-site-menu"
+            onClick={() => setMobileOpen((open) => !open)}
+          >
+            <span className="site-nav-toggle-lines" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+            <span>{mobileOpen ? 'Close' : 'Menu'}</span>
+          </button>
+
+          <div id="juanita-site-menu" className={`site-nav-menu ${mobileOpen ? 'open' : ''}`}>
+            <Link
+              href="/"
+              className={`site-nav-link ${isCurrent('/') ? 'active' : ''}`}
+              aria-current={isCurrent('/') ? 'page' : undefined}
+            >
+              Dashboard
+            </Link>
+
+            {navGroups.map((group) => {
+              const items = visibleItems(group)
+              if (items.length === 0) return null
+              const active = groupIsCurrent({ ...group, items })
+
+              return (
+                <details className={`site-nav-group ${active ? 'active' : ''}`} key={group.label}>
+                  <summary>
+                    <span>{group.label}</span>
+                    <span className="site-nav-chevron" aria-hidden="true">⌄</span>
+                  </summary>
+                  <div className="site-nav-dropdown">
+                    {items.map((item) => {
+                      if (item.comingSoon || !item.href) {
+                        return (
+                          <div className="site-nav-dropdown-item coming-soon" key={item.label}>
+                            <span>
+                              <strong>{item.label}</strong>
+                              {item.description && <small>{item.description}</small>}
+                            </span>
+                            <span className="site-nav-soon">Coming soon</span>
+                          </div>
+                        )
+                      }
+
+                      const current = isCurrent(item.href)
+                      return (
+                        <Link
+                          className={`site-nav-dropdown-item ${current ? 'active' : ''}`}
+                          href={item.href}
+                          key={item.href}
+                          aria-current={current ? 'page' : undefined}
+                        >
+                          <span>
+                            <strong>{item.label}</strong>
+                            {item.description && <small>{item.description}</small>}
+                          </span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </details>
+              )
+            })}
+
+            <span className="site-nav-role" title="Current Juanita Hub role">
+              {access.role === 'admin' ? 'Admin' : 'Staff'}
+            </span>
+          </div>
+        </div>
       </nav>
       <DailyCardNotes />
     </>
