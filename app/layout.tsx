@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import SiteNavigation from '@/components/SiteNavigation'
 import './globals.css'
 import './redesign.css'
+import './attendance.css'
 
 export const metadata: Metadata = {
   title: 'Juanita Hub',
