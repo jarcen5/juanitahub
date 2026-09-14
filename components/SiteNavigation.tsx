@@ -29,14 +29,14 @@ const navGroups: NavGroup[] = [
     label: 'Daily Operations',
     items: [
       {
+        href: '/attendance',
+        label: 'Attendance',
+        description: 'Prototype phone and tablet check-in for the center.',
+      },
+      {
         href: '/missed-cards',
         label: 'Missed Cards',
         description: 'Backfill a card or status from a previous day.',
-      },
-      {
-        label: 'Attendance',
-        description: 'Tablet and phone check-in for center attendance.',
-        comingSoon: true,
       },
     ],
   },
