@@ -146,6 +146,7 @@ export default function StaffHomePage() {
             <label>Password</label>
             <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} />
           </div>
+          {authMode === 'signin' && <Link className="forgot-password-link" href="/forgot-password">Forgot password?</Link>}
           {message && <div className="notice">{message}</div>}
           <button className="primary" type="button" onClick={handleAuth}>{authMode === 'signin' ? 'Sign in' : 'Create account'}</button>
           <button className="link-button" type="button" onClick={() => setAuthMode((mode) => mode === 'signin' ? 'signup' : 'signin')}>
@@ -211,7 +212,7 @@ export default function StaffHomePage() {
           </Link>
           <Link className="home-quick-action purple" href="/kiosk">
             <span className="home-quick-icon">☺</span>
-            <span><strong>Launch Kiosk Preview</strong><small>Child check-in + mood only</small></span>
+            <span><strong>Launch Kiosk Preview</strong><small>Welcome board and center check-in</small></span>
           </Link>
         </section>
 
