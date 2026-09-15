@@ -1,0 +1,181 @@
+/* Navigation reliability fixes based on tablet-width testing. */
+
+html,
+body,
+.shell {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.hero,
+.topbar,
+.site-nav,
+.site-nav-inner,
+.site-nav-menu {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.hero > *,
+.hero > * > *,
+.topbar > *,
+.topbar .brand,
+.topbar .toolbar {
+  min-width: 0;
+}
+
+.hero h1,
+.hero h2,
+.hero h3,
+.topbar .brand,
+.brand,
+.site-nav-dropdown-item strong,
+.site-nav-dropdown-item small {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.topbar .brand {
+  flex: 1 1 240px;
+}
+
+.topbar .toolbar {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+}
+
+.site-nav-group-trigger {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: #314b65;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 760;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.site-nav-group-trigger:hover,
+.site-nav-group.open > .site-nav-group-trigger {
+  border-color: #d7e6f2;
+  background: #eff7fc;
+  color: #165c9d;
+}
+
+.site-nav-group.active > .site-nav-group-trigger {
+  border-color: #c6e2f5;
+  background: linear-gradient(135deg, #e8f5ff, #edf9f3);
+  color: #155d9e;
+}
+
+.site-nav-group.open .site-nav-chevron {
+  transform: rotate(180deg);
+}
+
+/* Keep the right-most desktop dropdown inside the viewport. */
+.site-nav-group:last-of-type .site-nav-dropdown {
+  left: auto;
+  right: 0;
+}
+
+/*
+   At tablet/laptop widths the full desktop nav is simply too wide.
+   Switch to the compact menu before it can force horizontal scrolling.
+*/
+@media (max-width: 1180px) {
+  .site-nav-inner {
+    width: min(100% - 22px, 1320px);
+    min-height: 64px;
+    flex-wrap: wrap;
+    padding: 8px 0;
+  }
+
+  .site-nav-brand small {
+    display: none;
+  }
+
+  .site-nav-toggle {
+    display: flex;
+  }
+
+  .site-nav-menu {
+    display: none;
+    flex: 0 0 100%;
+    width: 100%;
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 6px;
+    padding: 4px 0 9px;
+  }
+
+  .site-nav-menu.open {
+    display: grid;
+  }
+
+  .site-nav-link,
+  .site-nav-group-trigger {
+    min-height: 48px;
+    width: 100%;
+    justify-content: space-between;
+    padding: 11px 13px;
+    border-color: #e3edf4;
+    background: rgba(248, 251, 253, .96);
+    text-align: left;
+  }
+
+  .site-nav-group {
+    width: 100%;
+  }
+
+  .site-nav-dropdown,
+  .site-nav-group:last-of-type .site-nav-dropdown {
+    position: static;
+    left: auto;
+    right: auto;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 5px;
+    border-radius: 12px;
+    box-shadow: none;
+    background: #f7fbfd;
+  }
+
+  .site-nav-dropdown-item {
+    min-height: 58px;
+    width: 100%;
+    background: white;
+    border: 1px solid #e4edf4;
+  }
+
+  .site-nav-role {
+    width: fit-content;
+    margin: 4px 0 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .topbar {
+    width: 100%;
+  }
+
+  .topbar .brand,
+  .topbar .toolbar {
+    width: 100%;
+  }
+
+  .hero h1 {
+    width: 100%;
+    font-size: clamp(26px, 9vw, 38px);
+    line-height: 1.08;
+  }
+}
