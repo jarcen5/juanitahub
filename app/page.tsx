@@ -1,9 +1,15 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import HistoryEntryList from '@/components/HistoryEntryList'
 import { supabase } from '@/lib/supabase'
+
+type StaffProfile = {
+  display_name: string
+  role: 'staff' | 'admin'
+  active: boolean
+}
 
 type Child = {
   id: number
@@ -12,126 +18,42 @@ type Child = {
   active: boolean
 }
 
-type CardName = 'diamond' | 'green' | 'yellow' | 'orange' | 'red'
-
-type Entry = {
-  id: number
+type BehaviorEntry = {
   child_id: number
   entry_date: string
-  entry_type: 'behavior' | 'status'
-  card: CardName | null
-  day_status: string | null
-  points: number
-  note: string | null
-  recorded_by: string
 }
-
-type StaffProfile = {
-  display_name: string
-  role: 'staff' | 'admin'
-  active: boolean
-}
-
-type AppSettings = {
-  wheel_rule_mode: 'pending' | 'points_per_spin' | 'tiers'
-  points_per_spin: number | null
-  wheel_rule_notes: string | null
-}
-
-type ViewName = 'today' | 'summary' | 'history' | 'children'
-
-const cards: { name: CardName; label: string; points: number; symbol: string }[] = [
-  { name: 'diamond', label: 'Diamond', points: 2, symbol: '◆' },
-  { name: 'green', label: 'Green', points: 1, symbol: '●' },
-  { name: 'yellow', label: 'Yellow', points: -0.5, symbol: '●' },
-  { name: 'orange', label: 'Orange', points: -1, symbol: '●' },
-  { name: 'red', label: 'Red', points: -2, symbol: '●' },
-]
-
-const statusOptions = [
-  ['absent', 'Absent'],
-  ['sick', 'Sick'],
-  ['didnt_report', "Didn't Report"],
-  ['field_trip', 'Field Trip'],
-  ['closed', 'Closed'],
-  ['other', 'Other'],
-]
 
 function localDateString(date = new Date()) {
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
 }
 
-function currentMonthKey() {
-  return localDateString().slice(0, 7)
+function formatToday() {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
-function monthBoundsFromKey(monthKey: string) {
-  const [year, month] = monthKey.split('-').map(Number)
-  const start = new Date(year, month - 1, 1)
-  const end = new Date(year, month, 0)
-  return { start: localDateString(start), end: localDateString(end) }
-}
-
-function monthLabel(monthKey: string) {
-  const [year, month] = monthKey.split('-').map(Number)
-  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-}
-
-function shiftMonth(monthKey: string, amount: number) {
-  const [year, month] = monthKey.split('-').map(Number)
-  const date = new Date(year, month - 1 + amount, 1)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-}
-
-function childFullName(child: Child) {
-  return `${child.first_name}${child.last_name ? ` ${child.last_name}` : ''}`
-}
-
-function prettyStatus(status: string | null) {
-  if (!status) return ''
-  return status
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
-function prettyCard(card: CardName | null) {
-  if (!card) return ''
-  return card.charAt(0).toUpperCase() + card.slice(1)
-}
-
-function formatPoints(points: number) {
-  const value = Number(points || 0)
-  return `${value > 0 ? '+' : ''}${value}`
-}
-
-export default function Home() {
+export default function StaffHomePage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<StaffProfile | null>(null)
-  const [settings, setSettings] = useState<AppSettings | null>(null)
   const [children, setChildren] = useState<Child[]>([])
-  const [entries, setEntries] = useState<Entry[]>([])
+  const [entries, setEntries] = useState<BehaviorEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [newChildName, setNewChildName] = useState('')
-  const [activeView, setActiveView] = useState<ViewName>('today')
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey())
-  const [selectedChildId, setSelectedChildId] = useState<number | null>(null)
-  const [editingChildId, setEditingChildId] = useState<number | null>(null)
-  const [editingChildName, setEditingChildName] = useState('')
-  const [childActionBusy, setChildActionBusy] = useState<number | null>(null)
 
   const today = localDateString()
-  const bounds = useMemo(() => monthBoundsFromKey(selectedMonth), [selectedMonth])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
-      setLoading(false)
+      if (!data.session) setLoading(false)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
@@ -144,36 +66,39 @@ export default function Home() {
   useEffect(() => {
     if (!session) {
       setProfile(null)
-      setSettings(null)
       setChildren([])
       setEntries([])
       return
     }
 
-    void loadAppData()
-  }, [session, selectedMonth])
+    void loadDashboard()
+  }, [session])
 
-  async function loadAppData() {
+  async function loadDashboard() {
     if (!session) return
-
     setLoading(true)
 
-    const [profileResult, settingsResult, childrenResult, entriesResult] = await Promise.all([
-      supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
-      supabase.from('app_settings').select('wheel_rule_mode, points_per_spin, wheel_rule_notes').eq('id', 1).maybeSingle(),
-      supabase.from('children').select('id, first_name, last_name, active').order('first_name').order('last_name'),
+    const [profileResult, childrenResult, entriesResult] = await Promise.all([
+      supabase
+        .from('staff_profiles')
+        .select('display_name, role, active')
+        .eq('user_id', session.user.id)
+        .maybeSingle(),
+      supabase
+        .from('children')
+        .select('id, first_name, last_name, active')
+        .eq('active', true)
+        .order('first_name'),
       supabase
         .from('behavior_entries')
-        .select('id, child_id, entry_date, entry_type, card, day_status, points, note, recorded_by')
-        .gte('entry_date', bounds.start)
-        .lte('entry_date', bounds.end)
-        .order('entry_date', { ascending: false }),
+        .select('child_id, entry_date')
+        .eq('entry_date', today),
     ])
 
     setProfile(profileResult.data as StaffProfile | null)
-    setSettings(settingsResult.data as AppSettings | null)
     setChildren((childrenResult.data ?? []) as Child[])
-    setEntries((entriesResult.data ?? []) as Entry[])
+    setEntries((entriesResult.data ?? []) as BehaviorEntry[])
+    setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? entriesResult.error?.message ?? '')
     setLoading(false)
   }
 
@@ -193,244 +118,15 @@ export default function Home() {
 
     const { error } = await supabase.auth.signUp({ email, password })
     if (error) setMessage(error.message)
-    else setMessage('Account created. If email confirmation is enabled, check your inbox. An administrator must also activate your staff profile.')
+    else setMessage('Account created. An administrator must activate your staff profile before you can use Juanita Hub.')
   }
 
-  async function saveBehavior(childId: number, card: CardName) {
-    if (!session || !profile?.active) return
-
-    const existing = todayEntries.get(childId)
-    const result = existing
-      ? await supabase
-          .from('behavior_entries')
-          .update({ entry_type: 'behavior', card, day_status: null })
-          .eq('id', existing.id)
-      : await supabase
-          .from('behavior_entries')
-          .insert({
-            child_id: childId,
-            entry_date: today,
-            entry_type: 'behavior',
-            card,
-            day_status: null,
-            recorded_by: session.user.id,
-          })
-
-    if (result.error) {
-      setMessage(result.error.message)
-      return
-    }
-
-    setMessage(existing ? 'Behavior card corrected. The change was added to the audit trail.' : 'Behavior card saved.')
-    await loadAppData()
+  async function signOut() {
+    await supabase.auth.signOut()
   }
 
-  async function saveStatus(childId: number, status: string) {
-    if (!session || !profile?.active) return
-
-    const existing = todayEntries.get(childId)
-    const result = existing
-      ? await supabase
-          .from('behavior_entries')
-          .update({ entry_type: 'status', card: null, day_status: status })
-          .eq('id', existing.id)
-      : await supabase
-          .from('behavior_entries')
-          .insert({
-            child_id: childId,
-            entry_date: today,
-            entry_type: 'status',
-            card: null,
-            day_status: status,
-            recorded_by: session.user.id,
-          })
-
-    if (result.error) {
-      setMessage(result.error.message)
-      return
-    }
-
-    setMessage(existing ? 'Daily status corrected. The change was added to the audit trail.' : 'Daily status saved.')
-    await loadAppData()
-  }
-
-  async function addChild() {
-    if (!newChildName.trim() || profile?.role !== 'admin') return
-
-    const parts = newChildName.trim().split(/\s+/)
-    const firstName = parts.shift() ?? ''
-    const lastName = parts.join(' ') || null
-    const { error } = await supabase.from('children').insert({ first_name: firstName, last_name: lastName })
-
-    if (error) {
-      setMessage(error.message)
-      return
-    }
-
-    setNewChildName('')
-    setMessage('Child added to the active roster.')
-    await loadAppData()
-  }
-
-  function startEditingChild(child: Child) {
-    setEditingChildId(child.id)
-    setEditingChildName(childFullName(child))
-    setMessage('')
-  }
-
-  async function saveChildName(childId: number) {
-    if (profile?.role !== 'admin') return
-
-    const trimmedName = editingChildName.trim()
-    if (!trimmedName) {
-      setMessage('Enter a name before saving.')
-      return
-    }
-
-    const parts = trimmedName.split(/\s+/)
-    const firstName = parts.shift() ?? ''
-    const lastName = parts.join(' ') || null
-    setChildActionBusy(childId)
-
-    const { error } = await supabase
-      .from('children')
-      .update({ first_name: firstName, last_name: lastName })
-      .eq('id', childId)
-
-    if (error) {
-      setMessage(error.message)
-      setChildActionBusy(null)
-      return
-    }
-
-    setEditingChildId(null)
-    setEditingChildName('')
-    setMessage('Child name updated. Existing history remains linked to this child.')
-    await loadAppData()
-    setChildActionBusy(null)
-  }
-
-  async function setChildActive(child: Child, active: boolean) {
-    if (profile?.role !== 'admin') return
-
-    if (!active) {
-      const confirmed = window.confirm(`Archive ${childFullName(child)}? They will be removed from the daily roster, but all history will be kept.`)
-      if (!confirmed) return
-    }
-
-    setChildActionBusy(child.id)
-    const { error } = await supabase.from('children').update({ active }).eq('id', child.id)
-
-    if (error) {
-      setMessage(error.message)
-      setChildActionBusy(null)
-      return
-    }
-
-    if (editingChildId === child.id) {
-      setEditingChildId(null)
-      setEditingChildName('')
-    }
-
-    setMessage(active
-      ? `${childFullName(child)} was reactivated and is back on the daily roster.`
-      : `${childFullName(child)} was archived. Their history was preserved.`)
-    await loadAppData()
-    setChildActionBusy(null)
-  }
-
-  function spinsForPoints(points: number, diamondBonusSpins = 0) {
-    const pointsPerSpin = Number(settings?.points_per_spin ?? 0)
-    if (settings?.wheel_rule_mode !== 'points_per_spin' || pointsPerSpin <= 0) return 0
-    const baseSpins = Math.max(0, Math.round(points / pointsPerSpin))
-    return baseSpins + Math.max(0, diamondBonusSpins)
-  }
-
-  function goToToday() {
-    setSelectedMonth(currentMonthKey())
-    setActiveView('today')
-  }
-
-  function openHistory(childId?: number) {
-    const fallbackId = activeChildren[0]?.id ?? children[0]?.id ?? null
-    setSelectedChildId(childId ?? selectedChildId ?? fallbackId)
-    setActiveView('history')
-  }
-
-  const activeChildren = useMemo(() => children.filter((child) => child.active), [children])
-  const archivedChildren = useMemo(() => children.filter((child) => !child.active), [children])
-
-  const todayEntries = useMemo(
-    () => new Map(entries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry])),
-    [entries, today],
-  )
-
-  const monthlyPoints = useMemo(
-    () => entries.reduce((sum, entry) => sum + Number(entry.points || 0), 0),
-    [entries],
-  )
-
-  const summaryChildren = useMemo(() => {
-    const childrenWithEntries = new Set(entries.map((entry) => entry.child_id))
-    return children.filter((child) => child.active || childrenWithEntries.has(child.id))
-  }, [children, entries])
-
-  const childSummaries = useMemo(
-    () => summaryChildren.map((child) => {
-      const childEntries = entries.filter((entry) => entry.child_id === child.id)
-      const points = childEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
-      const diamonds = childEntries.filter((entry) => entry.card === 'diamond').length
-      return {
-        ...child,
-        points,
-        diamonds,
-        spins: spinsForPoints(points, diamonds),
-        entries: childEntries.length,
-      }
-    }),
-    [summaryChildren, entries, settings],
-  )
-
-  const totalWheelSpins = useMemo(
-    () => childSummaries.reduce((sum, child) => sum + child.spins, 0),
-    [childSummaries],
-  )
-
-  const selectedChild = useMemo(
-    () => children.find((child) => child.id === selectedChildId) ?? null,
-    [children, selectedChildId],
-  )
-
-  const selectedChildEntries = useMemo(
-    () => entries.filter((entry) => entry.child_id === selectedChildId).sort((a, b) => b.entry_date.localeCompare(a.entry_date)),
-    [entries, selectedChildId],
-  )
-
-  const selectedChildPoints = useMemo(
-    () => selectedChildEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0),
-    [selectedChildEntries],
-  )
-
-  const selectedChildDiamonds = useMemo(
-    () => selectedChildEntries.filter((entry) => entry.card === 'diamond').length,
-    [selectedChildEntries],
-  )
-
-  const completedToday = selectedMonth === currentMonthKey()
-    ? activeChildren.filter((child) => todayEntries.has(child.id)).length
-    : 0
-  const diamondCount = entries.filter((entry) => entry.card === 'diamond').length
-  const greenCount = entries.filter((entry) => entry.card === 'green').length
-  const wheelRuleReady = settings?.wheel_rule_mode === 'points_per_spin' && Number(settings.points_per_spin) > 0
-  const historySpins = spinsForPoints(selectedChildPoints, selectedChildDiamonds)
-
-  const viewTitle = activeView === 'today'
-    ? "Today's Behavior"
-    : activeView === 'summary'
-      ? 'Monthly Summary'
-      : activeView === 'history'
-        ? 'Child History'
-        : 'Children'
+  const completedCards = useMemo(() => new Set(entries.map((entry) => entry.child_id)).size, [entries])
+  const missingCards = Math.max(0, children.length - completedCards)
 
   if (loading && !session) {
     return <main className="login-wrap"><div className="card login-card">Loading Juanita Hub…</div></main>
@@ -440,30 +136,19 @@ export default function Home() {
     return (
       <main className="login-wrap">
         <section className="card login-card">
-          <div className="brand" style={{ color: '#172033', marginBottom: 22 }}>
-            Juanita Hub
-            <small style={{ color: '#667085' }}>JSCLC behavior & rewards tracker</small>
-          </div>
-          <h1 style={{ fontSize: 30 }}>{authMode === 'signin' ? 'Staff sign in' : 'Create staff account'}</h1>
-          <p className="subtle">Use your work-approved account to access behavior records.</p>
+          <h1>Juanita Hub</h1>
+          <p className="subtle">Staff sign-in</p>
           <div className="field">
             <label>Email</label>
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
+            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" />
           </div>
           <div className="field">
             <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'}
-            />
+            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} />
           </div>
-          {message && <div className={message.toLowerCase().includes('created') ? 'notice success' : 'notice error'}>{message}</div>}
-          <button className="primary" style={{ width: '100%' }} onClick={handleAuth}>
-            {authMode === 'signin' ? 'Sign in' : 'Create account'}
-          </button>
-          <button className="ghost" style={{ width: '100%', marginTop: 10 }} onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}>
+          {message && <div className="notice">{message}</div>}
+          <button className="primary" type="button" onClick={handleAuth}>{authMode === 'signin' ? 'Sign in' : 'Create account'}</button>
+          <button className="link-button" type="button" onClick={() => setAuthMode((mode) => mode === 'signin' ? 'signup' : 'signin')}>
             {authMode === 'signin' ? 'Need an account?' : 'Already have an account?'}
           </button>
         </section>
@@ -471,14 +156,13 @@ export default function Home() {
     )
   }
 
-  if (!profile) {
+  if (!profile?.active) {
     return (
       <main className="login-wrap">
         <section className="card login-card">
-          <h1 style={{ fontSize: 30 }}>Account awaiting activation</h1>
-          <p className="subtle">Your login works, but this account does not have an active Juanita Hub staff profile yet.</p>
-          <div className="notice">Signed in as <strong>{session.user.email}</strong>. Ask an administrator to activate this account.</div>
-          <button className="primary" onClick={() => supabase.auth.signOut()}>Sign out</button>
+          <h1>Juanita Hub</h1>
+          <div className="notice">Your staff account is waiting for administrator approval.</div>
+          <button className="ghost" type="button" onClick={signOut}>Sign out</button>
         </section>
       </main>
     )
@@ -487,310 +171,144 @@ export default function Home() {
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="brand">Juanita Hub<small>JSCLC behavior & rewards tracker</small></div>
+        <div className="brand">
+          Juanita Hub
+          <small>Staff home</small>
+        </div>
         <div className="toolbar">
           <span>{profile.display_name} <span className="badge">{profile.role}</span></span>
-          <button className="ghost" onClick={() => supabase.auth.signOut()}>Sign out</button>
+          <button className="ghost" type="button" onClick={signOut}>Sign out</button>
         </div>
       </header>
 
-      <main className="main">
-        <div className="hero">
+      <main className="main home-dashboard">
+        <section className="home-welcome">
           <div>
-            <h1>{viewTitle}</h1>
-            <p className="subtle">
-              {activeView === 'today'
-                ? new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-                : monthLabel(selectedMonth)}
-            </p>
+            <span className="home-eyebrow">Today at Juanita</span>
+            <h1>{formatToday()}</h1>
+            <p>Everything staff need for today, in one place.</p>
           </div>
-          <nav className="nav">
-            <button className={activeView === 'today' ? 'active' : ''} onClick={goToToday}>Today</button>
-            <button className={activeView === 'summary' ? 'active' : ''} onClick={() => setActiveView('summary')}>Monthly Summary</button>
-            <button className={activeView === 'history' ? 'active' : ''} onClick={() => openHistory()}>History</button>
-            <button className={activeView === 'children' ? 'active' : ''} onClick={() => setActiveView('children')}>Children</button>
-          </nav>
-        </div>
-
-        {(activeView === 'summary' || activeView === 'history') && (
-          <section className="month-bar card">
-            <div>
-              <span className="subtle month-label">Viewing month</span>
-              <strong>{monthLabel(selectedMonth)}</strong>
-            </div>
-            <div className="month-controls">
-              <button className="ghost" onClick={() => setSelectedMonth(shiftMonth(selectedMonth, -1))} aria-label="Previous month">←</button>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(event) => event.target.value && setSelectedMonth(event.target.value)}
-                aria-label="Select month"
-              />
-              <button className="ghost" onClick={() => setSelectedMonth(shiftMonth(selectedMonth, 1))} aria-label="Next month">→</button>
-              {selectedMonth !== currentMonthKey() && (
-                <button className="ghost" onClick={() => setSelectedMonth(currentMonthKey())}>This month</button>
-              )}
-            </div>
-          </section>
-        )}
+          <div className="home-center-status">
+            <span className="home-status-dot" aria-hidden="true" />
+            <span><strong>Center status</strong><small>Open • preview status</small></span>
+          </div>
+        </section>
 
         {message && <div className="notice">{message}</div>}
 
-        <section className="grid stats">
-          <div className="card stat"><span className="subtle">Active children</span><strong>{activeChildren.length}</strong></div>
-          <div className="card stat">
-            <span className="subtle">{activeView === 'today' ? 'Completed today' : 'Recorded entries'}</span>
-            <strong>{activeView === 'today' ? `${completedToday}/${activeChildren.length}` : entries.length}</strong>
-          </div>
-          <div className="card stat"><span className="subtle">{monthLabel(selectedMonth)} points</span><strong>{monthlyPoints}</strong></div>
-          <div className="card stat"><span className="subtle">Total wheel spins</span><strong>{wheelRuleReady ? totalWheelSpins : 'Pending'}</strong></div>
+        <section className="home-quick-grid" aria-label="Quick actions">
+          <Link className="home-quick-action blue" href="/attendance">
+            <span className="home-quick-icon">✓</span>
+            <span><strong>Attendance</strong><small>Staff attendance workspace</small></span>
+          </Link>
+          <Link className="home-quick-action green" href="/card-tracking">
+            <span className="home-quick-icon">◆</span>
+            <span><strong>Card Tracking</strong><small>{missingCards === 0 ? 'All active children have a record today' : `${missingCards} children still need a card/status`}</small></span>
+          </Link>
+          <Link className="home-quick-action yellow" href="/rewards">
+            <span className="home-quick-icon">★</span>
+            <span><strong>Reward Center</strong><small>Monthly spins and prize inventory</small></span>
+          </Link>
+          <Link className="home-quick-action purple" href="/kiosk">
+            <span className="home-quick-icon">☺</span>
+            <span><strong>Launch Kiosk Preview</strong><small>Child check-in + mood only</small></span>
+          </Link>
         </section>
 
-        {activeView === 'today' && (
-          <section className="card" style={{ marginTop: 16 }}>
-            <div style={{ marginBottom: 18 }}>
-              <h2>Daily cards</h2>
-              <p className="subtle">Choose one behavior card or a non-behavior status for each child. Selecting again replaces today's entry and records the correction in the audit trail. Diamond cards add +2 points and 1 bonus monthly spin.</p>
-            </div>
-            <div className="roster">
-              {activeChildren.length === 0 && <div className="empty">No active children yet. An admin can add or reactivate a child from the Children tab.</div>}
-              {activeChildren.map((child) => {
-                const entry = todayEntries.get(child.id)
-                return (
-                  <div className="child-row" key={child.id}>
-                    <div>
-                      <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
-                      <div className="subtle" style={{ fontSize: 13, marginTop: 4 }}>
-                        {entry?.entry_type === 'behavior'
-                          ? `${prettyCard(entry.card)} card • ${formatPoints(entry.points)}${entry.card === 'diamond' ? ' • +1 bonus spin' : ''}`
-                          : entry?.day_status
-                            ? prettyStatus(entry.day_status)
-                            : 'Not entered yet'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="behavior-buttons">
-                        {cards.map((card) => (
-                          <button
-                            key={card.name}
-                            className={`behavior-button ${card.name} ${entry?.card === card.name ? 'selected' : ''}`}
-                            onClick={() => saveBehavior(child.id, card.name)}
-                            title={card.name === 'diamond'
-                              ? 'Diamond: +2 points and +1 bonus monthly spin'
-                              : `${card.label}: ${card.points > 0 ? '+' : ''}${card.points} points`}
-                          >
-                            {card.symbol} {card.points > 0 ? '+' : ''}{card.points}{card.name === 'diamond' ? ' + spin' : ''}
-                          </button>
-                        ))}
-                        <select
-                          value={entry?.entry_type === 'status' ? entry.day_status ?? '' : ''}
-                          onChange={(event) => event.target.value && saveStatus(child.id, event.target.value)}
-                          style={{ border: '1px solid #cfd4dc', borderRadius: 10, padding: '9px 10px', background: 'white' }}
-                        >
-                          <option value="">Status…</option>
-                          {statusOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
-        {activeView === 'summary' && (
-          <section className="grid panel-grid">
-            <div className="card">
-              <h2>Points & spins by child</h2>
-              <p className="subtle">
-                {monthLabel(selectedMonth)}. Archived children remain here when they have records for the selected month. {wheelRuleReady ? `Every ${Number(settings?.points_per_spin)} points earns 1 base spin, rounded to the nearest whole spin. Each Diamond card adds 1 bonus spin.` : 'Prize-wheel conversion is pending.'}
-              </p>
-              {childSummaries.map((child) => (
-                <div className="summary-row clickable-row" key={child.id} onClick={() => openHistory(child.id)}>
-                  <span>
-                    <strong>{childFullName(child)}</strong>{!child.active && <span className="badge archived-badge">Archived</span>}<br />
-                    <span className="subtle" style={{ fontSize: 13 }}>
-                      {child.entries} recorded {child.entries === 1 ? 'day' : 'days'}{child.diamonds > 0 ? ` • ${child.diamonds} Diamond bonus ${child.diamonds === 1 ? 'spin' : 'spins'}` : ''}
-                    </span>
-                  </span>
-                  <span className="summary-actions">
-                    <strong>{child.points} pts • {wheelRuleReady ? `${child.spins} spin${child.spins === 1 ? '' : 's'}` : 'Pending'}</strong>
-                    <span className="history-link">View history →</span>
-                  </span>
-                </div>
-              ))}
-              {childSummaries.length === 0 && <div className="empty">No children to summarize yet.</div>}
-            </div>
-
-            <div className="card">
-              <h2>Card totals</h2>
-              <div className="summary-row"><span>◆ Diamond (+1 bonus spin each)</span><strong>{diamondCount}</strong></div>
-              <div className="summary-row"><span>● Green</span><strong>{greenCount}</strong></div>
-              <div className="summary-row"><span>● Yellow</span><strong>{entries.filter((entry) => entry.card === 'yellow').length}</strong></div>
-              <div className="summary-row"><span>● Orange</span><strong>{entries.filter((entry) => entry.card === 'orange').length}</strong></div>
-              <div className="summary-row"><span>● Red</span><strong>{entries.filter((entry) => entry.card === 'red').length}</strong></div>
-              <div className="summary-row"><span>Statuses / non-behavior days</span><strong>{entries.filter((entry) => entry.entry_type === 'status').length}</strong></div>
-            </div>
-          </section>
-        )}
-
-        {activeView === 'history' && (
-          <section className="history-layout">
-            <aside className="card history-sidebar">
-              <h2>Choose child</h2>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <select value={selectedChildId ?? ''} onChange={(event) => setSelectedChildId(Number(event.target.value))}>
-                  <option value="" disabled>Select a child…</option>
-                  {children.map((child) => (
-                    <option key={child.id} value={child.id}>{childFullName(child)}{child.active ? '' : ' (Archived)'}</option>
-                  ))}
-                </select>
-              </div>
-              {selectedChild && (
-                <div className="history-mini-stats">
-                  <div><span className="subtle">Points</span><strong>{selectedChildPoints}</strong></div>
-                  <div><span className="subtle">Spins</span><strong>{wheelRuleReady ? historySpins : 'Pending'}</strong></div>
-                  <div><span className="subtle">Diamond bonus</span><strong>{selectedChildDiamonds}</strong></div>
-                  <div><span className="subtle">Entries</span><strong>{selectedChildEntries.length}</strong></div>
-                </div>
-              )}
-            </aside>
-
-            <div className="card history-panel">
-              {selectedChild ? (
-                <>
-                  <div className="history-heading">
-                    <div>
-                      <h2>{childFullName(selectedChild)} {!selectedChild.active && <span className="badge archived-badge">Archived</span>}</h2>
-                      <p className="subtle">{monthLabel(selectedMonth)} behavior history</p>
-                    </div>
-                    <button className="ghost" onClick={() => setActiveView('summary')}>Back to summary</button>
-                  </div>
-
-                  {selectedChildEntries.length === 0 ? (
-                    <div className="empty">No entries for {childFullName(selectedChild)} in {monthLabel(selectedMonth)}.</div>
-                  ) : (
-                    <HistoryEntryList entries={selectedChildEntries} onSaved={loadAppData} />
-                  )}
-                </>
-              ) : (
-                <div className="empty">Choose a child to view their history.</div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {activeView === 'children' && (
-          <section className="children-sections">
-            <div className="card">
-              <div className="section-heading">
+        <section className="home-layout">
+          <div className="home-main-column">
+            <section className="card home-board-card">
+              <div className="home-section-heading">
                 <div>
-                  <h2>Active roster</h2>
-                  <p className="subtle">{activeChildren.length} active {activeChildren.length === 1 ? 'child' : 'children'} shown on the Today screen.</p>
+                  <span className="home-section-kicker">Bulletin board</span>
+                  <h2>Announcements</h2>
                 </div>
+                <span className="home-preview-pill">Preview content</span>
               </div>
 
-              {profile.role === 'admin' && (
-                <div className="toolbar" style={{ marginBottom: 18 }}>
-                  <input
-                    value={newChildName}
-                    onChange={(event) => setNewChildName(event.target.value)}
-                    placeholder="Child name"
-                    style={{ minWidth: 260, border: '1px solid #cfd4dc', borderRadius: 10, padding: '10px 12px' }}
-                  />
-                  <button className="primary" onClick={addChild}>Add child</button>
-                </div>
-              )}
+              <div className="home-announcements">
+                <article className="home-announcement important">
+                  <span className="home-announcement-icon">📌</span>
+                  <div><strong>Staff reminder</strong><p>Announcements will eventually be editable by admins and can appear for one day, a date range, or on a repeating schedule.</p></div>
+                </article>
+                <article className="home-announcement">
+                  <span className="home-announcement-icon">🎨</span>
+                  <div><strong>Example daily activity</strong><p>Art activity at 4:00 PM • Homework support afterward.</p></div>
+                </article>
+                <article className="home-announcement">
+                  <span className="home-announcement-icon">🖨️</span>
+                  <div><strong>Example community note</strong><p>Computer, printing, faxing, and forms assistance available during center hours.</p></div>
+                </article>
+              </div>
+            </section>
 
-              {activeChildren.map((child) => (
-                <div className="summary-row roster-management-row" key={child.id}>
-                  {editingChildId === child.id ? (
-                    <div className="inline-name-editor">
-                      <input
-                        value={editingChildName}
-                        onChange={(event) => setEditingChildName(event.target.value)}
-                        onKeyDown={(event) => event.key === 'Enter' && void saveChildName(child.id)}
-                        autoFocus
-                        aria-label={`Edit ${childFullName(child)} name`}
-                      />
-                      <button className="primary compact-button" disabled={childActionBusy === child.id} onClick={() => saveChildName(child.id)}>Save</button>
-                      <button className="ghost compact-button" disabled={childActionBusy === child.id} onClick={() => setEditingChildId(null)}>Cancel</button>
-                    </div>
-                  ) : (
-                    <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
-                  )}
-
-                  <span className="toolbar roster-actions">
-                    <button className="ghost compact-button" onClick={() => openHistory(child.id)}>View history</button>
-                    {profile.role === 'admin' && editingChildId !== child.id && (
-                      <>
-                        <button className="ghost compact-button" onClick={() => startEditingChild(child)}>Edit name</button>
-                        <button
-                          className="ghost compact-button danger-button"
-                          disabled={childActionBusy === child.id}
-                          onClick={() => setChildActive(child, false)}
-                        >
-                          {childActionBusy === child.id ? 'Archiving…' : 'Archive'}
-                        </button>
-                      </>
-                    )}
-                    <span className="badge">Active</span>
-                  </span>
-                </div>
-              ))}
-              {activeChildren.length === 0 && <div className="empty">The active roster is empty.</div>}
-            </div>
-
-            <div className="card archived-section">
-              <div className="section-heading">
+            <section className="card home-schedule-card">
+              <div className="home-section-heading">
                 <div>
-                  <h2>Archived children</h2>
-                  <p className="subtle">Archived children are hidden from Today, but all cards, points, notes, and audit history remain available.</p>
+                  <span className="home-section-kicker">What’s happening</span>
+                  <h2>Today’s Schedule</h2>
                 </div>
-                <span className="badge archived-badge">{archivedChildren.length} archived</span>
+                <span className="home-preview-pill">Preview</span>
               </div>
 
-              {archivedChildren.map((child) => (
-                <div className="summary-row roster-management-row archived-row" key={child.id}>
-                  {editingChildId === child.id ? (
-                    <div className="inline-name-editor">
-                      <input
-                        value={editingChildName}
-                        onChange={(event) => setEditingChildName(event.target.value)}
-                        onKeyDown={(event) => event.key === 'Enter' && void saveChildName(child.id)}
-                        autoFocus
-                        aria-label={`Edit ${childFullName(child)} name`}
-                      />
-                      <button className="primary compact-button" disabled={childActionBusy === child.id} onClick={() => saveChildName(child.id)}>Save</button>
-                      <button className="ghost compact-button" disabled={childActionBusy === child.id} onClick={() => setEditingChildId(null)}>Cancel</button>
-                    </div>
-                  ) : (
-                    <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
-                  )}
+              <div className="home-schedule-list">
+                <div className="home-schedule-row"><time>2:30 PM</time><span><strong>Afterschool arrival</strong><small>Check-in and snack</small></span></div>
+                <div className="home-schedule-row"><time>3:30 PM</time><span><strong>Homework / quiet time</strong><small>Example schedule item</small></span></div>
+                <div className="home-schedule-row"><time>4:30 PM</time><span><strong>Club or special activity</strong><small>Example program block</small></span></div>
+                <div className="home-schedule-row"><time>6:00 PM</time><span><strong>Wrap-up</strong><small>Center schedule preview</small></span></div>
+              </div>
+            </section>
+          </div>
 
-                  <span className="toolbar roster-actions">
-                    <button className="ghost compact-button" onClick={() => openHistory(child.id)}>View history</button>
-                    {profile.role === 'admin' && editingChildId !== child.id && (
-                      <>
-                        <button className="ghost compact-button" onClick={() => startEditingChild(child)}>Edit name</button>
-                        <button
-                          className="primary compact-button"
-                          disabled={childActionBusy === child.id}
-                          onClick={() => setChildActive(child, true)}
-                        >
-                          {childActionBusy === child.id ? 'Reactivating…' : 'Reactivate'}
-                        </button>
-                      </>
-                    )}
-                    <span className="badge archived-badge">Archived</span>
-                  </span>
+          <aside className="home-side-column">
+            <section className="card home-snapshot-card">
+              <span className="home-section-kicker">Today’s snapshot</span>
+              <h2>Operations</h2>
+              <div className="home-snapshot-grid">
+                <div><strong>{children.length}</strong><span>Active children</span></div>
+                <div><strong>{completedCards}</strong><span>Cards/statuses entered</span></div>
+                <div><strong>{missingCards}</strong><span>Still need a card/status</span></div>
+                <div className="future"><strong>—</strong><span>Attendance present now</span><small>Available after attendance records go live</small></div>
+              </div>
+            </section>
+
+            <section className="card home-birthday-card">
+              <div className="home-section-heading compact">
+                <div>
+                  <span className="home-section-kicker">Celebrate</span>
+                  <h2>Birthdays</h2>
                 </div>
-              ))}
-              {archivedChildren.length === 0 && <div className="empty">No children are archived.</div>}
-            </div>
-          </section>
-        )}
+                <span aria-hidden="true" className="home-birthday-emoji">🎂</span>
+              </div>
+              <p className="subtle">Once participant profiles include birthdays, today’s and upcoming birthdays can appear here automatically.</p>
+              <div className="home-empty-state">No birthday data connected yet.</div>
+            </section>
+
+            <section className="card home-attention-card">
+              <span className="home-section-kicker">Needs attention</span>
+              <h2>Today</h2>
+              <div className="home-attention-list">
+                {missingCards > 0 ? (
+                  <Link href="/card-tracking"><strong>{missingCards} card/status {missingCards === 1 ? 'entry is' : 'entries are'} still missing</strong><small>Open Card Tracking →</small></Link>
+                ) : (
+                  <div className="home-all-clear"><strong>✓ Card tracking is complete</strong><small>All active children have an entry today.</small></div>
+                )}
+                <div className="home-future-attention"><strong>Attendance reminders</strong><small>Will appear here once permanent attendance is enabled.</small></div>
+              </div>
+            </section>
+          </aside>
+        </section>
+
+        <section className="card home-roadmap">
+          <div>
+            <span className="home-section-kicker">Where Juanita Hub is going</span>
+            <h2>One place for daily operations and reporting</h2>
+            <p>Attendance, registration, programs, bulletin-board updates, participation reporting, and exports can eventually live here instead of being maintained across separate spreadsheets.</p>
+          </div>
+          <div className="home-roadmap-tags" aria-label="Future Juanita Hub areas">
+            <span>Attendance</span><span>Programs</span><span>Registration</span><span>Reports</span><span>Exports</span>
+          </div>
+        </section>
       </main>
     </div>
   )
