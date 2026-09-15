@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import DailyCardNotes from '@/components/DailyCardNotes'
@@ -81,8 +81,10 @@ const navGroups: NavGroup[] = [
 
 export default function SiteNavigation() {
   const pathname = usePathname()
+  const navRef = useRef<HTMLElement | null>(null)
   const [access, setAccess] = useState<AccessState>({ active: false, role: null })
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -120,15 +122,36 @@ export default function SiteNavigation() {
   }, [])
 
   function closeMenus() {
+    setOpenGroup(null)
     setMobileOpen(false)
-    document.querySelectorAll<HTMLDetailsElement>('.site-nav-group[open]').forEach((group) => {
-      group.open = false
-    })
   }
 
   useEffect(() => {
     closeMenus()
   }, [pathname])
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+        setOpenGroup(null)
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpenGroup(null)
+        setMobileOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   if (!access.active) return null
 
@@ -146,9 +169,13 @@ export default function SiteNavigation() {
     return group.items.filter((item) => !item.adminOnly || access.role === 'admin')
   }
 
+  function toggleGroup(label: string) {
+    setOpenGroup((current) => current === label ? null : label)
+  }
+
   return (
     <>
-      <nav className="site-nav" aria-label="Juanita Hub site navigation">
+      <nav ref={navRef} className="site-nav" aria-label="Juanita Hub site navigation">
         <div className="site-nav-inner">
           <Link className="site-nav-brand" href="/" aria-label="Juanita Hub dashboard" onClick={closeMenus}>
             <span className="site-nav-mark" aria-hidden="true">JH</span>
@@ -163,7 +190,10 @@ export default function SiteNavigation() {
             type="button"
             aria-expanded={mobileOpen}
             aria-controls="juanita-site-menu"
-            onClick={() => setMobileOpen((open) => !open)}
+            onClick={() => {
+              setOpenGroup(null)
+              setMobileOpen((open) => !open)
+            }}
           >
             <span className="site-nav-toggle-lines" aria-hidden="true">
               <span />
@@ -187,45 +217,56 @@ export default function SiteNavigation() {
               const items = visibleItems(group)
               if (items.length === 0) return null
               const active = groupIsCurrent({ ...group, items })
+              const isOpen = openGroup === group.label
+              const groupId = `nav-group-${group.label.toLowerCase().replace(/\s+/g, '-')}`
 
               return (
-                <details className={`site-nav-group ${active ? 'active' : ''}`} key={group.label}>
-                  <summary>
+                <div className={`site-nav-group ${active ? 'active' : ''} ${isOpen ? 'open' : ''}`} key={group.label}>
+                  <button
+                    type="button"
+                    className="site-nav-group-trigger"
+                    aria-expanded={isOpen}
+                    aria-controls={groupId}
+                    onClick={() => toggleGroup(group.label)}
+                  >
                     <span>{group.label}</span>
                     <span className="site-nav-chevron" aria-hidden="true">⌄</span>
-                  </summary>
-                  <div className="site-nav-dropdown">
-                    {items.map((item) => {
-                      if (item.comingSoon || !item.href) {
+                  </button>
+
+                  {isOpen && (
+                    <div className="site-nav-dropdown" id={groupId}>
+                      {items.map((item) => {
+                        if (item.comingSoon || !item.href) {
+                          return (
+                            <div className="site-nav-dropdown-item coming-soon" key={item.label}>
+                              <span>
+                                <strong>{item.label}</strong>
+                                {item.description && <small>{item.description}</small>}
+                              </span>
+                              <span className="site-nav-soon">Coming soon</span>
+                            </div>
+                          )
+                        }
+
+                        const current = isCurrent(item.href)
                         return (
-                          <div className="site-nav-dropdown-item coming-soon" key={item.label}>
+                          <Link
+                            className={`site-nav-dropdown-item ${current ? 'active' : ''}`}
+                            href={item.href}
+                            key={item.href}
+                            aria-current={current ? 'page' : undefined}
+                            onClick={closeMenus}
+                          >
                             <span>
                               <strong>{item.label}</strong>
                               {item.description && <small>{item.description}</small>}
                             </span>
-                            <span className="site-nav-soon">Coming soon</span>
-                          </div>
+                          </Link>
                         )
-                      }
-
-                      const current = isCurrent(item.href)
-                      return (
-                        <Link
-                          className={`site-nav-dropdown-item ${current ? 'active' : ''}`}
-                          href={item.href}
-                          key={item.href}
-                          aria-current={current ? 'page' : undefined}
-                          onClick={closeMenus}
-                        >
-                          <span>
-                            <strong>{item.label}</strong>
-                            {item.description && <small>{item.description}</small>}
-                          </span>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </details>
+                      })}
+                    </div>
+                  )}
+                </div>
               )
             })}
 
