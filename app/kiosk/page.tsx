@@ -63,7 +63,7 @@ function formatToday() {
 
 export default function KioskPreviewPage() {
   const router = useRouter()
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdTimer = useRef<number | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [children, setChildren] = useState<Child[]>([])
   const [loading, setLoading] = useState(true)
