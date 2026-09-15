@@ -7,6 +7,7 @@ import './kiosk-polish.css'
 import './nav-fixes.css'
 import './dashboard-home.css'
 import './kiosk.css'
+import './kiosk-board.css'
 
 export const metadata: Metadata = {
   title: 'Juanita Hub',
