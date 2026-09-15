@@ -17,9 +17,11 @@ type Child = {
   active: boolean
 }
 
+type Mood = 'happy' | 'meh' | 'sad'
+
 type ChildAttendance = {
-  checkIn: string | null
-  checkOut: string | null
+  checkIn: string
+  mood: Mood
 }
 
 type CommunityVisit = {
@@ -42,6 +44,12 @@ const purposes = [
   'Other',
 ]
 
+const moods: Array<{ value: Mood; emoji: string; label: string; helper: string }> = [
+  { value: 'happy', emoji: '😀', label: 'Good', helper: 'I feel good today' },
+  { value: 'meh', emoji: '😐', label: 'Meh', helper: 'I feel just okay' },
+  { value: 'sad', emoji: '🙁', label: 'Not great', helper: 'I am having a hard day' },
+]
+
 function childName(child: Child) {
   return `${child.first_name}${child.last_name ? ` ${child.last_name}` : ''}`
 }
@@ -56,6 +64,10 @@ function localDateKey() {
   return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 10)
 }
 
+function moodDetails(mood: Mood) {
+  return moods.find((item) => item.value === mood) ?? moods[1]
+}
+
 export default function AttendancePrototypePage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -66,6 +78,8 @@ export default function AttendancePrototypePage() {
   const [attendanceDate, setAttendanceDate] = useState(localDateKey())
   const [search, setSearch] = useState('')
   const [childAttendance, setChildAttendance] = useState<Record<number, ChildAttendance>>({})
+  const [selectedChild, setSelectedChild] = useState<Child | null>(null)
+  const [celebration, setCelebration] = useState<{ firstName: string; mood: Mood } | null>(null)
   const [communityVisits, setCommunityVisits] = useState<CommunityVisit[]>([])
   const [communityName, setCommunityName] = useState('')
   const [communityGroup, setCommunityGroup] = useState<CommunityVisit['group']>('Adult')
@@ -118,48 +132,55 @@ export default function AttendancePrototypePage() {
 
   const filteredChildren = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return children
-    return children.filter((child) => childName(child).toLowerCase().includes(query))
-  }, [children, search])
+    const matches = query
+      ? children.filter((child) => childName(child).toLowerCase().includes(query))
+      : children
+
+    return [...matches].sort((a, b) => {
+      const aDone = childAttendance[a.id] ? 1 : 0
+      const bDone = childAttendance[b.id] ? 1 : 0
+      if (aDone !== bDone) return aDone - bDone
+      return childName(a).localeCompare(childName(b))
+    })
+  }, [children, search, childAttendance])
 
   const childCheckedIn = useMemo(
-    () => Object.values(childAttendance).filter((record) => record.checkIn).length,
-    [childAttendance],
-  )
-
-  const childPresentNow = useMemo(
-    () => Object.values(childAttendance).filter((record) => record.checkIn && !record.checkOut).length,
+    () => Object.keys(childAttendance).length,
     [childAttendance],
   )
 
   const communityCheckedIn = communityVisits.length
   const communityPresentNow = communityVisits.filter((visit) => !visit.checkOut).length
   const totalVisits = childCheckedIn + communityCheckedIn
-  const presentNow = childPresentNow + communityPresentNow
+  const presentNow = childCheckedIn + communityPresentNow
 
-  function toggleChild(childId: number) {
-    setChildAttendance((current) => {
-      const record = current[childId]
+  function startChildCheckIn(child: Child) {
+    const record = childAttendance[child.id]
+    if (record) {
+      setMessage(`${childName(child)} is already checked in for this prototype session.`)
+      return
+    }
 
-      if (!record?.checkIn) {
-        return {
-          ...current,
-          [childId]: { checkIn: timeNow(), checkOut: null },
-        }
-      }
+    setMessage('')
+    setSelectedChild(child)
+  }
 
-      if (!record.checkOut) {
-        return {
-          ...current,
-          [childId]: { ...record, checkOut: timeNow() },
-        }
-      }
+  function finishChildCheckIn(mood: Mood) {
+    if (!selectedChild) return
 
-      return {
-        ...current,
-        [childId]: { checkIn: timeNow(), checkOut: null },
-      }
-    })
+    const child = selectedChild
+    setChildAttendance((current) => ({
+      ...current,
+      [child.id]: {
+        checkIn: timeNow(),
+        mood,
+      },
+    }))
+    setSelectedChild(null)
+    setCelebration({ firstName: child.first_name, mood })
+    setMessage('')
+
+    window.setTimeout(() => setCelebration(null), 1500)
   }
 
   function addCommunityVisit() {
@@ -197,6 +218,8 @@ export default function AttendancePrototypePage() {
     setChildAttendance({})
     setCommunityVisits([])
     setSearch('')
+    setSelectedChild(null)
+    setCelebration(null)
     setMessage('Prototype attendance cleared.')
   }
 
@@ -242,25 +265,25 @@ export default function AttendancePrototypePage() {
         <section className="hero attendance-hero">
           <div>
             <span className="attendance-eyebrow">Prototype • Nothing is saved yet</span>
-            <h1>Daily Attendance</h1>
-            <p className="subtle">Test the check-in workflow on a phone or tablet before we connect attendance to permanent records.</p>
+            <h1>Daily Attendance & Check-In</h1>
+            <p className="subtle">A simple daily routine for youth check-in, feelings, and community attendance—designed for the tablet and staff phones.</p>
           </div>
           <label className="field attendance-date-field">
-            <span>Attendance date</span>
+            <span>Prototype date</span>
             <input type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} />
           </label>
         </section>
 
         <div className="notice attendance-safety-notice">
-          <strong>Safe prototype:</strong> child names are read from the existing roster, but every check-in below lives only in this browser session. Refreshing or clearing the prototype removes it. No attendance records are written to Supabase.
+          <strong>Safe prototype:</strong> child names are read from the existing roster, but every check-in below lives only in this browser session. No attendance or mood records are written to Supabase yet.
         </div>
 
         {message && <div className="notice">{message}</div>}
 
         <section className="grid attendance-stats">
-          <div className="card stat"><span className="subtle">Present now</span><strong>{presentNow}</strong></div>
+          <div className="card stat"><span className="subtle">Here now</span><strong>{presentNow}</strong></div>
           <div className="card stat"><span className="subtle">Total visits today</span><strong>{totalVisits}</strong></div>
-          <div className="card stat"><span className="subtle">Children checked in</span><strong>{childCheckedIn}</strong></div>
+          <div className="card stat"><span className="subtle">Children checked in</span><strong>{childCheckedIn}/{children.length}</strong></div>
           <div className="card stat"><span className="subtle">Community visits</span><strong>{communityCheckedIn}</strong></div>
         </section>
 
@@ -271,8 +294,8 @@ export default function AttendancePrototypePage() {
               className={tab === 'children' ? 'active' : ''}
               onClick={() => setTab('children')}
             >
-              Children
-              <span>{childPresentNow} here now</span>
+              Youth Check-In
+              <span>{childCheckedIn} checked in</span>
             </button>
             <button
               type="button"
@@ -286,10 +309,11 @@ export default function AttendancePrototypePage() {
 
           {tab === 'children' ? (
             <div className="attendance-panel">
-              <div className="section-heading attendance-section-heading">
-                <div>
-                  <h2>Child check-in</h2>
-                  <p className="subtle">Tap once to check in, then tap again when the child leaves.</p>
+              <div className="attendance-kiosk-intro">
+                <div className="attendance-kiosk-steps" aria-label="Youth check-in steps">
+                  <span><strong>1</strong> Find your name</span>
+                  <span><strong>2</strong> Tap your card</span>
+                  <span><strong>3</strong> Tell us how you feel</span>
                 </div>
                 <label className="attendance-search">
                   <span className="sr-only">Search children</span>
@@ -297,7 +321,7 @@ export default function AttendancePrototypePage() {
                     type="search"
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search child…"
+                    placeholder="Search your name…"
                   />
                 </label>
               </div>
@@ -305,24 +329,22 @@ export default function AttendancePrototypePage() {
               <div className="attendance-roster">
                 {filteredChildren.map((child) => {
                   const record = childAttendance[child.id]
-                  const currentlyHere = Boolean(record?.checkIn && !record?.checkOut)
-                  const visited = Boolean(record?.checkIn)
+                  const mood = record ? moodDetails(record.mood) : null
 
                   return (
                     <button
                       type="button"
                       key={child.id}
-                      className={`attendance-person ${currentlyHere ? 'present' : visited ? 'checked-out' : ''}`}
-                      onClick={() => toggleChild(child.id)}
+                      className={`attendance-person ${record ? 'present' : ''}`}
+                      onClick={() => startChildCheckIn(child)}
                     >
                       <span className="attendance-person-name">{childName(child)}</span>
                       <span className="attendance-person-status">
-                        {!visited && 'Tap to check in'}
-                        {currentlyHere && `Checked in ${record?.checkIn}`}
-                        {visited && !currentlyHere && `Left ${record?.checkOut} • tap to check in again`}
+                        {!record && 'Tap your name to check in'}
+                        {record && `${mood?.emoji} Checked in at ${record.checkIn}`}
                       </span>
                       <span className="attendance-person-action">
-                        {!visited ? 'Check in' : currentlyHere ? 'Check out' : 'Check in'}
+                        {!record ? 'Check in' : 'Done ✓'}
                       </span>
                     </button>
                   )
@@ -338,7 +360,7 @@ export default function AttendancePrototypePage() {
               <div className="section-heading attendance-section-heading">
                 <div>
                   <h2>Community check-in</h2>
-                  <p className="subtle">Prototype how adults, families, and other visitors could be counted alongside youth attendance.</p>
+                  <p className="subtle">Adults, families, and other visitors can be counted alongside youth attendance for monthly reporting.</p>
                 </div>
               </div>
 
@@ -406,14 +428,66 @@ export default function AttendancePrototypePage() {
           )}
         </section>
 
+        <section className="card attendance-record-plan">
+          <div>
+            <span className="attendance-eyebrow">Next production step</span>
+            <h2>Attendance should save itself</h2>
+            <p className="subtle">In the permanent version, every completed check-in will be saved to Juanita Hub immediately. Monthly child and adult totals and averages can then be calculated automatically—no one needs to re-enter or total a year of attendance in Google Sheets.</p>
+          </div>
+          <div className="attendance-record-points">
+            <span><strong>Instant</strong> database record</span>
+            <span><strong>Automatic</strong> monthly averages</span>
+            <span><strong>Optional</strong> spreadsheet export</span>
+          </div>
+        </section>
+
         <section className="card attendance-next-step">
           <div>
             <h2>What we are testing</h2>
-            <p className="subtle">Before permanent attendance is built, try this on the Android tablet and your phones. The goal is to learn whether the tap sizes, child search, visitor check-in, and check-out flow feel fast enough during a real workday.</p>
+            <p className="subtle">Try the youth routine on the Android tablet and a phone. We want the three-step check-in to be memorable enough for children to do every day and fast enough that staff can immediately see who has not checked in.</p>
           </div>
           <button type="button" className="ghost danger-button" onClick={resetPrototype}>Clear prototype session</button>
         </section>
       </main>
+
+      {selectedChild && (
+        <div className="attendance-mood-backdrop" role="presentation" onClick={() => setSelectedChild(null)}>
+          <section
+            className="attendance-mood-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="attendance-mood-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button type="button" className="attendance-mood-close" aria-label="Cancel check-in" onClick={() => setSelectedChild(null)}>×</button>
+            <span className="attendance-mood-name">Hi, {selectedChild.first_name}!</span>
+            <h2 id="attendance-mood-title">How are you feeling today?</h2>
+            <p className="subtle">Pick the face that feels most like you right now.</p>
+            <div className="attendance-mood-grid">
+              {moods.map((mood) => (
+                <button type="button" key={mood.value} className={`attendance-mood-option ${mood.value}`} onClick={() => finishChildCheckIn(mood.value)}>
+                  <span className="attendance-mood-emoji" aria-hidden="true">{mood.emoji}</span>
+                  <strong>{mood.label}</strong>
+                  <small>{mood.helper}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {celebration && (
+        <div className="attendance-celebration" role="status" aria-live="polite">
+          <div className="attendance-celebration-card">
+            <div className="attendance-celebration-sparkles" aria-hidden="true">
+              <span>●</span><span>★</span><span>●</span><span>★</span><span>●</span>
+            </div>
+            <span className="attendance-celebration-emoji" aria-hidden="true">{moodDetails(celebration.mood).emoji}</span>
+            <h2>You're checked in, {celebration.firstName}!</h2>
+            <p>Thanks for telling us how you're feeling. ✨</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
