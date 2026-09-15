@@ -4,6 +4,7 @@ import './globals.css'
 import './redesign.css'
 import './attendance.css'
 import './kiosk-polish.css'
+import './nav-fixes.css'
 
 export const metadata: Metadata = {
   title: 'Juanita Hub',
