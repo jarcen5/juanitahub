@@ -158,7 +158,7 @@ export default function SiteNavigation() {
     }
   }, [])
 
-  if (pathname.startsWith('/kiosk')) return null
+  if (pathname.startsWith('/kiosk') || pathname.startsWith('/reset-password') || pathname.startsWith('/forgot-password')) return null
   if (!access.active) return null
 
   function isCurrent(href?: string) {
