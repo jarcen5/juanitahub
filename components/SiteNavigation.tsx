@@ -31,7 +31,12 @@ const navGroups: NavGroup[] = [
       {
         href: '/attendance',
         label: 'Attendance',
-        description: 'Prototype phone and tablet check-in for the center.',
+        description: 'Prototype staff attendance workspace for the center.',
+      },
+      {
+        href: '/card-tracking',
+        label: 'Card Tracking',
+        description: 'Daily behavior cards, statuses, summaries, and child history.',
       },
       {
         href: '/missed-cards',
@@ -153,6 +158,7 @@ export default function SiteNavigation() {
     }
   }, [])
 
+  if (pathname.startsWith('/kiosk')) return null
   if (!access.active) return null
 
   function isCurrent(href?: string) {
