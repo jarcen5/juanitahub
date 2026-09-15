@@ -119,8 +119,15 @@ export default function SiteNavigation() {
     }
   }, [])
 
-  useEffect(() => {
+  function closeMenus() {
     setMobileOpen(false)
+    document.querySelectorAll<HTMLDetailsElement>('.site-nav-group[open]').forEach((group) => {
+      group.open = false
+    })
+  }
+
+  useEffect(() => {
+    closeMenus()
   }, [pathname])
 
   if (!access.active) return null
@@ -143,7 +150,7 @@ export default function SiteNavigation() {
     <>
       <nav className="site-nav" aria-label="Juanita Hub site navigation">
         <div className="site-nav-inner">
-          <Link className="site-nav-brand" href="/" aria-label="Juanita Hub dashboard">
+          <Link className="site-nav-brand" href="/" aria-label="Juanita Hub dashboard" onClick={closeMenus}>
             <span className="site-nav-mark" aria-hidden="true">JH</span>
             <span>
               <strong>Juanita Hub</strong>
@@ -171,6 +178,7 @@ export default function SiteNavigation() {
               href="/"
               className={`site-nav-link ${isCurrent('/') ? 'active' : ''}`}
               aria-current={isCurrent('/') ? 'page' : undefined}
+              onClick={closeMenus}
             >
               Dashboard
             </Link>
@@ -207,6 +215,7 @@ export default function SiteNavigation() {
                           href={item.href}
                           key={item.href}
                           aria-current={current ? 'page' : undefined}
+                          onClick={closeMenus}
                         >
                           <span>
                             <strong>{item.label}</strong>
