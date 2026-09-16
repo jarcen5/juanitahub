@@ -224,6 +224,10 @@ export default function SiteNavigation() {
               Dashboard
             </Link>
 
+            <Link href="/calendar" className={`site-nav-link ${isCurrent('/calendar') ? 'active' : ''}`} aria-current={isCurrent('/calendar') ? 'page' : undefined} onClick={closeMenus}>
+              Calendar
+            </Link>
+
             {navGroups.map((group) => {
               const items = visibleItems(group)
               if (items.length === 0) return null
