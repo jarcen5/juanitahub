@@ -3,16 +3,18 @@ import SiteNavigation from '@/components/SiteNavigation'
 import './globals.css'
 import './redesign.css'
 import './attendance.css'
+import './attendance-live.css'
 import './kiosk-polish.css'
 import './nav-fixes.css'
 import './dashboard-home.css'
 import './kiosk.css'
 import './kiosk-board.css'
 import './auth-recovery.css'
+import './reports.css'
 
 export const metadata: Metadata = {
   title: 'Juanita Hub',
-  description: 'Behavior tracking and monthly rewards dashboard for JSCLC staff.'
+  description: 'Community center operations, attendance, behavior, rewards, and reporting for JSCLC staff.'
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
