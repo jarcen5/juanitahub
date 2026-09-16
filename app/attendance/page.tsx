@@ -18,22 +18,34 @@ type Child = {
 }
 
 type Mood = 'happy' | 'meh' | 'sad'
+type StoredMood = 'good' | 'okay' | 'hard_day'
 
-type ChildAttendance = {
-  checkIn: string
-  mood: Mood
+type AttendanceVisit = {
+  id: number
+  service_date: string
+  participant_type: 'child' | 'adult' | 'family' | 'visitor'
+  child_id: number | null
+  visitor_name: string | null
+  purpose: string | null
+  signed_in_at: string
+  signed_out_at: string | null
+  source: string
+  status: 'active' | 'voided'
 }
 
-type CommunityVisit = {
-  id: string
-  name: string
-  group: 'Adult' | 'Family' | 'Visitor'
-  purpose: string
-  checkIn: string
-  checkOut: string | null
+type AttendanceWellbeing = {
+  visit_id: number
+  mood: StoredMood
+}
+
+type OperatingDay = {
+  service_date: string
+  is_open: boolean
+  reason: string | null
 }
 
 type AttendanceTab = 'children' | 'community'
+type MoodMode = 'signin' | 'correct'
 
 const purposes = [
   'Program / Activity',
@@ -44,18 +56,14 @@ const purposes = [
   'Other',
 ]
 
-const moods: Array<{ value: Mood; emoji: string; label: string; helper: string }> = [
-  { value: 'happy', emoji: '😀', label: 'Good', helper: 'I feel good today' },
-  { value: 'meh', emoji: '😐', label: 'Meh', helper: 'I feel just okay' },
-  { value: 'sad', emoji: '🙁', label: 'Not great', helper: 'I am having a hard day' },
+const moods: Array<{ value: Mood; stored: StoredMood; emoji: string; label: string; helper: string }> = [
+  { value: 'happy', stored: 'good', emoji: '😀', label: 'Good', helper: 'I feel good today' },
+  { value: 'meh', stored: 'okay', emoji: '😐', label: 'Meh', helper: 'I feel just okay' },
+  { value: 'sad', stored: 'hard_day', emoji: '🙁', label: 'Not great', helper: 'I am having a hard day' },
 ]
 
 function childName(child: Child) {
   return `${child.first_name}${child.last_name ? ` ${child.last_name}` : ''}`
-}
-
-function timeNow() {
-  return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
 function localDateKey() {
@@ -64,26 +72,37 @@ function localDateKey() {
   return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 10)
 }
 
-function moodDetails(mood: Mood) {
-  return moods.find((item) => item.value === mood) ?? moods[1]
+function formatTime(value: string | null) {
+  if (!value) return ''
+  return new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
-export default function AttendancePrototypePage() {
+function moodDetails(mood: StoredMood | undefined) {
+  return moods.find((item) => item.stored === mood) ?? null
+}
+
+export default function AttendancePage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [children, setChildren] = useState<Child[]>([])
+  const [visits, setVisits] = useState<AttendanceVisit[]>([])
+  const [wellbeing, setWellbeing] = useState<Record<number, StoredMood>>({})
+  const [operatingDay, setOperatingDay] = useState<OperatingDay | null>(null)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [tab, setTab] = useState<AttendanceTab>('children')
   const [attendanceDate, setAttendanceDate] = useState(localDateKey())
   const [search, setSearch] = useState('')
-  const [childAttendance, setChildAttendance] = useState<Record<number, ChildAttendance>>({})
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
+  const [moodMode, setMoodMode] = useState<MoodMode>('signin')
+  const [correctionVisitId, setCorrectionVisitId] = useState<number | null>(null)
   const [celebration, setCelebration] = useState<{ firstName: string; mood: Mood } | null>(null)
-  const [communityVisits, setCommunityVisits] = useState<CommunityVisit[]>([])
   const [communityName, setCommunityName] = useState('')
-  const [communityGroup, setCommunityGroup] = useState<CommunityVisit['group']>('Adult')
+  const [communityGroup, setCommunityGroup] = useState<'Adult' | 'Family' | 'Visitor'>('Adult')
   const [communityPurpose, setCommunityPurpose] = useState(purposes[0])
+
+  const today = localDateKey()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -101,13 +120,13 @@ export default function AttendancePrototypePage() {
   useEffect(() => {
     if (!session) return
     void loadData()
-  }, [session])
+  }, [session, attendanceDate])
 
   async function loadData() {
     if (!session) return
     setLoading(true)
 
-    const [profileResult, childrenResult] = await Promise.all([
+    const [profileResult, childrenResult, visitsResult, operatingResult] = await Promise.all([
       supabase
         .from('staff_profiles')
         .select('display_name, role, active')
@@ -119,16 +138,55 @@ export default function AttendancePrototypePage() {
         .eq('active', true)
         .order('first_name')
         .order('last_name'),
+      supabase
+        .from('attendance_visits')
+        .select('id, service_date, participant_type, child_id, visitor_name, purpose, signed_in_at, signed_out_at, source, status')
+        .eq('service_date', attendanceDate)
+        .eq('status', 'active')
+        .order('signed_in_at', { ascending: false }),
+      supabase
+        .from('operating_days')
+        .select('service_date, is_open, reason')
+        .eq('service_date', attendanceDate)
+        .maybeSingle(),
     ])
 
-    if (profileResult.error || childrenResult.error) {
-      setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? 'Attendance could not be loaded.')
+    const error = profileResult.error ?? childrenResult.error ?? visitsResult.error ?? operatingResult.error
+    if (error) setMessage(error.message)
+
+    const nextVisits = (visitsResult.data ?? []) as AttendanceVisit[]
+    const childVisitIds = nextVisits
+      .filter((visit) => visit.participant_type === 'child')
+      .map((visit) => visit.id)
+
+    let moodMap: Record<number, StoredMood> = {}
+    if (childVisitIds.length > 0) {
+      const moodResult = await supabase
+        .from('attendance_wellbeing')
+        .select('visit_id, mood')
+        .in('visit_id', childVisitIds)
+
+      if (moodResult.error) setMessage(moodResult.error.message)
+      moodMap = Object.fromEntries(
+        ((moodResult.data ?? []) as AttendanceWellbeing[]).map((row) => [row.visit_id, row.mood]),
+      )
     }
 
     setProfile(profileResult.data as Profile | null)
     setChildren((childrenResult.data ?? []) as Child[])
+    setVisits(nextVisits)
+    setWellbeing(moodMap)
+    setOperatingDay(operatingResult.data as OperatingDay | null)
     setLoading(false)
   }
+
+  const childVisitByChild = useMemo(() => {
+    const map = new Map<number, AttendanceVisit>()
+    visits.forEach((visit) => {
+      if (visit.participant_type === 'child' && visit.child_id != null) map.set(visit.child_id, visit)
+    })
+    return map
+  }, [visits])
 
   const filteredChildren = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -137,94 +195,174 @@ export default function AttendancePrototypePage() {
       : children
 
     return [...matches].sort((a, b) => {
-      const aDone = childAttendance[a.id] ? 1 : 0
-      const bDone = childAttendance[b.id] ? 1 : 0
+      const aDone = childVisitByChild.has(a.id) ? 1 : 0
+      const bDone = childVisitByChild.has(b.id) ? 1 : 0
       if (aDone !== bDone) return aDone - bDone
       return childName(a).localeCompare(childName(b))
     })
-  }, [children, search, childAttendance])
+  }, [children, search, childVisitByChild])
 
-  const childCheckedIn = useMemo(
-    () => Object.keys(childAttendance).length,
-    [childAttendance],
-  )
+  const childSignedIn = visits.filter((visit) => visit.participant_type === 'child').length
+  const communityVisits = visits.filter((visit) => visit.participant_type !== 'child')
+  const communityPresentNow = communityVisits.filter((visit) => !visit.signed_out_at).length
+  const totalVisits = visits.length
+  const presentNow = childSignedIn + communityPresentNow
 
-  const communityCheckedIn = communityVisits.length
-  const communityPresentNow = communityVisits.filter((visit) => !visit.checkOut).length
-  const totalVisits = childCheckedIn + communityCheckedIn
-  const presentNow = childCheckedIn + communityPresentNow
-
-  function startChildCheckIn(child: Child) {
-    const record = childAttendance[child.id]
-    if (record) {
-      setMessage(`${childName(child)} is already checked in for this prototype session.`)
-      return
-    }
-
-    setMessage('')
+  function startChildSignIn(child: Child) {
+    if (childVisitByChild.has(child.id)) return
+    setMoodMode('signin')
+    setCorrectionVisitId(null)
     setSelectedChild(child)
+    setMessage('')
   }
 
-  function finishChildCheckIn(mood: Mood) {
-    if (!selectedChild) return
+  function startMoodCorrection(child: Child, visitId: number) {
+    setMoodMode('correct')
+    setCorrectionVisitId(visitId)
+    setSelectedChild(child)
+    setMessage('')
+  }
 
+  async function finishChildMood(mood: Mood) {
+    if (!selectedChild || saving) return
     const child = selectedChild
-    setChildAttendance((current) => ({
-      ...current,
-      [child.id]: {
-        checkIn: timeNow(),
-        mood,
-      },
-    }))
-    setSelectedChild(null)
-    setCelebration({ firstName: child.first_name, mood })
+    setSaving(true)
     setMessage('')
 
-    window.setTimeout(() => setCelebration(null), 1500)
-  }
+    if (moodMode === 'correct' && correctionVisitId != null) {
+      const reason = window.prompt('Why are you correcting this mood selection?')?.trim()
+      if (!reason) {
+        setSaving(false)
+        return
+      }
 
-  function addCommunityVisit() {
-    const name = communityName.trim()
-    if (!name) {
-      setMessage('Enter a name or identifier for the community visitor first.')
+      const { error } = await supabase.rpc('correct_child_mood', {
+        p_visit_id: correctionVisitId,
+        p_mood: mood,
+        p_reason: reason,
+      })
+
+      if (error) {
+        setMessage(error.message)
+        setSaving(false)
+        return
+      }
+
+      setSelectedChild(null)
+      setCorrectionVisitId(null)
+      setSaving(false)
+      setMessage(`${child.first_name}'s mood was corrected and the change was added to the audit history.`)
+      await loadData()
       return
     }
 
-    setCommunityVisits((current) => [
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        name,
-        group: communityGroup,
-        purpose: communityPurpose,
-        checkIn: timeNow(),
-        checkOut: null,
-      },
-      ...current,
-    ])
-    setCommunityName('')
-    setMessage('')
-  }
+    const { error } = await supabase.rpc('sign_in_child', {
+      p_child_id: child.id,
+      p_mood: mood,
+      p_service_date: attendanceDate,
+      p_source: 'staff',
+    })
 
-  function toggleCommunityCheckout(id: string) {
-    setCommunityVisits((current) => current.map((visit) => (
-      visit.id === id
-        ? { ...visit, checkOut: visit.checkOut ? null : timeNow() }
-        : visit
-    )))
-  }
+    if (error) {
+      setMessage(error.message)
+      setSaving(false)
+      return
+    }
 
-  function resetPrototype() {
-    if (!window.confirm('Clear all prototype attendance from this browser session? Nothing has been saved to Juanita Hub.')) return
-    setChildAttendance({})
-    setCommunityVisits([])
-    setSearch('')
     setSelectedChild(null)
-    setCelebration(null)
-    setMessage('Prototype attendance cleared.')
+    setSaving(false)
+    setCelebration({ firstName: child.first_name, mood })
+    window.setTimeout(() => setCelebration(null), 1500)
+    await loadData()
+  }
+
+  async function addCommunityVisit() {
+    const name = communityName.trim()
+    if (!name || saving) {
+      if (!name) setMessage('Enter a name or identifier for the community visitor first.')
+      return
+    }
+
+    setSaving(true)
+    setMessage('')
+
+    const { error } = await supabase.rpc('sign_in_visitor', {
+      p_name: name,
+      p_visitor_type: communityGroup,
+      p_purpose: communityPurpose,
+      p_service_date: attendanceDate,
+      p_source: 'staff',
+    })
+
+    if (error) {
+      setMessage(error.message)
+      setSaving(false)
+      return
+    }
+
+    setCommunityName('')
+    setSaving(false)
+    setMessage(`${name} was signed in and saved.`)
+    await loadData()
+  }
+
+  async function signOutVisitor(visitId: number) {
+    if (saving) return
+    setSaving(true)
+    setMessage('')
+
+    const { error } = await supabase.rpc('sign_out_visitor', { p_visit_id: visitId })
+    if (error) setMessage(error.message)
+    else setMessage('Visitor sign-out saved.')
+
+    setSaving(false)
+    await loadData()
+  }
+
+  async function voidVisit(visit: AttendanceVisit) {
+    const reason = window.prompt('Why should this sign-in be removed from attendance totals? The original record will remain in the audit history.')?.trim()
+    if (!reason || saving) return
+
+    setSaving(true)
+    setMessage('')
+    const { error } = await supabase.rpc('void_attendance_visit', {
+      p_visit_id: visit.id,
+      p_reason: reason,
+    })
+
+    if (error) setMessage(error.message)
+    else setMessage('The sign-in was voided and preserved in the audit history.')
+
+    setSaving(false)
+    await loadData()
+  }
+
+  async function setDayStatus(isOpen: boolean) {
+    if (saving) return
+    let reason = ''
+
+    if (!isOpen) {
+      reason = window.prompt('Why was the center closed on this date?')?.trim() ?? ''
+      if (!reason) return
+    }
+
+    setSaving(true)
+    setMessage('')
+    const { error } = await supabase.rpc('set_operating_day', {
+      p_service_date: attendanceDate,
+      p_is_open: isOpen,
+      p_reason: reason || null,
+    })
+
+    if (error) setMessage(error.message)
+    else setMessage(isOpen ? 'This date is now counted as an open center day.' : 'This date is recorded as closed and will not count toward attendance averages.')
+
+    setSaving(false)
+    await loadData()
   }
 
   if (loading && !session) {
-    return <main className="login-wrap"><div className="card login-card">Loading Attendance prototype…</div></main>
+    return <main className="login-wrap"><div className="card login-card">Loading Attendance…</div></main>
   }
 
   if (!session) {
@@ -232,7 +370,7 @@ export default function AttendancePrototypePage() {
       <main className="login-wrap">
         <section className="card login-card">
           <h1>Attendance</h1>
-          <p className="subtle">Sign in through Juanita Hub before testing attendance.</p>
+          <p className="subtle">Sign in through Juanita Hub before using attendance.</p>
         </section>
       </main>
     )
@@ -254,7 +392,7 @@ export default function AttendancePrototypePage() {
       <header className="topbar">
         <div className="brand">
           Juanita Hub
-          <small>Attendance prototype</small>
+          <small>Attendance</small>
         </div>
         <div className="toolbar">
           <span>{profile.display_name} <span className="badge">{profile.role}</span></span>
@@ -264,44 +402,47 @@ export default function AttendancePrototypePage() {
       <main className="main attendance-page">
         <section className="hero attendance-hero">
           <div>
-            <span className="attendance-eyebrow">Prototype • Nothing is saved yet</span>
-            <h1>Daily Attendance & Check-In</h1>
-            <p className="subtle">A simple daily routine for youth check-in, feelings, and community attendance—designed for the tablet and staff phones.</p>
+            <span className="attendance-eyebrow">Permanent records • saves automatically</span>
+            <h1>Daily Attendance & Sign-Ins</h1>
+            <p className="subtle">Child and community sign-ins are saved immediately to Juanita Hub and feed the monthly attendance reports.</p>
           </div>
           <label className="field attendance-date-field">
-            <span>Prototype date</span>
-            <input type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} />
+            <span>Attendance date</span>
+            <input type="date" value={attendanceDate} max={today} onChange={(event) => setAttendanceDate(event.target.value)} />
           </label>
         </section>
 
-        <div className="notice attendance-safety-notice">
-          <strong>Safe prototype:</strong> child names are read from the existing roster, but every check-in below lives only in this browser session. No attendance or mood records are written to Supabase yet.
-        </div>
+        <section className="card attendance-operating-day">
+          <div>
+            <span className="attendance-eyebrow">Reporting denominator</span>
+            <h2>Center operating day</h2>
+            <p className="subtle">Monthly averages use days marked open—not calendar days.</p>
+          </div>
+          <div className="attendance-operating-actions">
+            <span className={`attendance-day-status ${operatingDay ? (operatingDay.is_open ? 'open' : 'closed') : 'unrecorded'}`}>
+              {operatingDay ? (operatingDay.is_open ? 'Open day' : `Closed${operatingDay.reason ? ` • ${operatingDay.reason}` : ''}`) : 'Not recorded yet'}
+            </span>
+            <button type="button" className="ghost" onClick={() => void setDayStatus(true)} disabled={saving}>Mark open</button>
+            <button type="button" className="ghost" onClick={() => void setDayStatus(false)} disabled={saving}>Mark closed</button>
+          </div>
+        </section>
 
         {message && <div className="notice">{message}</div>}
 
         <section className="grid attendance-stats">
           <div className="card stat"><span className="subtle">Here now</span><strong>{presentNow}</strong></div>
-          <div className="card stat"><span className="subtle">Total visits today</span><strong>{totalVisits}</strong></div>
-          <div className="card stat"><span className="subtle">Children checked in</span><strong>{childCheckedIn}/{children.length}</strong></div>
-          <div className="card stat"><span className="subtle">Community visits</span><strong>{communityCheckedIn}</strong></div>
+          <div className="card stat"><span className="subtle">Total sign-ins</span><strong>{totalVisits}</strong></div>
+          <div className="card stat"><span className="subtle">Children signed in</span><strong>{childSignedIn}/{children.length}</strong></div>
+          <div className="card stat"><span className="subtle">Community sign-ins</span><strong>{communityVisits.length}</strong></div>
         </section>
 
         <section className="card attendance-workspace">
           <div className="attendance-tabs" role="tablist" aria-label="Attendance type">
-            <button
-              type="button"
-              className={tab === 'children' ? 'active' : ''}
-              onClick={() => setTab('children')}
-            >
-              Youth Check-In
-              <span>{childCheckedIn} checked in</span>
+            <button type="button" className={tab === 'children' ? 'active' : ''} onClick={() => setTab('children')}>
+              Youth Sign-In
+              <span>{childSignedIn} signed in</span>
             </button>
-            <button
-              type="button"
-              className={tab === 'community' ? 'active' : ''}
-              onClick={() => setTab('community')}
-            >
+            <button type="button" className={tab === 'community' ? 'active' : ''} onClick={() => setTab('community')}>
               Community
               <span>{communityPresentNow} here now</span>
             </button>
@@ -310,57 +451,52 @@ export default function AttendancePrototypePage() {
           {tab === 'children' ? (
             <div className="attendance-panel">
               <div className="attendance-kiosk-intro">
-                <div className="attendance-kiosk-steps" aria-label="Youth check-in steps">
+                <div className="attendance-kiosk-steps" aria-label="Youth sign-in steps">
                   <span><strong>1</strong> Find your name</span>
-                  <span><strong>2</strong> Tap your card</span>
-                  <span><strong>3</strong> Tell us how you feel</span>
+                  <span><strong>2</strong> Tap Sign In</span>
+                  <span><strong>3</strong> Choose how you feel</span>
                 </div>
                 <label className="attendance-search">
                   <span className="sr-only">Search children</span>
-                  <input
-                    type="search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search your name…"
-                  />
+                  <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search a name…" />
                 </label>
               </div>
 
-              <div className="attendance-roster">
+              <div className="attendance-roster attendance-live-roster">
                 {filteredChildren.map((child) => {
-                  const record = childAttendance[child.id]
-                  const mood = record ? moodDetails(record.mood) : null
+                  const visit = childVisitByChild.get(child.id)
+                  const mood = visit ? moodDetails(wellbeing[visit.id]) : null
 
                   return (
-                    <button
-                      type="button"
-                      key={child.id}
-                      className={`attendance-person ${record ? 'present' : ''}`}
-                      onClick={() => startChildCheckIn(child)}
-                    >
+                    <article key={child.id} className={`attendance-person attendance-live-person ${visit ? 'present' : ''}`}>
                       <span className="attendance-person-name">{childName(child)}</span>
                       <span className="attendance-person-status">
-                        {!record && 'Tap your name to check in'}
-                        {record && `${mood?.emoji} Checked in at ${record.checkIn}`}
+                        {!visit && 'Not signed in yet'}
+                        {visit && `${mood?.emoji ?? '✓'} Signed in at ${formatTime(visit.signed_in_at)}`}
                       </span>
-                      <span className="attendance-person-action">
-                        {!record ? 'Check in' : 'Done ✓'}
-                      </span>
-                    </button>
+                      <div className="attendance-live-actions">
+                        {!visit ? (
+                          <button type="button" className="primary" onClick={() => startChildSignIn(child)} disabled={saving}>Sign In</button>
+                        ) : (
+                          <>
+                            <button type="button" className="ghost" onClick={() => startMoodCorrection(child, visit.id)} disabled={saving}>Change mood</button>
+                            <button type="button" className="ghost danger-button" onClick={() => void voidVisit(visit)} disabled={saving}>Void sign-in</button>
+                          </>
+                        )}
+                      </div>
+                    </article>
                   )
                 })}
 
-                {filteredChildren.length === 0 && (
-                  <div className="empty">No children match that search.</div>
-                )}
+                {filteredChildren.length === 0 && <div className="empty">No children match that search.</div>}
               </div>
             </div>
           ) : (
             <div className="attendance-panel">
               <div className="section-heading attendance-section-heading">
                 <div>
-                  <h2>Community check-in</h2>
-                  <p className="subtle">Adults, families, and other visitors can be counted alongside youth attendance for monthly reporting.</p>
+                  <h2>Community sign-in</h2>
+                  <p className="subtle">Adults, families, and visitors are counted alongside youth attendance for monthly reporting.</p>
                 </div>
               </div>
 
@@ -368,20 +504,13 @@ export default function AttendancePrototypePage() {
                 <section className="attendance-checkin-form">
                   <div className="field">
                     <label>Name or identifier</label>
-                    <input
-                      value={communityName}
-                      onChange={(event) => setCommunityName(event.target.value)}
-                      placeholder="Example: Maria S."
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') addCommunityVisit()
-                      }}
-                    />
+                    <input value={communityName} onChange={(event) => setCommunityName(event.target.value)} placeholder="Example: Maria S." onKeyDown={(event) => { if (event.key === 'Enter') void addCommunityVisit() }} />
                   </div>
 
                   <div className="attendance-form-grid">
                     <div className="field">
                       <label>Visitor type</label>
-                      <select value={communityGroup} onChange={(event) => setCommunityGroup(event.target.value as CommunityVisit['group'])}>
+                      <select value={communityGroup} onChange={(event) => setCommunityGroup(event.target.value as 'Adult' | 'Family' | 'Visitor')}>
                         <option>Adult</option>
                         <option>Family</option>
                         <option>Visitor</option>
@@ -395,31 +524,30 @@ export default function AttendancePrototypePage() {
                     </div>
                   </div>
 
-                  <button type="button" className="primary attendance-big-button" onClick={addCommunityVisit}>
-                    Check in visitor
+                  <button type="button" className="primary attendance-big-button" onClick={() => void addCommunityVisit()} disabled={saving}>
+                    {saving ? 'Saving…' : 'Sign in visitor'}
                   </button>
                 </section>
 
                 <section>
-                  <h3>Today's community visits</h3>
+                  <h3>Today's community sign-ins</h3>
                   <div className="attendance-community-list">
-                    {communityVisits.length === 0 && <div className="empty">No community visitors checked in during this prototype session.</div>}
+                    {communityVisits.length === 0 && <div className="empty">No community visitors are recorded for this date.</div>}
                     {communityVisits.map((visit) => (
-                      <button
-                        type="button"
-                        className={`attendance-community-row ${visit.checkOut ? 'checked-out' : ''}`}
-                        key={visit.id}
-                        onClick={() => toggleCommunityCheckout(visit.id)}
-                      >
+                      <article className={`attendance-community-row attendance-live-community ${visit.signed_out_at ? 'checked-out' : ''}`} key={visit.id}>
                         <span>
-                          <strong>{visit.name}</strong>
-                          <small>{visit.group} • {visit.purpose}</small>
+                          <strong>{visit.visitor_name}</strong>
+                          <small>{visit.participant_type.charAt(0).toUpperCase() + visit.participant_type.slice(1)} • {visit.purpose || 'No purpose selected'}</small>
                         </span>
                         <span>
-                          <strong>{visit.checkOut ? 'Checked out' : 'Here now'}</strong>
-                          <small>{visit.checkOut ? `${visit.checkIn}–${visit.checkOut}` : `Since ${visit.checkIn}`}</small>
+                          <strong>{visit.signed_out_at ? 'Signed out' : 'Here now'}</strong>
+                          <small>{visit.signed_out_at ? `${formatTime(visit.signed_in_at)}–${formatTime(visit.signed_out_at)}` : `Since ${formatTime(visit.signed_in_at)}`}</small>
                         </span>
-                      </button>
+                        <div className="attendance-live-actions compact">
+                          {!visit.signed_out_at && <button type="button" className="ghost" onClick={() => void signOutVisitor(visit.id)} disabled={saving}>Sign out</button>}
+                          <button type="button" className="ghost danger-button" onClick={() => void voidVisit(visit)} disabled={saving}>Void</button>
+                        </div>
+                      </article>
                     ))}
                   </div>
                 </section>
@@ -428,44 +556,30 @@ export default function AttendancePrototypePage() {
           )}
         </section>
 
-        <section className="card attendance-record-plan">
+        <section className="card attendance-record-plan attendance-live-plan">
           <div>
-            <span className="attendance-eyebrow">Next production step</span>
-            <h2>Attendance should save itself</h2>
-            <p className="subtle">In the permanent version, every completed check-in will be saved to Juanita Hub immediately. Monthly child and adult totals and averages can then be calculated automatically—no one needs to re-enter or total a year of attendance in Google Sheets.</p>
+            <span className="attendance-eyebrow">Now automatic</span>
+            <h2>Attendance saves itself</h2>
+            <p className="subtle">Every sign-in is written immediately. Corrections are audited, and monthly reports calculate totals and averages from these records.</p>
           </div>
           <div className="attendance-record-points">
             <span><strong>Instant</strong> database record</span>
-            <span><strong>Automatic</strong> monthly averages</span>
-            <span><strong>Optional</strong> spreadsheet export</span>
+            <span><strong>Audited</strong> corrections</span>
+            <span><strong>Automatic</strong> monthly reports</span>
           </div>
-        </section>
-
-        <section className="card attendance-next-step">
-          <div>
-            <h2>What we are testing</h2>
-            <p className="subtle">Try the youth routine on the Android tablet and a phone. We want the three-step check-in to be memorable enough for children to do every day and fast enough that staff can immediately see who has not checked in.</p>
-          </div>
-          <button type="button" className="ghost danger-button" onClick={resetPrototype}>Clear prototype session</button>
         </section>
       </main>
 
       {selectedChild && (
-        <div className="attendance-mood-backdrop" role="presentation" onClick={() => setSelectedChild(null)}>
-          <section
-            className="attendance-mood-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="attendance-mood-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button type="button" className="attendance-mood-close" aria-label="Cancel check-in" onClick={() => setSelectedChild(null)}>×</button>
+        <div className="attendance-mood-backdrop" role="presentation" onClick={() => !saving && setSelectedChild(null)}>
+          <section className="attendance-mood-dialog" role="dialog" aria-modal="true" aria-labelledby="attendance-mood-title" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="attendance-mood-close" aria-label="Cancel" onClick={() => !saving && setSelectedChild(null)}>×</button>
             <span className="attendance-mood-name">Hi, {selectedChild.first_name}!</span>
-            <h2 id="attendance-mood-title">How are you feeling today?</h2>
-            <p className="subtle">Pick the face that feels most like you right now.</p>
+            <h2 id="attendance-mood-title">{moodMode === 'correct' ? 'Change the recorded mood' : 'How are you feeling today?'}</h2>
+            <p className="subtle">{moodMode === 'correct' ? 'The correction will be saved in the attendance audit history.' : 'Pick the face that feels most like you right now.'}</p>
             <div className="attendance-mood-grid">
               {moods.map((mood) => (
-                <button type="button" key={mood.value} className={`attendance-mood-option ${mood.value}`} onClick={() => finishChildCheckIn(mood.value)}>
+                <button type="button" key={mood.value} className={`attendance-mood-option ${mood.value}`} onClick={() => void finishChildMood(mood.value)} disabled={saving}>
                   <span className="attendance-mood-emoji" aria-hidden="true">{mood.emoji}</span>
                   <strong>{mood.label}</strong>
                   <small>{mood.helper}</small>
@@ -479,11 +593,9 @@ export default function AttendancePrototypePage() {
       {celebration && (
         <div className="attendance-celebration" role="status" aria-live="polite">
           <div className="attendance-celebration-card">
-            <div className="attendance-celebration-sparkles" aria-hidden="true">
-              <span>●</span><span>★</span><span>●</span><span>★</span><span>●</span>
-            </div>
-            <span className="attendance-celebration-emoji" aria-hidden="true">{moodDetails(celebration.mood).emoji}</span>
-            <h2>You're checked in, {celebration.firstName}!</h2>
+            <div className="attendance-celebration-sparkles" aria-hidden="true"><span>●</span><span>★</span><span>●</span><span>★</span><span>●</span></div>
+            <span className="attendance-celebration-emoji" aria-hidden="true">{moods.find((item) => item.value === celebration.mood)?.emoji}</span>
+            <h2>You're signed in, {celebration.firstName}!</h2>
             <p>Thanks for telling us how you're feeling. ✨</p>
           </div>
         </div>
