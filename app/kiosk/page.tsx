@@ -133,7 +133,7 @@ export default function KioskPreviewPage() {
       [selectedChild.id]: { mood, time: timeNow() },
     }))
 
-    showCelebration(`You’re checked in, ${selectedChild.first_name}!`, 'Have a great day at the center.', detail.emoji)
+    showCelebration(`You’re signed in, ${selectedChild.first_name}!`, 'Have a great day at the center.', detail.emoji)
     setSelectedChild(null)
     setSearch('')
 
@@ -155,7 +155,7 @@ export default function KioskPreviewPage() {
       ...current,
     ])
 
-    showCelebration(`Thanks for checking in, ${name}!`, 'We’re glad you’re here.', '👋')
+    showCelebration(`Thanks for signing in, ${name}!`, 'We’re glad you’re here.', '👋')
     setVisitorName('')
     setVisitorType('Adult')
     setPurpose(purposes[0])
@@ -192,7 +192,7 @@ export default function KioskPreviewPage() {
   }
 
   if (loading) {
-    return <main className="kiosk-shell"><div className="kiosk-loading">Loading check-in…</div></main>
+    return <main className="kiosk-shell"><div className="kiosk-loading">Loading sign-in…</div></main>
   }
 
   if (!session) {
@@ -223,7 +223,7 @@ export default function KioskPreviewPage() {
           aria-label="Juanita Hub kiosk"
         >
           <span className="kiosk-logo">JH</span>
-          <span><strong>Juanita Check-In</strong><small>{formatToday()}</small></span>
+          <span><strong>Juanita Sign-In</strong><small>{formatToday()}</small></span>
         </button>
 
         {view !== 'home' && (
@@ -243,20 +243,20 @@ export default function KioskPreviewPage() {
             <div>
               <span className="kiosk-board-eyebrow">Today at Juanita</span>
               <h1>Welcome to the center!</h1>
-              <p>Check in when you arrive, then take a look at what’s happening today.</p>
+              <p>Sign in when you arrive, then take a look at what’s happening today.</p>
             </div>
             <div className="kiosk-board-date"><strong>{formatToday()}</strong><small>Center welcome board</small></div>
           </section>
 
-          <section className="kiosk-checkin-choices" aria-label="Choose check-in type">
+          <section className="kiosk-checkin-choices" aria-label="Choose sign-in type">
             <button type="button" className="kiosk-choice child" onClick={() => setView('children')}>
               <span className="kiosk-choice-icon">🧒</span>
-              <span><strong>Child Check-In</strong><small>Find your name and tell us how you feel today</small></span>
+              <span><strong>Child Sign-In</strong><small>Find your name and tell us how you feel today</small></span>
               <span className="kiosk-choice-arrow">→</span>
             </button>
             <button type="button" className="kiosk-choice community" onClick={() => setView('community')}>
               <span className="kiosk-choice-icon">👋</span>
-              <span><strong>Adult / Visitor Check-In</strong><small>Sign in for programs, computer use, printing, and more</small></span>
+              <span><strong>Adult / Visitor Sign-In</strong><small>Sign in for programs, computer use, printing, and more</small></span>
               <span className="kiosk-choice-arrow">→</span>
             </button>
           </section>
@@ -265,7 +265,7 @@ export default function KioskPreviewPage() {
             <article className="kiosk-board-card announcements">
               <div className="kiosk-board-card-heading"><span>📌</span><div><small>Bulletin board</small><h2>Announcements</h2></div><span className="kiosk-preview-chip">Preview</span></div>
               <div className="kiosk-board-list">
-                <div><strong>Welcome!</strong><p>Check in when you arrive so we can keep accurate daily attendance.</p></div>
+                <div><strong>Welcome!</strong><p>Sign in when you arrive so we can keep accurate daily attendance.</p></div>
                 <div><strong>Example activity</strong><p>Art activity at 4:00 PM with homework support afterward.</p></div>
                 <div><strong>Community services</strong><p>Computer, printing, faxing, and forms assistance available during center hours.</p></div>
               </div>
@@ -283,7 +283,7 @@ export default function KioskPreviewPage() {
             <article className="kiosk-board-card schedule">
               <div className="kiosk-board-card-heading"><span>🗓️</span><div><small>Today</small><h2>Schedule</h2></div><span className="kiosk-preview-chip">Preview</span></div>
               <div className="kiosk-board-schedule">
-                <div><time>2:30 PM</time><span><strong>Afterschool arrival</strong><small>Check-in and snack</small></span></div>
+                <div><time>2:30 PM</time><span><strong>Afterschool arrival</strong><small>Sign-in and snack</small></span></div>
                 <div><time>3:30 PM</time><span><strong>Homework / quiet time</strong><small>Example schedule item</small></span></div>
                 <div><time>4:30 PM</time><span><strong>Club or special activity</strong><small>Example program block</small></span></div>
                 <div><time>6:00 PM</time><span><strong>Wrap-up</strong><small>Center schedule preview</small></span></div>
@@ -326,7 +326,7 @@ export default function KioskPreviewPage() {
                   disabled={Boolean(record)}
                 >
                   <span className="kiosk-avatar">{child.first_name.charAt(0).toUpperCase()}</span>
-                  <span className="kiosk-name-text"><strong>{childName(child)}</strong>{record ? <small>✓ Checked in at {record.time}</small> : <small>Tap to check in</small>}</span>
+                  <span className="kiosk-name-text"><strong>{childName(child)}</strong>{record ? <small>✓ Signed in at {record.time}</small> : <small>Tap to sign in</small>}</span>
                   {record && <span className="kiosk-check">✓</span>}
                 </button>
               )
@@ -339,7 +339,7 @@ export default function KioskPreviewPage() {
         <section className="kiosk-community-content">
           <div className="kiosk-intro">
             <span className="kiosk-step">1</span>
-            <div><h1>Adult / Visitor Check-In</h1><p>Tell us who you are and what brings you to the center today.</p></div>
+            <div><h1>Adult / Visitor Sign-In</h1><p>Tell us who you are and what brings you to the center today.</p></div>
           </div>
 
           <section className="kiosk-community-form-card">
@@ -366,13 +366,13 @@ export default function KioskPreviewPage() {
             </div>
 
             <button type="button" className="kiosk-community-submit" onClick={submitCommunityCheckIn} disabled={!visitorName.trim()}>
-              Check in
+              Sign in
             </button>
           </section>
 
           <div className="kiosk-community-session-note">
             <span>✓</span>
-            <p><strong>{communityRecords.length} visitor check-in{communityRecords.length === 1 ? '' : 's'} in this preview session.</strong> The permanent version will save each visit immediately so monthly totals and averages are automatic.</p>
+            <p><strong>{communityRecords.length} visitor sign-in{communityRecords.length === 1 ? '' : 's'} in this preview session.</strong> The permanent version will save each visit immediately so monthly totals and averages are automatic.</p>
           </div>
         </section>
       )}
