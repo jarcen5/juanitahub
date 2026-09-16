@@ -57,8 +57,23 @@
 }
 
 .attendance-live-person {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   cursor: default;
-  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1.1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .9fr) max-content;
+  align-items: center;
+  overflow: hidden;
+}
+
+.attendance-live-person > * {
+  min-width: 0;
+}
+
+.attendance-live-person .attendance-person-name,
+.attendance-live-person .attendance-person-status {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .attendance-live-person:hover {
@@ -66,15 +81,20 @@
 }
 
 .attendance-live-actions {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  justify-self: end;
   flex-wrap: wrap;
   gap: 7px;
 }
 
 .attendance-live-actions .primary,
 .attendance-live-actions .ghost {
+  min-width: 0;
+  max-width: 100%;
   min-height: 38px;
   padding: 8px 11px;
   white-space: nowrap;
@@ -85,8 +105,16 @@
 }
 
 .attendance-live-community {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   cursor: default;
-  grid-template-columns: minmax(170px, 1fr) minmax(120px, .65fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .65fr) max-content;
+  overflow: hidden;
+}
+
+.attendance-live-community > * {
+  min-width: 0;
 }
 
 .attendance-live-community:hover {
@@ -109,6 +137,28 @@
   text-align: center;
 }
 
+@media (max-width: 1180px) and (min-width: 851px) {
+  .attendance-live-person {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    grid-template-areas:
+      "name actions"
+      "status actions";
+    column-gap: 10px;
+  }
+
+  .attendance-live-person .attendance-person-name {
+    grid-area: name;
+  }
+
+  .attendance-live-person .attendance-person-status {
+    grid-area: status;
+  }
+
+  .attendance-live-person .attendance-live-actions {
+    grid-area: actions;
+  }
+}
+
 @media (max-width: 850px) {
   .attendance-operating-day {
     align-items: stretch;
@@ -122,10 +172,22 @@
   .attendance-live-person,
   .attendance-live-community {
     grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .attendance-live-person {
+    grid-template-areas: none;
+  }
+
+  .attendance-live-person .attendance-person-name,
+  .attendance-live-person .attendance-person-status,
+  .attendance-live-person .attendance-live-actions {
+    grid-area: auto;
   }
 
   .attendance-live-actions,
   .attendance-live-actions.compact {
+    justify-self: stretch;
     justify-content: flex-start;
   }
 }
