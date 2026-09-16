@@ -1,0 +1,146 @@
+.attendance-operating-day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+}
+
+.attendance-operating-day h2 {
+  margin: 3px 0 5px;
+  color: #173c63;
+}
+
+.attendance-operating-day p {
+  margin: 0;
+}
+
+.attendance-operating-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attendance-day-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 11px;
+  border-radius: 999px;
+  border: 1px solid #d7e4ed;
+  background: #f7fafc;
+  color: #617789;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.attendance-day-status.open {
+  border-color: #bfe2ce;
+  background: #eefaf3;
+  color: #286044;
+}
+
+.attendance-day-status.closed {
+  border-color: #f0c9c9;
+  background: #fff3f3;
+  color: #8e4141;
+}
+
+.attendance-day-status.unrecorded {
+  border-style: dashed;
+}
+
+.attendance-live-roster {
+  gap: 10px;
+}
+
+.attendance-live-person {
+  cursor: default;
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1.1fr) auto;
+}
+
+.attendance-live-person:hover {
+  transform: none;
+}
+
+.attendance-live-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.attendance-live-actions .primary,
+.attendance-live-actions .ghost {
+  min-height: 38px;
+  padding: 8px 11px;
+  white-space: nowrap;
+}
+
+.attendance-live-actions.compact {
+  justify-content: flex-end;
+}
+
+.attendance-live-community {
+  cursor: default;
+  grid-template-columns: minmax(170px, 1fr) minmax(120px, .65fr) auto;
+}
+
+.attendance-live-community:hover {
+  transform: none;
+}
+
+.attendance-live-plan {
+  margin-bottom: 24px;
+}
+
+.kiosk-live-error {
+  width: min(980px, calc(100% - 32px));
+  margin: 12px auto 0;
+  padding: 12px 14px;
+  border: 1px solid #efc4c4;
+  border-radius: 13px;
+  background: rgba(255, 245, 245, .97);
+  color: #8c3d3d;
+  font-weight: 750;
+  text-align: center;
+}
+
+@media (max-width: 850px) {
+  .attendance-operating-day {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .attendance-operating-actions {
+    justify-content: flex-start;
+  }
+
+  .attendance-live-person,
+  .attendance-live-community {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-live-actions,
+  .attendance-live-actions.compact {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .attendance-operating-actions > button {
+    flex: 1 1 120px;
+  }
+
+  .attendance-day-status {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .attendance-live-actions > button {
+    flex: 1 1 120px;
+  }
+}
