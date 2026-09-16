@@ -31,7 +31,7 @@ const navGroups: NavGroup[] = [
       {
         href: '/attendance',
         label: 'Attendance',
-        description: 'Prototype staff attendance workspace for the center.',
+        description: 'Daily child and community sign-ins with saved records.',
       },
       {
         href: '/card-tracking',
@@ -68,6 +68,16 @@ const navGroups: NavGroup[] = [
         label: 'Prize Management',
         description: 'Rename, review, or remove prize items.',
         adminOnly: true,
+      },
+    ],
+  },
+  {
+    label: 'Reports',
+    items: [
+      {
+        href: '/reports/attendance',
+        label: 'Attendance Reports',
+        description: 'Monthly sign-in totals, averages, and CSV exports.',
       },
     ],
   },
@@ -210,12 +220,7 @@ export default function SiteNavigation() {
           </button>
 
           <div id="juanita-site-menu" className={`site-nav-menu ${mobileOpen ? 'open' : ''}`}>
-            <Link
-              href="/"
-              className={`site-nav-link ${isCurrent('/') ? 'active' : ''}`}
-              aria-current={isCurrent('/') ? 'page' : undefined}
-              onClick={closeMenus}
-            >
+            <Link href="/" className={`site-nav-link ${isCurrent('/') ? 'active' : ''}`} aria-current={isCurrent('/') ? 'page' : undefined} onClick={closeMenus}>
               Dashboard
             </Link>
 
@@ -228,13 +233,7 @@ export default function SiteNavigation() {
 
               return (
                 <div className={`site-nav-group ${active ? 'active' : ''} ${isOpen ? 'open' : ''}`} key={group.label}>
-                  <button
-                    type="button"
-                    className="site-nav-group-trigger"
-                    aria-expanded={isOpen}
-                    aria-controls={groupId}
-                    onClick={() => toggleGroup(group.label)}
-                  >
+                  <button type="button" className="site-nav-group-trigger" aria-expanded={isOpen} aria-controls={groupId} onClick={() => toggleGroup(group.label)}>
                     <span>{group.label}</span>
                     <span className="site-nav-chevron" aria-hidden="true">⌄</span>
                   </button>
@@ -245,10 +244,7 @@ export default function SiteNavigation() {
                         if (item.comingSoon || !item.href) {
                           return (
                             <div className="site-nav-dropdown-item coming-soon" key={item.label}>
-                              <span>
-                                <strong>{item.label}</strong>
-                                {item.description && <small>{item.description}</small>}
-                              </span>
+                              <span><strong>{item.label}</strong>{item.description && <small>{item.description}</small>}</span>
                               <span className="site-nav-soon">Coming soon</span>
                             </div>
                           )
@@ -256,17 +252,8 @@ export default function SiteNavigation() {
 
                         const current = isCurrent(item.href)
                         return (
-                          <Link
-                            className={`site-nav-dropdown-item ${current ? 'active' : ''}`}
-                            href={item.href}
-                            key={item.href}
-                            aria-current={current ? 'page' : undefined}
-                            onClick={closeMenus}
-                          >
-                            <span>
-                              <strong>{item.label}</strong>
-                              {item.description && <small>{item.description}</small>}
-                            </span>
+                          <Link className={`site-nav-dropdown-item ${current ? 'active' : ''}`} href={item.href} key={item.href} aria-current={current ? 'page' : undefined} onClick={closeMenus}>
+                            <span><strong>{item.label}</strong>{item.description && <small>{item.description}</small>}</span>
                           </Link>
                         )
                       })}
@@ -276,9 +263,7 @@ export default function SiteNavigation() {
               )
             })}
 
-            <span className="site-nav-role" title="Current Juanita Hub role">
-              {access.role === 'admin' ? 'Admin' : 'Staff'}
-            </span>
+            <span className="site-nav-role" title="Current Juanita Hub role">{access.role === 'admin' ? 'Admin' : 'Staff'}</span>
           </div>
         </div>
       </nav>
