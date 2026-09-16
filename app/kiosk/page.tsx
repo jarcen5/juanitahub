@@ -36,6 +36,19 @@ type SignInResult = {
   signed_in_at: string
 }
 
+type PublicCalendarEvent = {
+  id: number
+  event_date: string
+  title: string
+  event_type: string
+  description: string | null
+  location: string | null
+  all_day: boolean
+  start_time: string | null
+  end_time: string | null
+  status: 'scheduled' | 'canceled'
+}
+
 const moods: Array<{ value: Mood; emoji: string; label: string }> = [
   { value: 'happy', emoji: '😀', label: 'Good' },
   { value: 'meh', emoji: '😐', label: 'Meh' },
@@ -65,6 +78,30 @@ function formatTime(value: string) {
   return new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
+function formatCalendarTime(value: string | null) {
+  if (!value) return ''
+  const [hourString, minuteString] = value.split(':')
+  const date = new Date(2000, 0, 1, Number(hourString), Number(minuteString))
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function calendarTimeLabel(event: PublicCalendarEvent) {
+  if (event.all_day) return 'All day'
+  if (!event.start_time) return 'TBD'
+  return formatCalendarTime(event.start_time)
+}
+
+function calendarIcon(type: string) {
+  if (type === 'field_trip') return '🚌'
+  if (type === 'club') return '⭐'
+  if (type === 'program') return '📚'
+  if (type === 'meeting') return '👥'
+  if (type === 'closure') return '🔒'
+  if (type === 'special_event') return '✨'
+  if (type === 'activity') return '🎨'
+  return '📌'
+}
+
 function formatToday() {
   return new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -80,6 +117,7 @@ export default function KioskPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [children, setChildren] = useState<Child[]>([])
+  const [calendarEvents, setCalendarEvents] = useState<PublicCalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<KioskView>('home')
   const [search, setSearch] = useState('')
@@ -112,6 +150,12 @@ export default function KioskPage() {
   }, [session])
 
   useEffect(() => {
+    if (!session) return
+    const refresh = window.setInterval(() => void loadKioskData(), 5 * 60 * 1000)
+    return () => window.clearInterval(refresh)
+  }, [session])
+
+  useEffect(() => {
     const handlePopState = () => {
       if (!allowNavigation.current) {
         window.history.pushState({ kiosk: true }, '', window.location.href)
@@ -133,7 +177,7 @@ export default function KioskPage() {
     setLoading(true)
     setMessage('')
 
-    const [profileResult, childrenResult, visitsResult] = await Promise.all([
+    const [profileResult, childrenResult, visitsResult, calendarResult] = await Promise.all([
       supabase
         .from('staff_profiles')
         .select('active')
@@ -151,14 +195,20 @@ export default function KioskPage() {
         .eq('service_date', today)
         .eq('status', 'active')
         .order('signed_in_at', { ascending: true }),
+      supabase
+        .from('calendar_public_events')
+        .select('id, event_date, title, event_type, description, location, all_day, start_time, end_time, status')
+        .eq('event_date', today)
+        .order('start_time'),
     ])
 
-    if (profileResult.error || childrenResult.error || visitsResult.error) {
-      setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? visitsResult.error?.message ?? 'Sign-ins could not be loaded.')
+    if (profileResult.error || childrenResult.error || visitsResult.error || calendarResult.error) {
+      setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? visitsResult.error?.message ?? calendarResult.error?.message ?? 'Kiosk information could not be loaded.')
     }
 
     setProfile(profileResult.data as Profile | null)
     setChildren((childrenResult.data ?? []) as Child[])
+    setCalendarEvents((calendarResult.data ?? []) as PublicCalendarEvent[])
 
     const visits = (visitsResult.data ?? []) as AttendanceVisit[]
     const nextRecords: Record<number, KioskRecord> = {}
@@ -192,6 +242,8 @@ export default function KioskPage() {
     if (!query) return sorted
     return sorted.filter((child) => childName(child).toLowerCase().includes(query))
   }, [children, records, search])
+
+  const featuredEvent = useMemo(() => calendarEvents.find((event) => event.status === 'scheduled' && ['activity', 'field_trip', 'club', 'program', 'special_event'].includes(event.event_type)) ?? null, [calendarEvents])
 
   function showCelebration(title: string, subtitle: string, emoji: string) {
     setCelebration({ title, subtitle, emoji })
@@ -388,7 +440,7 @@ export default function KioskPage() {
               <div className="kiosk-board-card-heading"><span>📌</span><div><small>Bulletin board</small><h2>Announcements</h2></div><span className="kiosk-preview-chip">Preview</span></div>
               <div className="kiosk-board-list">
                 <div><strong>Welcome!</strong><p>Sign in when you arrive so we can keep accurate daily attendance.</p></div>
-                <div><strong>Example activity</strong><p>Art activity at 4:00 PM with homework support afterward.</p></div>
+                <div><strong>Example activity</strong><p>Announcements will become their own editable module after the calendar.</p></div>
                 <div><strong>Community services</strong><p>Computer, printing, faxing, and forms assistance available during center hours.</p></div>
               </div>
             </article>
@@ -403,20 +455,35 @@ export default function KioskPage() {
             </article>
 
             <article className="kiosk-board-card schedule">
-              <div className="kiosk-board-card-heading"><span>🗓️</span><div><small>Today</small><h2>Schedule</h2></div><span className="kiosk-preview-chip">Preview</span></div>
+              <div className="kiosk-board-card-heading"><span>🗓️</span><div><small>Today</small><h2>Schedule</h2></div><span className="kiosk-preview-chip">Calendar</span></div>
               <div className="kiosk-board-schedule">
-                <div><time>2:30 PM</time><span><strong>Afterschool arrival</strong><small>Sign-in and snack</small></span></div>
-                <div><time>3:30 PM</time><span><strong>Homework / quiet time</strong><small>Example schedule item</small></span></div>
-                <div><time>4:30 PM</time><span><strong>Club or special activity</strong><small>Example program block</small></span></div>
-                <div><time>6:00 PM</time><span><strong>Wrap-up</strong><small>Center schedule preview</small></span></div>
+                {calendarEvents.length === 0 && <div><time>—</time><span><strong>No public events planned yet</strong><small>Check back for center updates.</small></span></div>}
+                {calendarEvents.map((event) => (
+                  <div key={event.id}>
+                    <time>{calendarTimeLabel(event)}</time>
+                    <span>
+                      <strong>{calendarIcon(event.event_type)} {event.status === 'canceled' ? `Canceled: ${event.title}` : event.title}</strong>
+                      <small>{event.location || event.description || 'Juanita center event'}</small>
+                    </span>
+                  </div>
+                ))}
               </div>
             </article>
 
             <article className="kiosk-board-card today-activity">
-              <div className="kiosk-board-card-heading"><span>✨</span><div><small>Featured</small><h2>Today’s Activity</h2></div><span className="kiosk-preview-chip">Preview</span></div>
+              <div className="kiosk-board-card-heading"><span>✨</span><div><small>Featured</small><h2>Today’s Activity</h2></div><span className="kiosk-preview-chip">Calendar</span></div>
               <div className="kiosk-featured-activity">
-                <span className="kiosk-featured-icon">🎨</span>
-                <div><strong>Creative Studio</strong><p>Drop in for today’s featured activity after homework time.</p></div>
+                {featuredEvent ? (
+                  <>
+                    <span className="kiosk-featured-icon">{calendarIcon(featuredEvent.event_type)}</span>
+                    <div><strong>{featuredEvent.title}</strong><p>{featuredEvent.description || [calendarTimeLabel(featuredEvent), featuredEvent.location].filter(Boolean).join(' • ') || 'See today’s schedule for details.'}</p></div>
+                  </>
+                ) : (
+                  <>
+                    <span className="kiosk-featured-icon">📅</span>
+                    <div><strong>No featured activity yet</strong><p>Today’s public activities will appear here automatically from the center calendar.</p></div>
+                  </>
+                )}
               </div>
             </article>
           </section>
