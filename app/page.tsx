@@ -34,6 +34,18 @@ type OperatingDay = {
   reason: string | null
 }
 
+type CalendarEvent = {
+  id: number
+  title: string
+  event_type: string
+  all_day: boolean
+  start_time: string | null
+  end_time: string | null
+  location: string | null
+  status: 'scheduled' | 'canceled'
+  visibility: 'public' | 'staff'
+}
+
 function localDateString(date = new Date()) {
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
@@ -48,6 +60,30 @@ function formatToday() {
   })
 }
 
+function formatCalendarTime(value: string | null) {
+  if (!value) return ''
+  const [hourString, minuteString] = value.split(':')
+  const date = new Date(2000, 0, 1, Number(hourString), Number(minuteString))
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function calendarTimeLabel(event: CalendarEvent) {
+  if (event.all_day) return 'All day'
+  if (!event.start_time) return 'TBD'
+  return formatCalendarTime(event.start_time)
+}
+
+function calendarIcon(type: string) {
+  if (type === 'field_trip') return '🚌'
+  if (type === 'club') return '⭐'
+  if (type === 'program') return '📚'
+  if (type === 'meeting') return '👥'
+  if (type === 'closure') return '🔒'
+  if (type === 'special_event') return '✨'
+  if (type === 'activity') return '🎨'
+  return '📌'
+}
+
 export default function StaffHomePage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<StaffProfile | null>(null)
@@ -55,6 +91,7 @@ export default function StaffHomePage() {
   const [entries, setEntries] = useState<BehaviorEntry[]>([])
   const [attendanceVisits, setAttendanceVisits] = useState<AttendanceVisit[]>([])
   const [operatingDay, setOperatingDay] = useState<OperatingDay | null>(null)
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
@@ -83,6 +120,7 @@ export default function StaffHomePage() {
       setEntries([])
       setAttendanceVisits([])
       setOperatingDay(null)
+      setCalendarEvents([])
       return
     }
 
@@ -93,7 +131,7 @@ export default function StaffHomePage() {
     if (!session) return
     setLoading(true)
 
-    const [profileResult, childrenResult, entriesResult, attendanceResult, operatingResult] = await Promise.all([
+    const [profileResult, childrenResult, entriesResult, attendanceResult, operatingResult, calendarResult] = await Promise.all([
       supabase
         .from('staff_profiles')
         .select('display_name, role, active')
@@ -118,6 +156,11 @@ export default function StaffHomePage() {
         .select('is_open, reason')
         .eq('service_date', today)
         .maybeSingle(),
+      supabase
+        .from('calendar_events')
+        .select('id, title, event_type, all_day, start_time, end_time, location, status, visibility')
+        .eq('event_date', today)
+        .order('start_time'),
     ])
 
     setProfile(profileResult.data as StaffProfile | null)
@@ -125,7 +168,8 @@ export default function StaffHomePage() {
     setEntries((entriesResult.data ?? []) as BehaviorEntry[])
     setAttendanceVisits((attendanceResult.data ?? []) as AttendanceVisit[])
     setOperatingDay(operatingResult.data as OperatingDay | null)
-    setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? entriesResult.error?.message ?? attendanceResult.error?.message ?? operatingResult.error?.message ?? '')
+    setCalendarEvents((calendarResult.data ?? []) as CalendarEvent[])
+    setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? entriesResult.error?.message ?? attendanceResult.error?.message ?? operatingResult.error?.message ?? calendarResult.error?.message ?? '')
     setLoading(false)
   }
 
@@ -236,12 +280,18 @@ export default function StaffHomePage() {
             </section>
 
             <section className="card home-schedule-card">
-              <div className="home-section-heading"><div><span className="home-section-kicker">What’s happening</span><h2>Today’s Schedule</h2></div><span className="home-preview-pill">Preview</span></div>
+              <div className="home-section-heading"><div><span className="home-section-kicker">What’s happening</span><h2>Today’s Schedule</h2></div><Link className="ghost" href="/calendar">Open calendar →</Link></div>
               <div className="home-schedule-list">
-                <div className="home-schedule-row"><time>2:30 PM</time><span><strong>Afterschool arrival</strong><small>Sign-in and snack</small></span></div>
-                <div className="home-schedule-row"><time>3:30 PM</time><span><strong>Homework / quiet time</strong><small>Example schedule item</small></span></div>
-                <div className="home-schedule-row"><time>4:30 PM</time><span><strong>Club or special activity</strong><small>Example program block</small></span></div>
-                <div className="home-schedule-row"><time>6:00 PM</time><span><strong>Wrap-up</strong><small>Center schedule preview</small></span></div>
+                {calendarEvents.length === 0 && <div className="home-empty-state">No calendar events are planned for today yet.</div>}
+                {calendarEvents.map((event) => (
+                  <div className="home-schedule-row" key={event.id}>
+                    <time>{calendarTimeLabel(event)}</time>
+                    <span>
+                      <strong>{calendarIcon(event.event_type)} {event.status === 'canceled' ? `Canceled: ${event.title}` : event.title}</strong>
+                      <small>{[event.location, event.visibility === 'staff' ? 'Staff only' : null].filter(Boolean).join(' • ') || 'Center calendar'}</small>
+                    </span>
+                  </div>
+                ))}
               </div>
             </section>
           </div>
@@ -274,8 +324,8 @@ export default function StaffHomePage() {
         </section>
 
         <section className="card home-roadmap">
-          <div><span className="home-section-kicker">Juanita Hub reporting</span><h2>Attendance records now feed monthly reports</h2><p>Saved child and community sign-ins can now be summarized automatically. Registration, programs, and editable bulletin-board content can be added as the next center-management modules.</p></div>
-          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Reports ✓</span><span>Programs</span><span>Registration</span><span>Exports ✓</span></div>
+          <div><span className="home-section-kicker">Juanita Hub operations</span><h2>Calendar and attendance now feed the daily home page</h2><p>Center plans and saved sign-ins can be managed once and reflected throughout Juanita Hub. Inventory, purchasing, programs, and staff/intern scheduling can be layered in next.</p></div>
+          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Reports ✓</span><span>Inventory</span><span>Staff Scheduling</span></div>
         </section>
       </main>
     </div>
