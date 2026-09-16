@@ -11,21 +11,29 @@ type Child = {
   last_name: string | null
 }
 
+type Profile = {
+  active: boolean
+}
+
 type Mood = 'happy' | 'meh' | 'sad'
 type KioskView = 'home' | 'children' | 'community'
 type VisitorType = 'Adult' | 'Family' | 'Visitor'
 
 type KioskRecord = {
-  mood: Mood
+  visitId: number
   time: string
 }
 
-type CommunityRecord = {
-  id: string
-  name: string
-  visitorType: VisitorType
-  purpose: string
-  time: string
+type AttendanceVisit = {
+  id: number
+  participant_type: 'child' | 'adult' | 'family' | 'visitor'
+  child_id: number | null
+  signed_in_at: string
+}
+
+type SignInResult = {
+  visit_id: number
+  signed_in_at: string
 }
 
 const moods: Array<{ value: Mood; emoji: string; label: string }> = [
@@ -43,14 +51,18 @@ const purposes = [
   'Other',
 ]
 
-const PREVIEW_EXIT_PIN = '2468'
-
 function childName(child: Child) {
   return `${child.first_name}${child.last_name ? ` ${child.last_name}` : ''}`
 }
 
-function timeNow() {
-  return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+function localDateKey() {
+  const now = new Date()
+  const offset = now.getTimezoneOffset()
+  return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 10)
+}
+
+function formatTime(value: string) {
+  return new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
 function formatToday() {
@@ -61,24 +73,31 @@ function formatToday() {
   })
 }
 
-export default function KioskPreviewPage() {
+export default function KioskPage() {
   const router = useRouter()
   const holdTimer = useRef<number | null>(null)
+  const allowNavigation = useRef(false)
   const [session, setSession] = useState<Session | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [children, setChildren] = useState<Child[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<KioskView>('home')
   const [search, setSearch] = useState('')
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [records, setRecords] = useState<Record<number, KioskRecord>>({})
-  const [communityRecords, setCommunityRecords] = useState<CommunityRecord[]>([])
+  const [communityCount, setCommunityCount] = useState(0)
   const [visitorName, setVisitorName] = useState('')
   const [visitorType, setVisitorType] = useState<VisitorType>('Adult')
   const [purpose, setPurpose] = useState(purposes[0])
   const [celebration, setCelebration] = useState<{ title: string; subtitle: string; emoji: string } | null>(null)
+  const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
   const [unlockOpen, setUnlockOpen] = useState(false)
-  const [unlockPin, setUnlockPin] = useState('')
+  const [unlockPassword, setUnlockPassword] = useState('')
   const [unlockError, setUnlockError] = useState('')
+  const [unlocking, setUnlocking] = useState(false)
+
+  const today = localDateKey()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -89,22 +108,77 @@ export default function KioskPreviewPage() {
 
   useEffect(() => {
     if (!session) return
-
-    supabase
-      .from('children')
-      .select('id, first_name, last_name')
-      .eq('active', true)
-      .order('first_name')
-      .order('last_name')
-      .then(({ data }) => {
-        setChildren((data ?? []) as Child[])
-        setLoading(false)
-      })
+    void loadKioskData()
   }, [session])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!allowNavigation.current) {
+        window.history.pushState({ kiosk: true }, '', window.location.href)
+      }
+    }
+
+    window.history.pushState({ kiosk: true }, '', window.location.href)
+    window.addEventListener('popstate', handlePopState)
+
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   useEffect(() => () => {
     if (holdTimer.current) window.clearTimeout(holdTimer.current)
   }, [])
+
+  async function loadKioskData() {
+    if (!session) return
+    setLoading(true)
+    setMessage('')
+
+    const [profileResult, childrenResult, visitsResult] = await Promise.all([
+      supabase
+        .from('staff_profiles')
+        .select('active')
+        .eq('user_id', session.user.id)
+        .maybeSingle(),
+      supabase
+        .from('children')
+        .select('id, first_name, last_name')
+        .eq('active', true)
+        .order('first_name')
+        .order('last_name'),
+      supabase
+        .from('attendance_visits')
+        .select('id, participant_type, child_id, signed_in_at')
+        .eq('service_date', today)
+        .eq('status', 'active')
+        .order('signed_in_at', { ascending: true }),
+    ])
+
+    if (profileResult.error || childrenResult.error || visitsResult.error) {
+      setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? visitsResult.error?.message ?? 'Sign-ins could not be loaded.')
+    }
+
+    setProfile(profileResult.data as Profile | null)
+    setChildren((childrenResult.data ?? []) as Child[])
+
+    const visits = (visitsResult.data ?? []) as AttendanceVisit[]
+    const nextRecords: Record<number, KioskRecord> = {}
+    let visitors = 0
+
+    visits.forEach((visit) => {
+      if (visit.participant_type === 'child' && visit.child_id != null) {
+        nextRecords[visit.child_id] = {
+          visitId: visit.id,
+          time: formatTime(visit.signed_in_at),
+        }
+      } else {
+        visitors += 1
+      }
+    })
+
+    setRecords(nextRecords)
+    setCommunityCount(visitors)
+    setLoading(false)
+  }
 
   const visibleChildren = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -124,42 +198,74 @@ export default function KioskPreviewPage() {
     window.setTimeout(() => setCelebration(null), 1500)
   }
 
-  function chooseMood(mood: Mood) {
-    if (!selectedChild) return
+  async function chooseMood(mood: Mood) {
+    if (!selectedChild || saving) return
+    const child = selectedChild
     const detail = moods.find((item) => item.value === mood) ?? moods[1]
 
-    setRecords((current) => ({
-      ...current,
-      [selectedChild.id]: { mood, time: timeNow() },
-    }))
+    setSaving(true)
+    setMessage('')
 
-    showCelebration(`You’re signed in, ${selectedChild.first_name}!`, 'Have a great day at the center.', detail.emoji)
+    const { data, error } = await supabase.rpc('sign_in_child', {
+      p_child_id: child.id,
+      p_mood: mood,
+      p_service_date: today,
+      p_source: 'kiosk',
+    })
+
+    if (error) {
+      setMessage(error.message)
+      setSaving(false)
+      return
+    }
+
+    const result = ((data ?? []) as SignInResult[])[0]
+    if (result) {
+      setRecords((current) => ({
+        ...current,
+        [child.id]: {
+          visitId: result.visit_id,
+          time: formatTime(result.signed_in_at),
+        },
+      }))
+    } else {
+      await loadKioskData()
+    }
+
     setSelectedChild(null)
     setSearch('')
-
+    setSaving(false)
+    showCelebration(`You’re signed in, ${child.first_name}!`, 'Have a great day at the center.', detail.emoji)
     window.setTimeout(() => setView('home'), 1550)
   }
 
-  function submitCommunityCheckIn() {
+  async function submitCommunitySignIn() {
     const name = visitorName.trim()
-    if (!name) return
+    if (!name || saving) return
 
-    setCommunityRecords((current) => [
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        name,
-        visitorType,
-        purpose,
-        time: timeNow(),
-      },
-      ...current,
-    ])
+    setSaving(true)
+    setMessage('')
 
-    showCelebration(`Thanks for signing in, ${name}!`, 'We’re glad you’re here.', '👋')
+    const { error } = await supabase.rpc('sign_in_visitor', {
+      p_name: name,
+      p_visitor_type: visitorType,
+      p_purpose: purpose,
+      p_service_date: today,
+      p_source: 'kiosk',
+    })
+
+    if (error) {
+      setMessage(error.message)
+      setSaving(false)
+      return
+    }
+
+    setCommunityCount((current) => current + 1)
     setVisitorName('')
     setVisitorType('Adult')
     setPurpose(purposes[0])
-
+    setSaving(false)
+    showCelebration(`Thanks for signing in, ${name}!`, 'We’re glad you’re here.', '👋')
     window.setTimeout(() => setView('home'), 1550)
   }
 
@@ -167,7 +273,7 @@ export default function KioskPreviewPage() {
     if (holdTimer.current) window.clearTimeout(holdTimer.current)
     holdTimer.current = window.setTimeout(() => {
       setUnlockOpen(true)
-      setUnlockPin('')
+      setUnlockPassword('')
       setUnlockError('')
     }, 3000)
   }
@@ -179,29 +285,42 @@ export default function KioskPreviewPage() {
     }
   }
 
-  function unlockStaffExit() {
-    if (unlockPin === PREVIEW_EXIT_PIN) {
-      setUnlockOpen(false)
-      setUnlockError('')
-      router.push('/')
+  async function unlockStaffExit() {
+    const email = session?.user.email
+    if (!email || !unlockPassword || unlocking) return
+
+    setUnlocking(true)
+    setUnlockError('')
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: unlockPassword,
+    })
+
+    if (error) {
+      setUnlockError('That password did not match the staff account that launched this kiosk.')
+      setUnlockPassword('')
+      setUnlocking(false)
       return
     }
 
-    setUnlockError('That PIN is not correct.')
-    setUnlockPin('')
+    allowNavigation.current = true
+    setUnlockOpen(false)
+    setUnlocking(false)
+    router.replace('/')
   }
 
   if (loading) {
     return <main className="kiosk-shell"><div className="kiosk-loading">Loading sign-in…</div></main>
   }
 
-  if (!session) {
+  if (!session || !profile?.active) {
     return (
       <main className="kiosk-shell">
         <section className="kiosk-locked-card">
           <span className="kiosk-logo">JH</span>
-          <h1>Kiosk Preview</h1>
-          <p>A staff session is required to launch this prototype.</p>
+          <h1>Kiosk unavailable</h1>
+          <p>An active staff account must launch Juanita Sign-In.</p>
         </section>
       </main>
     )
@@ -209,7 +328,7 @@ export default function KioskPreviewPage() {
 
   return (
     <main className="kiosk-shell">
-      <div className="kiosk-preview-ribbon">Preview only • nothing is saved</div>
+      <div className="kiosk-preview-ribbon">Live sign-in • records save automatically</div>
 
       <header className="kiosk-header kiosk-public-header">
         <button
@@ -231,11 +350,14 @@ export default function KioskPreviewPage() {
             setView('home')
             setSelectedChild(null)
             setSearch('')
+            setMessage('')
           }}>
             ← Welcome board
           </button>
         )}
       </header>
+
+      {message && <div className="kiosk-live-error" role="alert">{message}</div>}
 
       {view === 'home' && (
         <section className="kiosk-board">
@@ -249,12 +371,12 @@ export default function KioskPreviewPage() {
           </section>
 
           <section className="kiosk-checkin-choices" aria-label="Choose sign-in type">
-            <button type="button" className="kiosk-choice child" onClick={() => setView('children')}>
+            <button type="button" className="kiosk-choice child" onClick={() => { setView('children'); setMessage('') }}>
               <span className="kiosk-choice-icon">🧒</span>
               <span><strong>Child Sign-In</strong><small>Find your name and tell us how you feel today</small></span>
               <span className="kiosk-choice-arrow">→</span>
             </button>
-            <button type="button" className="kiosk-choice community" onClick={() => setView('community')}>
+            <button type="button" className="kiosk-choice community" onClick={() => { setView('community'); setMessage('') }}>
               <span className="kiosk-choice-icon">👋</span>
               <span><strong>Adult / Visitor Sign-In</strong><small>Sign in for programs, computer use, printing, and more</small></span>
               <span className="kiosk-choice-arrow">→</span>
@@ -323,7 +445,7 @@ export default function KioskPreviewPage() {
                   key={child.id}
                   className={`kiosk-name-card ${record ? 'done' : ''}`}
                   onClick={() => !record && setSelectedChild(child)}
-                  disabled={Boolean(record)}
+                  disabled={Boolean(record) || saving}
                 >
                   <span className="kiosk-avatar">{child.first_name.charAt(0).toUpperCase()}</span>
                   <span className="kiosk-name-text"><strong>{childName(child)}</strong>{record ? <small>✓ Signed in at {record.time}</small> : <small>Tap to sign in</small>}</span>
@@ -345,13 +467,13 @@ export default function KioskPreviewPage() {
           <section className="kiosk-community-form-card">
             <label className="kiosk-form-field wide">
               <span>Name or identifier</span>
-              <input value={visitorName} onChange={(event) => setVisitorName(event.target.value)} placeholder="Your name" autoComplete="off" />
+              <input value={visitorName} onChange={(event) => setVisitorName(event.target.value)} placeholder="Your name" autoComplete="off" disabled={saving} />
             </label>
 
             <div className="kiosk-community-form-grid">
               <label className="kiosk-form-field">
                 <span>Visitor type</span>
-                <select value={visitorType} onChange={(event) => setVisitorType(event.target.value as VisitorType)}>
+                <select value={visitorType} onChange={(event) => setVisitorType(event.target.value as VisitorType)} disabled={saving}>
                   <option>Adult</option>
                   <option>Family</option>
                   <option>Visitor</option>
@@ -359,20 +481,20 @@ export default function KioskPreviewPage() {
               </label>
               <label className="kiosk-form-field">
                 <span>Reason for visit</span>
-                <select value={purpose} onChange={(event) => setPurpose(event.target.value)}>
+                <select value={purpose} onChange={(event) => setPurpose(event.target.value)} disabled={saving}>
                   {purposes.map((item) => <option key={item}>{item}</option>)}
                 </select>
               </label>
             </div>
 
-            <button type="button" className="kiosk-community-submit" onClick={submitCommunityCheckIn} disabled={!visitorName.trim()}>
-              Sign in
+            <button type="button" className="kiosk-community-submit" onClick={submitCommunitySignIn} disabled={!visitorName.trim() || saving}>
+              {saving ? 'Saving…' : 'Sign in'}
             </button>
           </section>
 
           <div className="kiosk-community-session-note">
             <span>✓</span>
-            <p><strong>{communityRecords.length} visitor sign-in{communityRecords.length === 1 ? '' : 's'} in this preview session.</strong> The permanent version will save each visit immediately so monthly totals and averages are automatic.</p>
+            <p><strong>{communityCount} adult / visitor sign-in{communityCount === 1 ? '' : 's'} recorded today.</strong> Each sign-in is saved immediately for monthly totals and averages.</p>
           </div>
         </section>
       )}
@@ -380,15 +502,15 @@ export default function KioskPreviewPage() {
       {selectedChild && (
         <div className="kiosk-mood-backdrop" role="dialog" aria-modal="true" aria-labelledby="kiosk-mood-title">
           <section className="kiosk-mood-card">
-            <button type="button" className="kiosk-close" onClick={() => setSelectedChild(null)} aria-label="Go back">×</button>
+            <button type="button" className="kiosk-close" onClick={() => !saving && setSelectedChild(null)} aria-label="Go back">×</button>
             <span className="kiosk-step">2</span>
             <h2 id="kiosk-mood-title">Hi, {selectedChild.first_name}!</h2>
             <p>How are you feeling today?</p>
             <div className="kiosk-moods">
               {moods.map((mood) => (
-                <button type="button" key={mood.value} className={`kiosk-mood ${mood.value}`} onClick={() => chooseMood(mood.value)}>
+                <button type="button" key={mood.value} className={`kiosk-mood ${mood.value}`} onClick={() => chooseMood(mood.value)} disabled={saving}>
                   <span>{mood.emoji}</span>
-                  <strong>{mood.label}</strong>
+                  <strong>{saving ? 'Saving…' : mood.label}</strong>
                 </button>
               ))}
             </div>
@@ -410,24 +532,27 @@ export default function KioskPreviewPage() {
       {unlockOpen && (
         <div className="kiosk-staff-unlock-backdrop" role="dialog" aria-modal="true" aria-labelledby="kiosk-staff-unlock-title">
           <section className="kiosk-staff-unlock-card">
-            <button type="button" className="kiosk-close" onClick={() => setUnlockOpen(false)} aria-label="Close staff unlock">×</button>
+            <button type="button" className="kiosk-close" onClick={() => !unlocking && setUnlockOpen(false)} aria-label="Close staff unlock">×</button>
             <span className="kiosk-lock-icon">🔒</span>
             <h2 id="kiosk-staff-unlock-title">Staff exit</h2>
-            <p>Enter the staff PIN to leave Kiosk Mode.</p>
+            <p>Enter the password for the staff account that launched this kiosk.</p>
             <input
               type="password"
-              inputMode="numeric"
-              value={unlockPin}
-              onChange={(event) => setUnlockPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              value={unlockPassword}
+              onChange={(event) => setUnlockPassword(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Enter') unlockStaffExit()
+                if (event.key === 'Enter') void unlockStaffExit()
               }}
-              placeholder="PIN"
+              placeholder="Staff password"
+              autoComplete="current-password"
               autoFocus
+              disabled={unlocking}
             />
             {unlockError && <div className="kiosk-unlock-error">{unlockError}</div>}
-            <button type="button" className="kiosk-unlock-submit" onClick={unlockStaffExit}>Exit to staff dashboard</button>
-            <small>Preview interaction only. Production will use protected staff authorization.</small>
+            <button type="button" className="kiosk-unlock-submit" onClick={() => void unlockStaffExit()} disabled={!unlockPassword || unlocking}>
+              {unlocking ? 'Verifying…' : 'Exit to staff dashboard'}
+            </button>
+            <small>Press and hold the JH logo for 3 seconds whenever staff need to leave Kiosk Mode.</small>
           </section>
         </div>
       )}
