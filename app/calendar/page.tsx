@@ -406,6 +406,41 @@ export default function CalendarPage() {
     await loadEvents()
   }
 
+  async function deleteEvent(event: CalendarEvent, deleteSeries = false) {
+    if (!session || profile?.role !== 'admin' || saving) return
+
+    const dateLabel = parseDateKey(event.event_date).toLocaleDateString(undefined, {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
+    const target = deleteSeries && event.series_id
+      ? `the entire recurring series for “${event.title}”`
+      : `“${event.title}” on ${dateLabel}`
+
+    if (!window.confirm(`Permanently delete ${target}? This cannot be undone. Use Cancel event instead if you want to keep a record that it was planned.`)) return
+
+    setSaving(true)
+    setMessage('')
+
+    let query = supabase.from('calendar_events').delete()
+    query = deleteSeries && event.series_id
+      ? query.eq('series_id', event.series_id)
+      : query.eq('id', event.id)
+
+    const { error } = await query
+    setSaving(false)
+
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    setSelectedEvent(null)
+    setMessage(deleteSeries && event.series_id ? 'Recurring event series permanently deleted.' : 'Calendar event permanently deleted.')
+    await loadEvents()
+  }
+
   function renderEvent(event: CalendarEvent, compact = false) {
     const meta = eventMeta(event.event_type)
     return (
@@ -580,6 +615,8 @@ export default function CalendarPage() {
               {profile.role === 'admin' && <>
                 <button type="button" className="ghost" onClick={() => openEditEvent(selectedEvent)} disabled={saving}>Edit</button>
                 <button type="button" className={`ghost ${selectedEvent.status === 'scheduled' ? 'danger-button' : ''}`} onClick={() => void setEventCanceled(selectedEvent, selectedEvent.status === 'scheduled')} disabled={saving}>{selectedEvent.status === 'scheduled' ? 'Cancel event' : 'Restore event'}</button>
+                <button type="button" className="ghost danger-button" onClick={() => void deleteEvent(selectedEvent)} disabled={saving}>Delete permanently</button>
+                {selectedEvent.series_id && <button type="button" className="ghost danger-button" onClick={() => void deleteEvent(selectedEvent, true)} disabled={saving}>Delete recurring series</button>}
               </>}
             </div>
           </section>
