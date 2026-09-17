@@ -26,12 +26,22 @@ type NavGroup = {
 
 const navGroups: NavGroup[] = [
   {
-    label: 'Daily Operations',
+    label: 'Operations',
     items: [
+      {
+        href: '/calendar',
+        label: 'Calendar',
+        description: 'Center activities, trips, meetings, closures, and special events.',
+      },
       {
         href: '/attendance',
         label: 'Attendance',
         description: 'Daily child and community sign-ins with saved records.',
+      },
+      {
+        href: '/programs',
+        label: 'Programs & Enrollments',
+        description: 'Create programs, choose registration paths, and manage participant rosters.',
       },
       {
         href: '/card-tracking',
@@ -43,6 +53,11 @@ const navGroups: NavGroup[] = [
         label: 'Missed Cards',
         description: 'Backfill a card or status from a previous day.',
       },
+      {
+        href: '/reports/attendance',
+        label: 'Attendance Reports',
+        description: 'Monthly sign-in totals, averages, and CSV exports.',
+      },
     ],
   },
   {
@@ -51,22 +66,12 @@ const navGroups: NavGroup[] = [
       {
         href: '/children',
         label: 'Children & Registrations',
-        description: 'Search school-year profiles, birthdays, school, grade, and restricted emergency information.',
+        description: 'Search child profiles, registrations, birthdays, school, grade, and protected information.',
       },
       {
         href: '/households',
         label: 'Households',
         description: 'Group siblings and maintain shared family contacts without duplicating child profiles.',
-      },
-    ],
-  },
-  {
-    label: 'Programs',
-    items: [
-      {
-        href: '/programs',
-        label: 'Programs & Enrollments',
-        description: 'Create center programs, choose registration styles, and manage participant rosters.',
       },
     ],
   },
@@ -93,16 +98,6 @@ const navGroups: NavGroup[] = [
         label: 'Prize Management',
         description: 'Rename, review, or remove prize items.',
         adminOnly: true,
-      },
-    ],
-  },
-  {
-    label: 'Reports',
-    items: [
-      {
-        href: '/reports/attendance',
-        label: 'Attendance Reports',
-        description: 'Monthly sign-in totals, averages, and CSV exports.',
       },
     ],
   },
@@ -196,18 +191,25 @@ export default function SiteNavigation() {
   if (pathname.startsWith('/kiosk') || pathname.startsWith('/reset-password') || pathname.startsWith('/forgot-password')) return null
   if (!access.active) return null
 
-  function isCurrent(href?: string) {
+  function routeMatches(href?: string) {
     if (!href) return false
     if (href === '/') return pathname === '/'
-    return pathname === href
-  }
-
-  function groupIsCurrent(group: NavGroup) {
-    return group.items.some((item) => item.href && isCurrent(item.href))
+    return pathname === href || pathname.startsWith(`${href}/`)
   }
 
   function visibleItems(group: NavGroup) {
     return group.items.filter((item) => !item.adminOnly || access.role === 'admin')
+  }
+
+  function currentItemHref(items: NavItem[]) {
+    return items
+      .filter((item) => item.href && routeMatches(item.href))
+      .map((item) => item.href as string)
+      .sort((a, b) => b.length - a.length)[0] ?? null
+  }
+
+  function groupIsCurrent(group: NavGroup) {
+    return currentItemHref(group.items) !== null
   }
 
   function toggleGroup(label: string) {
@@ -245,18 +247,15 @@ export default function SiteNavigation() {
           </button>
 
           <div id="juanita-site-menu" className={`site-nav-menu ${mobileOpen ? 'open' : ''}`}>
-            <Link href="/" className={`site-nav-link ${isCurrent('/') ? 'active' : ''}`} aria-current={isCurrent('/') ? 'page' : undefined} onClick={closeMenus}>
+            <Link href="/" className={`site-nav-link ${pathname === '/' ? 'active' : ''}`} aria-current={pathname === '/' ? 'page' : undefined} onClick={closeMenus}>
               Dashboard
-            </Link>
-
-            <Link href="/calendar" className={`site-nav-link ${isCurrent('/calendar') ? 'active' : ''}`} aria-current={isCurrent('/calendar') ? 'page' : undefined} onClick={closeMenus}>
-              Calendar
             </Link>
 
             {navGroups.map((group) => {
               const items = visibleItems(group)
               if (items.length === 0) return null
               const active = groupIsCurrent({ ...group, items })
+              const activeHref = currentItemHref(items)
               const isOpen = openGroup === group.label
               const groupId = `nav-group-${group.label.toLowerCase().replace(/\s+/g, '-')}`
 
@@ -279,7 +278,7 @@ export default function SiteNavigation() {
                           )
                         }
 
-                        const current = isCurrent(item.href)
+                        const current = activeHref === item.href
                         return (
                           <Link className={`site-nav-dropdown-item ${current ? 'active' : ''}`} href={item.href} key={item.href} aria-current={current ? 'page' : undefined} onClick={closeMenus}>
                             <span><strong>{item.label}</strong>{item.description && <small>{item.description}</small>}</span>
