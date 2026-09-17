@@ -47,6 +47,7 @@ const navGroups: NavGroup[] = [
     label: 'Rewards',
     items: [
       { href: '/rewards', label: 'Reward Center', description: 'Use monthly earned spins and shared prize inventory.' },
+      { href: '/rewards/fulfillment', label: 'Prize Fulfillment', description: 'See prize winners and mark prizes received after handoff.' },
       { href: '/rewards/free', label: 'Free Spins', description: 'Award a bonus spin without using monthly spins.' },
       { href: '/rewards/test', label: 'Test Mode', description: 'Practice the wheel without changing real records.' },
       { href: '/rewards/manage', label: 'Prize Management', description: 'Rename, review, or remove prize items.', adminOnly: true },
