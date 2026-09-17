@@ -53,6 +53,21 @@ const navGroups: NavGroup[] = [
         label: 'Children & Registrations',
         description: 'Search school-year profiles, birthdays, school, grade, and restricted emergency information.',
       },
+      {
+        href: '/households',
+        label: 'Households',
+        description: 'Group siblings and maintain shared family contacts without duplicating child profiles.',
+      },
+    ],
+  },
+  {
+    label: 'Programs',
+    items: [
+      {
+        href: '/programs',
+        label: 'Programs & Enrollments',
+        description: 'Create center programs, choose registration styles, and manage participant rosters.',
+      },
     ],
   },
   {
