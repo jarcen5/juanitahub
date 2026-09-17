@@ -26,7 +26,14 @@ type Filter = 'outstanding' | 'all' | 'received'
 
 function previousMonth() {
   const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7)
+  const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`
+}
+
+function shiftMonth(month: string, offset: number) {
+  const [year, number] = month.split('-').map(Number)
+  const shifted = new Date(year, number - 1 + offset, 1)
+  return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, '0')}`
 }
 
 function monthStart(month: string) {
@@ -194,7 +201,7 @@ export default function PrizeFulfillmentPage() {
       <main className="main fulfillment-page">
         <section className="fulfillment-hero">
           <div><span className="fulfillment-kicker">Reward handoff</span><h1>Prize Fulfillment</h1><p>See what children won and check prizes off when they receive them.</p></div>
-          <div className="fulfillment-month-control"><label htmlFor="fulfillment-month">Reward month</label><input id="fulfillment-month" type="month" value={month} onChange={(event) => setMonth(event.target.value)} /><button className="ghost" type="button" onClick={() => setMonth(previousMonth())}>Previous month</button></div>
+          <div className="fulfillment-month-control"><label htmlFor="fulfillment-month">Reward month</label><input id="fulfillment-month" type="month" value={month} onChange={(event) => setMonth(event.target.value)} /><button className="ghost" type="button" onClick={() => setMonth((current) => shiftMonth(current, -1))}>Previous month</button></div>
         </section>
 
         {message && <div className={`notice fulfillment-notice ${messageKind}`}>{message}</div>}
