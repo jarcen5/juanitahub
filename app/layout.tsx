@@ -13,6 +13,7 @@ import './auth-recovery.css'
 import './reports.css'
 import './calendar.css'
 import './children.css'
+import './children-expanded.css'
 
 export const metadata: Metadata = {
   title: 'Juanita Hub',
