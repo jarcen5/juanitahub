@@ -46,6 +46,16 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'People',
+    items: [
+      {
+        href: '/children',
+        label: 'Children & Registrations',
+        description: 'Search school-year profiles, birthdays, school, grade, and restricted emergency information.',
+      },
+    ],
+  },
+  {
     label: 'Rewards',
     items: [
       {
