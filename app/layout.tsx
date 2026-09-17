@@ -12,6 +12,7 @@ import './kiosk-board.css'
 import './auth-recovery.css'
 import './reports.css'
 import './calendar.css'
+import './children.css'
 
 export const metadata: Metadata = {
   title: 'Juanita Hub',
