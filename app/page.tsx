@@ -46,6 +46,11 @@ type CalendarEvent = {
   visibility: 'public' | 'staff'
 }
 
+type BirthdayRegistration = {
+  child_id: number
+  birth_date: string | null
+}
+
 function localDateString(date = new Date()) {
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
@@ -84,6 +89,22 @@ function calendarIcon(type: string) {
   return '📌'
 }
 
+function daysUntilBirthday(birthDate: string) {
+  const [, monthString, dayString] = birthDate.split('-')
+  const month = Number(monthString) - 1
+  const day = Number(dayString)
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  let next = new Date(now.getFullYear(), month, day)
+  if (next < todayStart) next = new Date(now.getFullYear() + 1, month, day)
+  return Math.round((next.getTime() - todayStart.getTime()) / 86_400_000)
+}
+
+function birthdayDateLabel(birthDate: string) {
+  const [, monthString, dayString] = birthDate.split('-')
+  return new Date(2000, Number(monthString) - 1, Number(dayString)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 export default function StaffHomePage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<StaffProfile | null>(null)
@@ -92,6 +113,7 @@ export default function StaffHomePage() {
   const [attendanceVisits, setAttendanceVisits] = useState<AttendanceVisit[]>([])
   const [operatingDay, setOperatingDay] = useState<OperatingDay | null>(null)
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
+  const [birthdayRegistrations, setBirthdayRegistrations] = useState<BirthdayRegistration[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
@@ -121,6 +143,7 @@ export default function StaffHomePage() {
       setAttendanceVisits([])
       setOperatingDay(null)
       setCalendarEvents([])
+      setBirthdayRegistrations([])
       return
     }
 
@@ -131,7 +154,7 @@ export default function StaffHomePage() {
     if (!session) return
     setLoading(true)
 
-    const [profileResult, childrenResult, entriesResult, attendanceResult, operatingResult, calendarResult] = await Promise.all([
+    const [profileResult, childrenResult, entriesResult, attendanceResult, operatingResult, calendarResult, birthdayResult] = await Promise.all([
       supabase
         .from('staff_profiles')
         .select('display_name, role, active')
@@ -161,6 +184,11 @@ export default function StaffHomePage() {
         .select('id, title, event_type, all_day, start_time, end_time, location, status, visibility')
         .eq('event_date', today)
         .order('start_time'),
+      supabase
+        .from('child_registrations')
+        .select('child_id, birth_date')
+        .eq('status', 'active')
+        .not('birth_date', 'is', null),
     ])
 
     setProfile(profileResult.data as StaffProfile | null)
@@ -169,7 +197,8 @@ export default function StaffHomePage() {
     setAttendanceVisits((attendanceResult.data ?? []) as AttendanceVisit[])
     setOperatingDay(operatingResult.data as OperatingDay | null)
     setCalendarEvents((calendarResult.data ?? []) as CalendarEvent[])
-    setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? entriesResult.error?.message ?? attendanceResult.error?.message ?? operatingResult.error?.message ?? calendarResult.error?.message ?? '')
+    setBirthdayRegistrations((birthdayResult.data ?? []) as BirthdayRegistration[])
+    setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? entriesResult.error?.message ?? attendanceResult.error?.message ?? operatingResult.error?.message ?? calendarResult.error?.message ?? birthdayResult.error?.message ?? '')
     setLoading(false)
   }
 
@@ -204,6 +233,16 @@ export default function StaffHomePage() {
   const communityPresent = attendanceVisits.filter((visit) => visit.participant_type !== 'child' && !visit.signed_out_at).length
   const presentNow = childSignIns + communityPresent
   const communitySignIns = attendanceVisits.filter((visit) => visit.participant_type !== 'child').length
+
+  const upcomingBirthdays = useMemo(() => {
+    const childMap = new Map(children.map((child) => [child.id, child]))
+    return birthdayRegistrations
+      .filter((registration): registration is BirthdayRegistration & { birth_date: string } => Boolean(registration.birth_date))
+      .map((registration) => ({ registration, child: childMap.get(registration.child_id), days: daysUntilBirthday(registration.birth_date) }))
+      .filter((item) => item.child && item.days <= 7)
+      .sort((a, b) => a.days - b.days || (a.child?.first_name ?? '').localeCompare(b.child?.first_name ?? ''))
+      .slice(0, 5)
+  }, [birthdayRegistrations, children])
 
   const centerStatus = !operatingDay
     ? 'Not recorded yet'
@@ -309,8 +348,18 @@ export default function StaffHomePage() {
 
             <section className="card home-birthday-card">
               <div className="home-section-heading compact"><div><span className="home-section-kicker">Celebrate</span><h2>Birthdays</h2></div><span aria-hidden="true" className="home-birthday-emoji">🎂</span></div>
-              <p className="subtle">Once participant profiles include birthdays, today’s and upcoming birthdays can appear here automatically.</p>
-              <div className="home-empty-state">No birthday data connected yet.</div>
+              {upcomingBirthdays.length === 0 ? (
+                <><p className="subtle">Birthdays from current child registrations will appear here automatically.</p><div className="home-empty-state">No birthdays in the next 7 days.</div></>
+              ) : (
+                <div className="home-attention-list">
+                  {upcomingBirthdays.map(({ registration, child, days }) => child && (
+                    <Link href="/children" key={registration.child_id}>
+                      <strong>{days === 0 ? '🎉 Today: ' : '🎂 '}{child.first_name}{child.last_name ? ` ${child.last_name}` : ''}</strong>
+                      <small>{days === 0 ? 'Birthday today!' : `${birthdayDateLabel(registration.birth_date)} • ${days} day${days === 1 ? '' : 's'} away`}</small>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="card home-attention-card">
@@ -324,8 +373,8 @@ export default function StaffHomePage() {
         </section>
 
         <section className="card home-roadmap">
-          <div><span className="home-section-kicker">Juanita Hub operations</span><h2>Calendar and attendance now feed the daily home page</h2><p>Center plans and saved sign-ins can be managed once and reflected throughout Juanita Hub. Inventory, purchasing, programs, and staff/intern scheduling can be layered in next.</p></div>
-          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Reports ✓</span><span>Inventory</span><span>Staff Scheduling</span></div>
+          <div><span className="home-section-kicker">Juanita Hub operations</span><h2>Calendar, attendance, and child profiles now feed the daily home page</h2><p>Center plans, saved sign-ins, and current school-year profiles can be managed once and reflected throughout Juanita Hub. Inventory, purchasing, programs, and staff/intern scheduling can be layered in next.</p></div>
+          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Children ✓</span><span>Reports ✓</span><span>Inventory</span><span>Staff Scheduling</span></div>
         </section>
       </main>
     </div>
