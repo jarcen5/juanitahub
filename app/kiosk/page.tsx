@@ -49,6 +49,13 @@ type PublicCalendarEvent = {
   status: 'scheduled' | 'canceled'
 }
 
+type PublicBirthday = {
+  child_id: number
+  first_name: string
+  birth_month: number
+  birth_day: number
+}
+
 const moods: Array<{ value: Mood; emoji: string; label: string }> = [
   { value: 'happy', emoji: '😀', label: 'Good' },
   { value: 'meh', emoji: '😐', label: 'Meh' },
@@ -118,6 +125,7 @@ export default function KioskPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [children, setChildren] = useState<Child[]>([])
   const [calendarEvents, setCalendarEvents] = useState<PublicCalendarEvent[]>([])
+  const [birthdays, setBirthdays] = useState<PublicBirthday[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<KioskView>('home')
   const [search, setSearch] = useState('')
@@ -177,7 +185,7 @@ export default function KioskPage() {
     setLoading(true)
     setMessage('')
 
-    const [profileResult, childrenResult, visitsResult, calendarResult] = await Promise.all([
+    const [profileResult, childrenResult, visitsResult, calendarResult, birthdaysResult] = await Promise.all([
       supabase
         .from('staff_profiles')
         .select('active')
@@ -200,15 +208,19 @@ export default function KioskPage() {
         .select('id, event_date, title, event_type, description, location, all_day, start_time, end_time, status')
         .eq('event_date', today)
         .order('start_time'),
+      supabase
+        .from('kiosk_public_birthdays')
+        .select('child_id, first_name, birth_month, birth_day'),
     ])
 
-    if (profileResult.error || childrenResult.error || visitsResult.error || calendarResult.error) {
-      setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? visitsResult.error?.message ?? calendarResult.error?.message ?? 'Kiosk information could not be loaded.')
+    if (profileResult.error || childrenResult.error || visitsResult.error || calendarResult.error || birthdaysResult.error) {
+      setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? visitsResult.error?.message ?? calendarResult.error?.message ?? birthdaysResult.error?.message ?? 'Kiosk information could not be loaded.')
     }
 
     setProfile(profileResult.data as Profile | null)
     setChildren((childrenResult.data ?? []) as Child[])
     setCalendarEvents((calendarResult.data ?? []) as PublicCalendarEvent[])
+    setBirthdays((birthdaysResult.data ?? []) as PublicBirthday[])
 
     const visits = (visitsResult.data ?? []) as AttendanceVisit[]
     const nextRecords: Record<number, KioskRecord> = {}
@@ -244,6 +256,12 @@ export default function KioskPage() {
   }, [children, records, search])
 
   const featuredEvent = useMemo(() => calendarEvents.find((event) => event.status === 'scheduled' && ['activity', 'field_trip', 'club', 'program', 'special_event'].includes(event.event_type)) ?? null, [calendarEvents])
+  const todaysBirthdays = useMemo(() => {
+    const now = new Date()
+    return birthdays
+      .filter((birthday) => birthday.birth_month === now.getMonth() + 1 && birthday.birth_day === now.getDate())
+      .sort((a, b) => a.first_name.localeCompare(b.first_name))
+  }, [birthdays])
 
   function showCelebration(title: string, subtitle: string, emoji: string) {
     setCelebration({ title, subtitle, emoji })
@@ -446,12 +464,14 @@ export default function KioskPage() {
             </article>
 
             <article className="kiosk-board-card birthdays">
-              <div className="kiosk-board-card-heading"><span>🎂</span><div><small>Celebrate</small><h2>Birthdays</h2></div><span className="kiosk-preview-chip">Preview</span></div>
-              <div className="kiosk-birthday-empty">
-                <span>🎈</span>
-                <strong>No birthdays added for today yet</strong>
-                <p>Future participant profiles can automatically show today’s birthdays here.</p>
-              </div>
+              <div className="kiosk-board-card-heading"><span>🎂</span><div><small>Celebrate</small><h2>Birthdays</h2></div><span className="kiosk-preview-chip">Profiles</span></div>
+              {todaysBirthdays.length === 0 ? (
+                <div className="kiosk-birthday-empty"><span>🎈</span><strong>No birthdays today</strong><p>Public birthday celebrations from current child registrations will appear here automatically.</p></div>
+              ) : (
+                <div className="kiosk-board-list">
+                  {todaysBirthdays.map((birthday) => <div key={birthday.child_id}><strong>🎉 Happy Birthday, {birthday.first_name}!</strong><p>We hope you have an awesome day at Juanita!</p></div>)}
+                </div>
+              )}
             </article>
 
             <article className="kiosk-board-card schedule">
