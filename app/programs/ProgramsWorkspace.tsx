@@ -399,6 +399,36 @@ export default function ProgramsWorkspace() {
     setSaving(false)
   }
 
+  async function removeAccidentalEnrollment(enrollment: Enrollment, participantName: string) {
+    if (profile?.role !== 'admin' || saving) return
+    if (enrollment.source !== 'staff') {
+      setMessage('Parent-submitted or imported enrollment records should be withdrawn or declined instead of permanently removed.')
+      return
+    }
+
+    const confirmed = window.confirm(`Remove ${participantName} from this program roster?\n\nUse this only for an accidental staff-added entry. This permanently deletes the enrollment record.`)
+    if (!confirmed) return
+
+    setSaving(true)
+    setMessage('')
+    const { data, error } = await supabase
+      .from('program_enrollments')
+      .delete()
+      .eq('id', enrollment.id)
+      .eq('source', 'staff')
+      .select('id')
+
+    if (error) {
+      setMessage(error.message)
+    } else if (!data || data.length === 0) {
+      setMessage('Nothing was removed. The enrollment may have changed or your account may not have permission.')
+    } else {
+      setMessage(`${participantName} was removed from the program roster.`)
+      await loadData()
+    }
+    setSaving(false)
+  }
+
   async function changeProgramStatus(status: Program['status']) {
     if (!selected || profile?.role !== 'admin' || saving) return
     setSaving(true)
@@ -529,7 +559,29 @@ export default function ProgramsWorkspace() {
                       const adult = enrollment.adult_participant_id ? adultById.get(enrollment.adult_participant_id) : null
                       const household = enrollment.household_id ? householdById.get(enrollment.household_id) : null
                       const name = child ? childName(child) : adult ? adultName(adult) : 'Participant'
-                      return <article className="program-roster-row" key={enrollment.id}><div><strong>{name}</strong><small>{household ? household.display_name : adult ? 'Adult participant' : 'No household linked'} • {enrollment.source}</small></div>{profile.role === 'admin' ? <select value={enrollment.status} onChange={(event) => void changeEnrollmentStatus(enrollment, event.target.value as Enrollment['status'])} disabled={saving}><option value="pending">Pending</option><option value="enrolled">Enrolled</option><option value="waitlisted">Waitlisted</option><option value="withdrawn">Withdrawn</option><option value="completed">Completed</option><option value="declined">Declined</option></select> : <span className={`enrollment-status ${enrollment.status}`}>{enrollment.status}</span>}</article>
+                      return (
+                        <article className="program-roster-row" key={enrollment.id}>
+                          <div>
+                            <strong>{name}</strong>
+                            <small>{household ? household.display_name : adult ? 'Adult participant' : 'No household linked'} • {enrollment.source}</small>
+                          </div>
+                          {profile.role === 'admin' ? (
+                            <div className="program-roster-actions">
+                              <select value={enrollment.status} onChange={(event) => void changeEnrollmentStatus(enrollment, event.target.value as Enrollment['status'])} disabled={saving} aria-label={`Enrollment status for ${name}`}>
+                                <option value="pending">Pending</option>
+                                <option value="enrolled">Enrolled</option>
+                                <option value="waitlisted">Waitlisted</option>
+                                <option value="withdrawn">Withdrawn</option>
+                                <option value="completed">Completed</option>
+                                <option value="declined">Declined</option>
+                              </select>
+                              {enrollment.source === 'staff' && (
+                                <button type="button" className="ghost danger-button program-remove-enrollment" onClick={() => void removeAccidentalEnrollment(enrollment, name)} disabled={saving} aria-label={`Remove accidental roster entry for ${name}`}>Remove</button>
+                              )}
+                            </div>
+                          ) : <span className={`enrollment-status ${enrollment.status}`}>{enrollment.status}</span>}
+                        </article>
+                      )
                     })}
                     {selectedRoster.length === 0 && <div className="programs-empty">No one is enrolled yet.</div>}
                   </div>
