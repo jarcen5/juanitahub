@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import RewardFulfillmentTask from '@/components/RewardFulfillmentTask'
+import RegistrationReviewTask from '@/components/RegistrationReviewTask'
+import DashboardTaskCard from '@/components/DashboardTaskCard'
 
 type StaffProfile = {
   display_name: string
@@ -363,12 +365,15 @@ export default function StaffHomePage() {
               )}
             </section>
 
+            <DashboardTaskCard />
+
             <section className="card home-attention-card">
               <span className="home-section-kicker">Needs attention</span><h2>Today</h2>
               <div className="home-attention-list">
                 {childrenNotSignedIn > 0 ? <Link href="/attendance"><strong>{childrenNotSignedIn} child {childrenNotSignedIn === 1 ? 'has' : 'have'} not signed in</strong><small>Open Attendance →</small></Link> : <div className="home-all-clear"><strong>✓ All active children are signed in</strong><small>Attendance roster is complete for today.</small></div>}
                 {missingCards > 0 ? <Link href="/card-tracking"><strong>{missingCards} card/status {missingCards === 1 ? 'entry is' : 'entries are'} still missing</strong><small>Open Card Tracking →</small></Link> : <div className="home-all-clear"><strong>✓ Card tracking is complete</strong><small>All active children have an entry today.</small></div>}
                 <RewardFulfillmentTask />
+                <RegistrationReviewTask />
               </div>
             </section>
           </aside>
@@ -376,7 +381,7 @@ export default function StaffHomePage() {
 
         <section className="card home-roadmap">
           <div><span className="home-section-kicker">Juanita Hub operations</span><h2>Calendar, attendance, and child profiles now feed the daily home page</h2><p>Center plans, saved sign-ins, and current school-year profiles can be managed once and reflected throughout Juanita Hub. Inventory, purchasing, programs, and staff/intern scheduling can be layered in next.</p></div>
-          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Children ✓</span><span>Reports ✓</span><span>Inventory</span><span>Staff Scheduling</span></div>
+          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Children ✓</span><span>Reports ✓</span><span>Tasks ✓</span><span>Inventory</span><span>Staff Scheduling</span></div>
         </section>
       </main>
     </div>
