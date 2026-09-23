@@ -83,6 +83,8 @@ export default function TaskCenterPage() {
   const [registrationCount, setRegistrationCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [message, setMessage] = useState('')
 
   const [scope, setScope] = useState<'mine' | 'all'>('mine')
@@ -286,18 +288,29 @@ export default function TaskCenterPage() {
   }
 
   async function deleteTask(task: StaffTask) {
-    if (profile?.role !== 'admin' || saving) return
-    if (!confirm(`Delete “${task.title}”? This permanently removes the manual task.`)) return
-    setSaving(true)
+    if (profile?.role !== 'admin' || deletingId !== null) return
+    setDeletingId(task.id)
     setMessage('')
-    const { error } = await supabase.from('staff_tasks').delete().eq('id', task.id)
-    if (error) setMessage(error.message)
-    else {
+
+    const { data, error } = await supabase
+      .from('staff_tasks')
+      .delete()
+      .eq('id', task.id)
+      .select('id')
+      .maybeSingle()
+
+    if (error) {
+      setMessage(error.message)
+    } else if (!data) {
+      setMessage('The task could not be removed. Refresh the page and try again.')
+    } else {
+      setTasks((current) => current.filter((item) => item.id !== task.id))
+      setDeleteConfirmId(null)
       if (editingId === task.id) resetForm()
       setMessage('Task removed.')
-      await loadData()
     }
-    setSaving(false)
+
+    setDeletingId(null)
   }
 
   const staffMap = useMemo(() => new Map(staff.map((person) => [person.user_id, person.display_name])), [staff])
@@ -422,7 +435,7 @@ export default function TaskCenterPage() {
                         {canChangeStatus && task.status === 'completed' && <button className="ghost" disabled={saving} onClick={() => void changeStatus(task, 'todo')}>Reopen</button>}
                         {profile.role === 'admin' && <button className="ghost" disabled={saving} onClick={() => startEdit(task)}>Edit</button>}
                         {profile.role === 'admin' && !['completed', 'canceled'].includes(task.status) && <button className="ghost" disabled={saving} onClick={() => void changeStatus(task, 'canceled')}>Cancel</button>}
-                        {profile.role === 'admin' && <button className="ghost danger-button" disabled={saving} onClick={() => void deleteTask(task)}>Delete</button>}
+                        {profile.role === 'admin' && (deleteConfirmId === task.id ? <span className="task-delete-confirm"><span>Delete permanently?</span><button className="ghost" disabled={deletingId === task.id} onClick={() => setDeleteConfirmId(null)}>Keep</button><button className="ghost danger-button" disabled={deletingId === task.id} onClick={() => void deleteTask(task)}>{deletingId === task.id ? 'Deleting…' : 'Yes, delete'}</button></span> : <button className="ghost danger-button" disabled={deletingId !== null} onClick={() => setDeleteConfirmId(task.id)}>Delete</button>)}
                       </div>
                     </article>
                   )
