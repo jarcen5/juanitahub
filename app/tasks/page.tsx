@@ -12,6 +12,14 @@ type Profile = {
   active: boolean
 }
 
+type TeamMember = {
+  id: number
+  staff_user_id: string | null
+  display_name: string
+  member_type: 'staff' | 'intern' | 'volunteer'
+  active: boolean
+}
+
 type TaskPriority = 'low' | 'normal' | 'high' | 'urgent'
 type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'canceled'
 
@@ -22,7 +30,8 @@ type StaffTask = {
   priority: TaskPriority
   status: TaskStatus
   due_date: string | null
-  assigned_to: string
+  assigned_to: string | null
+  assigned_team_member_id: number | null
   created_by: string
   completed_by: string | null
   completed_at: string | null
@@ -77,7 +86,7 @@ function localToday() {
 export default function TaskCenterPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [staff, setStaff] = useState<Profile[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [tasks, setTasks] = useState<StaffTask[]>([])
   const [prizeCount, setPrizeCount] = useState(0)
   const [registrationCount, setRegistrationCount] = useState(0)
@@ -136,15 +145,15 @@ export default function TaskCenterPage() {
       return
     }
 
-    const [staffResult, taskResult, prizeResult] = await Promise.all([
+    const [teamResult, taskResult, prizeResult] = await Promise.all([
       supabase
-        .from('staff_profiles')
-        .select('user_id,display_name,role,active')
+        .from('team_members')
+        .select('id,staff_user_id,display_name,member_type,active')
         .eq('active', true)
         .order('display_name'),
       supabase
         .from('staff_tasks')
-        .select('id,title,details,priority,status,due_date,assigned_to,created_by,completed_by,completed_at,created_at,updated_at')
+        .select('id,title,details,priority,status,due_date,assigned_to,assigned_team_member_id,created_by,completed_by,completed_at,created_at,updated_at')
         .order('created_at', { ascending: false }),
       supabase
         .from('reward_prize_fulfillment')
@@ -164,14 +173,16 @@ export default function TaskCenterPage() {
       registrationError = registrationResult.error?.message ?? null
     }
 
-    setStaff((staffResult.data ?? []) as Profile[])
+    const nextTeamMembers = (teamResult.data ?? []) as TeamMember[]
+    setTeamMembers(nextTeamMembers)
     setTasks((taskResult.data ?? []) as StaffTask[])
     setPrizeCount(prizeResult.count ?? 0)
     setRegistrationCount(registrationOutstanding)
-    setAssignee((current) => current || session.user.id)
+    const ownTeamMember = nextTeamMembers.find((person) => person.staff_user_id === session.user.id)
+    setAssignee((current) => current || (ownTeamMember ? String(ownTeamMember.id) : String(nextTeamMembers[0]?.id ?? '')))
 
     const error = profileResult.error?.message
-      ?? staffResult.error?.message
+      ?? teamResult.error?.message
       ?? taskResult.error?.message
       ?? prizeResult.error?.message
       ?? registrationError
@@ -186,7 +197,8 @@ export default function TaskCenterPage() {
     setDetails('')
     setPriority('normal')
     setDueDate('')
-    setAssignee(session?.user.id ?? '')
+    const ownTeamMember = teamMembers.find((person) => person.staff_user_id === session?.user.id)
+    setAssignee(ownTeamMember ? String(ownTeamMember.id) : '')
   }
 
   function startEdit(task: StaffTask) {
@@ -195,13 +207,18 @@ export default function TaskCenterPage() {
     setDetails(task.details ?? '')
     setPriority(task.priority)
     setDueDate(task.due_date ?? '')
-    setAssignee(task.assigned_to)
+    setAssignee(task.assigned_team_member_id ? String(task.assigned_team_member_id) : '')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function saveTask() {
     if (!session || !profile?.active || !title.trim() || saving) return
-    if (profile.role !== 'admin' && assignee !== session.user.id) {
+    const selectedAssignee = teamMembers.find((person) => String(person.id) === assignee)
+    if (!selectedAssignee) {
+      setMessage('Choose a team member for this task.')
+      return
+    }
+    if (profile.role !== 'admin' && selectedAssignee.staff_user_id !== session.user.id) {
       setMessage('Staff can create personal tasks only. An admin can assign tasks to other people.')
       return
     }
@@ -214,7 +231,8 @@ export default function TaskCenterPage() {
       details: details.trim() || null,
       priority,
       due_date: dueDate || null,
-      assigned_to: profile.role === 'admin' ? assignee : session.user.id,
+      assigned_to: selectedAssignee.staff_user_id,
+      assigned_team_member_id: selectedAssignee.id,
     }
 
     if (editingId) {
@@ -242,7 +260,7 @@ export default function TaskCenterPage() {
 
       if (error) setMessage(error.message)
       else {
-        setMessage(profile.role === 'admin' && assignee !== session.user.id ? 'Task assigned.' : 'Task created.')
+        setMessage(profile.role === 'admin' && selectedAssignee.staff_user_id !== session.user.id ? 'Task assigned.' : 'Task created.')
         resetForm()
         await loadData()
       }
@@ -313,7 +331,7 @@ export default function TaskCenterPage() {
     setDeletingId(null)
   }
 
-  const staffMap = useMemo(() => new Map(staff.map((person) => [person.user_id, person.display_name])), [staff])
+  const teamMap = useMemo(() => new Map(teamMembers.map((person) => [person.id, person])), [teamMembers])
 
   const visibleTasks = useMemo(() => {
     if (!session) return []
@@ -321,7 +339,7 @@ export default function TaskCenterPage() {
     return tasks
       .filter((task) => scope === 'all' && profile?.role === 'admin' ? true : task.assigned_to === session.user.id)
       .filter((task) => filter === 'open' ? !['completed', 'canceled'].includes(task.status) : filter === 'completed' ? task.status === 'completed' : true)
-      .filter((task) => !term || task.title.toLowerCase().includes(term) || (task.details ?? '').toLowerCase().includes(term) || (staffMap.get(task.assigned_to) ?? '').toLowerCase().includes(term))
+      .filter((task) => !term || task.title.toLowerCase().includes(term) || (task.details ?? '').toLowerCase().includes(term) || (task.assigned_team_member_id ? (teamMap.get(task.assigned_team_member_id)?.display_name ?? '').toLowerCase().includes(term) : false))
       .sort((a, b) => {
         const aDone = ['completed', 'canceled'].includes(a.status) ? 1 : 0
         const bDone = ['completed', 'canceled'].includes(b.status) ? 1 : 0
@@ -332,7 +350,7 @@ export default function TaskCenterPage() {
         if (priorityWeight[a.priority] !== priorityWeight[b.priority]) return priorityWeight[a.priority] - priorityWeight[b.priority]
         return b.created_at.localeCompare(a.created_at)
       })
-  }, [tasks, scope, profile, session, filter, search, staffMap])
+  }, [tasks, scope, profile, session, filter, search, teamMap])
 
   const myOpenCount = useMemo(() => {
     if (!session) return 0
@@ -422,7 +440,7 @@ export default function TaskCenterPage() {
                       </div>
                       {task.details && <p>{task.details}</p>}
                       <div className="task-meta">
-                        <span>👤 {staffMap.get(task.assigned_to) ?? 'Staff member'}</span>
+                        <span>👤 {task.assigned_team_member_id ? teamMap.get(task.assigned_team_member_id)?.display_name ?? 'Team member' : 'Team member'}</span>
                         <span className={overdue ? 'task-overdue-label' : ''}>📅 {overdue ? 'Overdue • ' : ''}{dateLabel(task.due_date)}</span>
                       </div>
                       <div className="task-item-actions">
@@ -461,7 +479,7 @@ export default function TaskCenterPage() {
               <label className="field"><span>Assigned to</span>
                 {profile.role === 'admin' ? (
                   <select value={assignee} onChange={(event) => setAssignee(event.target.value)}>
-                    {staff.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}{person.user_id === session.user.id ? ' (me)' : ''}</option>)}
+                    {teamMembers.map((person) => <option key={person.id} value={person.id}>{person.display_name}{person.staff_user_id === session.user.id ? ' (me)' : ''}{!person.staff_user_id ? ` • ${person.member_type}` : ''}</option>)}
                   </select>
                 ) : (
                   <input value={profile.display_name} disabled />
@@ -469,7 +487,7 @@ export default function TaskCenterPage() {
               </label>
 
               {profile.role !== 'admin' && <p className="task-helper">Staff can create personal tasks and update their own status. Admins can assign work across the team.</p>}
-              <button className="primary task-save-button" disabled={saving || !title.trim() || !assignee} onClick={() => void saveTask()}>{saving ? 'Saving…' : editingId ? 'Save changes' : profile.role === 'admin' && assignee !== session.user.id ? 'Assign task' : 'Create task'}</button>
+              <button className="primary task-save-button" disabled={saving || !title.trim() || !assignee} onClick={() => void saveTask()}>{saving ? 'Saving…' : editingId ? 'Save changes' : profile.role === 'admin' && teamMembers.find((person) => String(person.id) === assignee)?.staff_user_id !== session.user.id ? 'Assign task' : 'Create task'}</button>
             </div>
           </aside>
         </section>
