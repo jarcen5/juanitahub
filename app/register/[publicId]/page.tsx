@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import SafeRichText from '@/components/SafeRichText'
 import styles from '../portal.module.css'
 
 type Mode = 'full' | 'renewal' | 'summer_short' | 'permission_only' | 'short_youth' | 'adult_short'
@@ -57,7 +58,7 @@ export default function ProgramRegistrationPage(){
   const simplePermission=mode==='permission_only'; const summer=mode==='summer_short'; const shortYouth=mode==='short_youth';
   return <main className={styles.portalShell}><div className={styles.registrationWrap}>
     <Link className={styles.backLink} href="/register">← All programs</Link>
-    <section className={styles.registrationHero}><span className={styles.eyebrow}>{program.program_type.replace('_',' ')}</span><h1>{program.name}</h1><p>{program.registration_intro||program.description||'Complete the form below to register.'}</p></section>
+    <section className={styles.registrationHero}><span className={styles.eyebrow}>{program.program_type.replace('_',' ')}</span><h1>{program.name}</h1><SafeRichText className={styles.richText} text={program.registration_intro||program.description||'Complete the form below to register.'} /></section>
     {token&&context&&<div className={styles.tokenNotice}>Returning household found: <strong>{context.household_display_name}</strong>. Review the information below and update anything that changed.</div>}
     {token&&!context&&<div className={styles.warningNotice}>This returning-family link could not be verified. It may have expired or already been used.</div>}
     {visibleModes.length>1&&<div className={styles.modeGrid}>{visibleModes.map(m=><button key={m} type="button" className={`${styles.modeCard} ${mode===m?styles.modeCardActive:''}`} onClick={()=>setMode(m)}><strong>{modeCopy[m].title}</strong><span>{modeCopy[m].description}</span></button>)}</div>}
