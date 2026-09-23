@@ -344,6 +344,7 @@ export default function CalendarPage() {
       const dayOfWeek = day.getDay()
 
       for (const member of teamMembers) {
+        if (!member.active) continue
         const exception = exceptionMap.get(`${member.id}:${dateKey}`)
         if (exception) {
           dayItems.push({
@@ -669,7 +670,7 @@ export default function CalendarPage() {
                     <span className="calendar-staffing-label">Staffing</span>
                     {(staffingByDate.get(key) ?? []).map((item) => <div className={`calendar-staffing-chip ${item.kind}`} key={item.key}>
                       <strong>{item.member_name}</strong>
-                      <small>{item.kind === 'off' ? 'Off' : `${item.start_time ? timeLabel(item.start_time) : ''}${item.end_time ? `–${timeLabel(item.end_time)}` : ''}${item.kind === 'available' ? ' • available' : item.kind === 'modified' ? ' • modified' : ''}`}</small>
+                      <small>{item.kind === 'off' ? 'Off' : `${item.start_time ? formatTime(item.start_time) : ''}${item.end_time ? `–${formatTime(item.end_time)}` : ''}${item.kind === 'available' ? ' • available' : item.kind === 'modified' ? ' • modified' : ''}`}</small>
                       {item.program_name && <span>{item.program_name}</span>}
                     </div>)}
                   </div>}
