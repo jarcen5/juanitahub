@@ -35,6 +35,53 @@ type CalendarEvent = {
   updated_at: string
 }
 
+type TeamMember = {
+  id: number
+  display_name: string
+  member_type: 'staff' | 'intern' | 'volunteer'
+  active: boolean
+}
+
+type StaffingBlock = {
+  id: number
+  team_member_id: number
+  day_of_week: number
+  block_type: 'shift' | 'available'
+  start_time: string
+  end_time: string
+  program_id: number | null
+  location: string | null
+  effective_start: string | null
+  effective_end: string | null
+}
+
+type StaffingException = {
+  id: number
+  team_member_id: number
+  exception_date: string
+  exception_type: 'off' | 'modified'
+  start_time: string | null
+  end_time: string | null
+  note: string | null
+}
+
+type StaffingProgram = {
+  id: number
+  name: string
+}
+
+type StaffingItem = {
+  key: string
+  member_name: string
+  member_type: TeamMember['member_type']
+  kind: 'shift' | 'available' | 'off' | 'modified'
+  start_time: string | null
+  end_time: string | null
+  program_name: string | null
+  location: string | null
+  note: string | null
+}
+
 type EventForm = {
   title: string
   event_type: CalendarEventType
@@ -154,6 +201,11 @@ export default function CalendarPage() {
   const [view, setView] = useState<CalendarView>('week')
   const [cursor, setCursor] = useState(() => parseDateKey(today))
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [staffingBlocks, setStaffingBlocks] = useState<StaffingBlock[]>([])
+  const [staffingExceptions, setStaffingExceptions] = useState<StaffingException[]>([])
+  const [staffingPrograms, setStaffingPrograms] = useState<StaffingProgram[]>([])
+  const [showStaffing, setShowStaffing] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -219,16 +271,47 @@ export default function CalendarPage() {
 
   async function loadEvents() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('calendar_events')
-      .select('id, event_date, title, event_type, description, staff_notes, location, all_day, start_time, end_time, visibility, status, series_id, created_by, canceled_by, canceled_at, created_at, updated_at')
-      .gte('event_date', range.startKey)
-      .lte('event_date', range.endKey)
-      .order('event_date')
-      .order('start_time')
+    const [eventResult, memberResult, blockResult, exceptionResult, programResult] = await Promise.all([
+      supabase
+        .from('calendar_events')
+        .select('id, event_date, title, event_type, description, staff_notes, location, all_day, start_time, end_time, visibility, status, series_id, created_by, canceled_by, canceled_at, created_at, updated_at')
+        .gte('event_date', range.startKey)
+        .lte('event_date', range.endKey)
+        .order('event_date')
+        .order('start_time'),
+      supabase
+        .from('team_members')
+        .select('id,display_name,member_type,active')
+        .order('display_name'),
+      supabase
+        .from('team_schedule_blocks')
+        .select('id,team_member_id,day_of_week,block_type,start_time,end_time,program_id,location,effective_start,effective_end')
+        .order('day_of_week')
+        .order('start_time'),
+      supabase
+        .from('team_schedule_exceptions')
+        .select('id,team_member_id,exception_date,exception_type,start_time,end_time,note')
+        .gte('exception_date', range.startKey)
+        .lte('exception_date', range.endKey)
+        .order('exception_date'),
+      supabase
+        .from('programs')
+        .select('id,name'),
+    ])
 
-    setEvents((data ?? []) as CalendarEvent[])
-    setMessage(error?.message ?? '')
+    setEvents((eventResult.data ?? []) as CalendarEvent[])
+    setTeamMembers((memberResult.data ?? []) as TeamMember[])
+    setStaffingBlocks((blockResult.data ?? []) as StaffingBlock[])
+    setStaffingExceptions((exceptionResult.data ?? []) as StaffingException[])
+    setStaffingPrograms((programResult.data ?? []) as StaffingProgram[])
+    setMessage(
+      eventResult.error?.message
+      ?? memberResult.error?.message
+      ?? blockResult.error?.message
+      ?? exceptionResult.error?.message
+      ?? programResult.error?.message
+      ?? '',
+    )
     setLoading(false)
   }
 
@@ -249,6 +332,57 @@ export default function CalendarPage() {
     }
     return map
   }, [events])
+
+  const staffingByDate = useMemo(() => {
+    const map = new Map<string, StaffingItem[]>()
+    const programMap = new Map(staffingPrograms.map((program) => [program.id, program.name]))
+    const exceptionMap = new Map(staffingExceptions.map((item) => [`${item.team_member_id}:${item.exception_date}`, item]))
+
+    for (let day = new Date(range.start); day <= range.end; day = addDays(day, 1)) {
+      const dateKey = localDateKey(day)
+      const dayItems: StaffingItem[] = []
+      const dayOfWeek = day.getDay()
+
+      for (const member of teamMembers) {
+        const exception = exceptionMap.get(`${member.id}:${dateKey}`)
+        if (exception) {
+          dayItems.push({
+            key: `exception-${exception.id}`,
+            member_name: member.display_name,
+            member_type: member.member_type,
+            kind: exception.exception_type,
+            start_time: exception.start_time,
+            end_time: exception.end_time,
+            program_name: null,
+            location: null,
+            note: exception.note,
+          })
+          continue
+        }
+
+        for (const block of staffingBlocks) {
+          if (block.team_member_id !== member.id || block.day_of_week !== dayOfWeek) continue
+          if (block.effective_start && dateKey < block.effective_start) continue
+          if (block.effective_end && dateKey > block.effective_end) continue
+          dayItems.push({
+            key: `block-${block.id}-${dateKey}`,
+            member_name: member.display_name,
+            member_type: member.member_type,
+            kind: block.block_type,
+            start_time: block.start_time,
+            end_time: block.end_time,
+            program_name: block.program_id ? programMap.get(block.program_id) ?? null : null,
+            location: block.location,
+            note: null,
+          })
+        }
+      }
+
+      dayItems.sort((a, b) => (a.start_time ?? '99:99').localeCompare(b.start_time ?? '99:99') || a.member_name.localeCompare(b.member_name))
+      map.set(dateKey, dayItems)
+    }
+    return map
+  }, [teamMembers, staffingBlocks, staffingExceptions, staffingPrograms, range.startKey, range.endKey])
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(startOfWeek(cursor), index)), [cursor])
   const monthDays = useMemo(() => {
@@ -507,6 +641,11 @@ export default function CalendarPage() {
           </div>
         </section>
 
+        <section className="card calendar-layer-bar">
+          <label className="calendar-layer-toggle"><input type="checkbox" checked={showStaffing} onChange={(event) => setShowStaffing(event.target.checked)} /><span><strong>Staffing layer</strong><small>Private staff/intern/volunteer schedules • never shown on the public kiosk</small></span></label>
+          <a className="ghost" href="/team">Manage team & scheduling →</a>
+        </section>
+
         {loading ? (
           <section className="card calendar-loading">Loading calendar events…</section>
         ) : view === 'week' ? (
@@ -526,6 +665,14 @@ export default function CalendarPage() {
                     {dayEvents.map((event) => renderEvent(event))}
                     {dayEvents.length === 0 && <div className="calendar-empty-day">No events planned</div>}
                   </div>
+                  {showStaffing && (staffingByDate.get(key)?.length ?? 0) > 0 && <div className="calendar-staffing-day">
+                    <span className="calendar-staffing-label">Staffing</span>
+                    {(staffingByDate.get(key) ?? []).map((item) => <div className={`calendar-staffing-chip ${item.kind}`} key={item.key}>
+                      <strong>{item.member_name}</strong>
+                      <small>{item.kind === 'off' ? 'Off' : `${item.start_time ? timeLabel(item.start_time) : ''}${item.end_time ? `–${timeLabel(item.end_time)}` : ''}${item.kind === 'available' ? ' • available' : item.kind === 'modified' ? ' • modified' : ''}`}</small>
+                      {item.program_name && <span>{item.program_name}</span>}
+                    </div>)}
+                  </div>}
                   {profile.role === 'admin' && <button type="button" className="calendar-add-day" onClick={() => openNewEvent(key)}>+ Add</button>}
                 </article>
               )
@@ -550,6 +697,7 @@ export default function CalendarPage() {
                     <div className="calendar-month-events">
                       {dayEvents.slice(0, 3).map((event) => renderEvent(event, true))}
                       {dayEvents.length > 3 && <button type="button" className="calendar-more" onClick={() => { setCursor(day); setView('week') }}>+{dayEvents.length - 3} more</button>}
+                      {showStaffing && (staffingByDate.get(key)?.length ?? 0) > 0 && <button type="button" className="calendar-staffing-summary" onClick={() => { setCursor(day); setView('week') }}>👥 {(staffingByDate.get(key) ?? []).length} staffing</button>}
                     </div>
                   </article>
                 )
@@ -560,7 +708,7 @@ export default function CalendarPage() {
 
         <section className="card calendar-legend">
           <div><strong>Calendar visibility</strong><span><b>Public</b> events can appear on the kiosk welcome board. <b>Staff only</b> events stay inside the staff side of Juanita Hub.</span></div>
-          <div><strong>Future staff expansion</strong><span>Intern/staff schedules and assigned tasks can later become separate calendar layers without mixing private staffing information into public center events.</span></div>
+          <div><strong>Private staffing layer</strong><span>Recurring staff, intern, and volunteer schedules plus one-off exceptions can be shown here for signed-in staff without mixing staffing information into public center events.</span></div>
         </section>
       </main>
 
