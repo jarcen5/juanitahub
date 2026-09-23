@@ -42,6 +42,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/children', label: 'Children & Registrations', description: 'Search child profiles, registrations, birthdays, school, grade, and protected information.' },
       { href: '/households', label: 'Households', description: 'Group siblings and maintain shared family contacts without duplicating child profiles.' },
+      { href: '/team', label: 'Team & Scheduling', description: 'Staff, interns, volunteers, weekly schedules, and program assignments.' },
     ],
   },
   {
@@ -58,7 +59,7 @@ const navGroups: NavGroup[] = [
     label: 'Admin',
     items: [
       { href: '/registrations', label: 'Registration Center', description: 'Publish forms, create renewal links, and review family submissions.', adminOnly: true },
-      { href: '/staff', label: 'Staff Management', description: 'Approve accounts and manage staff access.', adminOnly: true },
+      { href: '/staff', label: 'Account Access', description: 'Approve Juanita Hub accounts and manage staff login access.', adminOnly: true },
     ],
   },
 ]
