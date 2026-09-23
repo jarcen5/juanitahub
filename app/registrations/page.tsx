@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import SafeRichText from '@/components/SafeRichText'
 
 type RegistrationMode = 'full' | 'renewal' | 'summer_short' | 'permission_only' | 'short_youth' | 'adult_short'
 type Program = {
@@ -71,6 +72,7 @@ export default function RegistrationsPage() {
   const [consentBody, setConsentBody] = useState('')
   const [consentRequired, setConsentRequired] = useState(true)
   const [consentModes, setConsentModes] = useState<RegistrationMode[]>([])
+  const introRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -119,6 +121,68 @@ export default function RegistrationsPage() {
   }, [selectedProgramId, selectedProgram, programModes.join('|')])
 
   useEffect(() => { setReviewNotes(selectedSubmission?.review_notes ?? '') }, [selectedSubmissionId, selectedSubmission])
+
+  function restoreIntroSelection(start: number, end: number) {
+    requestAnimationFrame(() => {
+      const textarea = introRef.current
+      if (!textarea) return
+      textarea.focus()
+      textarea.setSelectionRange(start, end)
+    })
+  }
+
+  function replaceIntroRange(start: number, end: number, replacement: string, selectionStart = start, selectionEnd = start + replacement.length) {
+    setIntro(intro.slice(0, start) + replacement + intro.slice(end))
+    restoreIntroSelection(selectionStart, selectionEnd)
+  }
+
+  function formatIntroBold() {
+    const textarea = introRef.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selected = intro.slice(start, end) || 'bold text'
+    const replacement = `**${selected}**`
+    replaceIntroRange(start, end, replacement, start + 2, start + 2 + selected.length)
+  }
+
+  function formatIntroLines(kind: 'heading' | 'bullets' | 'numbers') {
+    const textarea = introRef.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const lineStart = intro.lastIndexOf('\n', Math.max(0, start - 1)) + 1
+    const nextBreak = intro.indexOf('\n', end)
+    const lineEnd = nextBreak === -1 ? intro.length : nextBreak
+    const block = intro.slice(lineStart, lineEnd)
+    let number = 0
+    const replacement = block.split('\n').map((line) => {
+      if (!line.trim()) return line
+      const clean = line.replace(/^(?:#{1,3}\s+|[-*]\s+|\d+\.\s+)/, '')
+      if (kind === 'heading') return `## ${clean}`
+      if (kind === 'bullets') return `- ${clean}`
+      number += 1
+      return `${number}. ${clean}`
+    }).join('\n')
+    replaceIntroRange(lineStart, lineEnd, replacement, lineStart, lineStart + replacement.length)
+  }
+
+  function formatIntroLink() {
+    const textarea = introRef.current
+    if (!textarea || typeof window === 'undefined') return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selected = intro.slice(start, end)
+    const label = selected || window.prompt('What text should be clickable?', 'Learn more')
+    if (!label) return
+    let href = window.prompt('Enter the web address or email address for this link:', '')
+    if (!href) return
+    href = href.trim()
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(href)) href = `mailto:${href}`
+    else if (!/^(https?:\/\/|mailto:|tel:)/i.test(href)) href = `https://${href}`
+    const replacement = `[${label}](${href})`
+    replaceIntroRange(start, end, replacement, start, start + replacement.length)
+  }
 
   async function savePortalSettings() {
     if (!selectedProgram || profile?.role !== 'admin' || saving) return
@@ -229,7 +293,7 @@ export default function RegistrationsPage() {
         <section className="card registration-program-list"><h2>Programs</h2>{programs.map((program)=><button key={program.id} className={selectedProgramId===program.id?'active':''} onClick={()=>setSelectedProgramId(program.id)}><span><strong>{program.name}</strong><small>{program.season_label || 'No season'} • {program.status}</small></span><em>{program.registration_public?'Published':'Private'}</em></button>)}{!programs.length&&<p className="subtle">Create a program first.</p>}</section>
         <section className="card registration-setup-panel">{!selectedProgram?<div className="registration-empty"><strong>Select a program</strong><span>Its public registration settings will appear here.</span></div>:<>
           <div className="registration-setup-heading"><div><small>Selected program</small><h2>{selectedProgram.name}</h2><div className="registration-mode-chips">{programModes.map(m=><span key={m}>{modeLabels[m]}</span>)}</div></div><button className={selectedProgram.registration_public?'ghost':'primary'} onClick={()=>void togglePublic()} disabled={saving}>{selectedProgram.registration_public?'Unpublish':'Publish registration'}</button></div>
-          <div className="registration-settings-grid"><label className="field full"><span>Welcome / instructions</span><textarea rows={7} value={intro} onChange={e=>setIntro(e.target.value)} placeholder="Tell families what to know before they begin…" /><small className="subtle">Paragraph breaks and line breaks are preserved on the public registration page.</small></label><label className="field"><span>Registration opens</span><input type="datetime-local" value={opensAt} onChange={e=>setOpensAt(e.target.value)} /></label><label className="field"><span>Registration closes</span><input type="datetime-local" value={closesAt} onChange={e=>setClosesAt(e.target.value)} /></label></div><div className="registration-actions"><button className="primary" onClick={()=>void savePortalSettings()} disabled={saving}>Save portal settings</button></div>
+          <div className="registration-settings-grid"><div className="field full registration-rich-editor"><label htmlFor="registration-intro">Welcome / instructions</label><div className="registration-format-toolbar" role="toolbar" aria-label="Description formatting"><button type="button" className="ghost" onClick={()=>formatIntroLines('heading')}>Heading</button><button type="button" className="ghost" onClick={formatIntroBold}><strong>B</strong> Bold</button><button type="button" className="ghost" onClick={()=>formatIntroLines('bullets')}>• Bullets</button><button type="button" className="ghost" onClick={()=>formatIntroLines('numbers')}>1. Numbered</button><button type="button" className="ghost" onClick={formatIntroLink}>🔗 Link</button></div><textarea id="registration-intro" ref={introRef} rows={10} value={intro} onChange={e=>setIntro(e.target.value)} placeholder="Tell families what to know before they begin…" /><small className="subtle">Select text, then use the toolbar. Paragraph breaks and line breaks are preserved.</small><div className="registration-rich-preview"><div className="registration-preview-label">Live preview</div><SafeRichText text={intro || 'Your formatted registration description will appear here.'} /></div></div><label className="field"><span>Registration opens</span><input type="datetime-local" value={opensAt} onChange={e=>setOpensAt(e.target.value)} /></label><label className="field"><span>Registration closes</span><input type="datetime-local" value={closesAt} onChange={e=>setClosesAt(e.target.value)} /></label></div><div className="registration-actions"><button className="primary" onClick={()=>void savePortalSettings()} disabled={saving}>Save portal settings</button></div>
           <div className="registration-link-box"><small>Public registration link</small><div><input readOnly value={publicLink()} /><button className="ghost" onClick={()=>void copyText(publicLink())}>Copy</button></div><p>{selectedProgram.registration_public?'This link is available while the program is Open and within the registration dates above.':'The link stays inaccessible to families until you publish registration.'}</p></div>
 
           {programModes.some(m=>['renewal','summer_short','permission_only'].includes(m)) && <div className="registration-renewal-box"><div><small>Returning households</small><h3>Create a secure renewal link</h3><p className="subtle">Choose one household. The link exposes only that household’s registration information and expires after 14 days.</p></div><div className="registration-renewal-controls"><select value={renewalHouseholdId} onChange={e=>setRenewalHouseholdId(e.target.value)}><option value="">Choose a household…</option>{households.map(h=><option key={h.id} value={h.id}>{h.display_name}</option>)}</select><button className="primary" disabled={!renewalHouseholdId||saving} onClick={()=>void generateRenewalLink()}>Create renewal link</button></div>{generatedLink&&<div className="registration-generated-link"><input readOnly value={generatedLink}/><button className="ghost" onClick={()=>void copyText(generatedLink)}>Copy secure link</button></div>}</div>}
