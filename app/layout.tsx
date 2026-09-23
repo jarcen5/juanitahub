@@ -18,6 +18,7 @@ import './programs-households.css'
 import './registration-admin.css'
 import './reward-fulfillment.css'
 import './task-center.css'
+import './team.css'
 
 export const metadata: Metadata = {
   title: 'Juanita Hub',
