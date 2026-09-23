@@ -365,3 +365,5 @@
   .home-snapshot-grid { grid-template-columns: 1fr 1fr; }
   .home-schedule-row { grid-template-columns: 72px minmax(0, 1fr); gap: 10px; }
 }
+
+.home-task-list{display:grid;gap:8px}.home-task-row{display:grid;grid-template-columns:9px minmax(0,1fr);gap:10px;align-items:center;padding:11px 12px;border:1px solid #dce8f1;border-radius:12px;background:#fbfdff;color:#2a4b65;text-decoration:none}.home-task-row>span:last-child{display:grid;gap:3px;min-width:0}.home-task-row strong{overflow-wrap:anywhere}.home-task-row small{color:#7b8b99}.home-task-priority{width:9px;height:36px;border-radius:999px;background:#2376c9}.home-task-priority.low{background:#39b77c}.home-task-priority.high{background:#f3b82f}.home-task-priority.urgent{background:#f16d78}.home-task-more{display:block;text-align:center;padding:7px;color:#185a9d;font-size:.8rem;font-weight:800;text-decoration:none}
