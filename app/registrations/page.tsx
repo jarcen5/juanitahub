@@ -41,6 +41,13 @@ const modeLabels: Record<RegistrationMode, string> = {
   permission_only: 'Permission only', short_youth: 'Short youth registration', adult_short: 'Adult registration',
 }
 
+const submissionStatusLabels: Record<Submission['status'], string> = {
+  submitted: 'Submitted',
+  needs_review: 'Needs family follow-up',
+  approved: 'Approved',
+  declined: 'Declined',
+}
+
 function localInput(value: string | null) {
   if (!value) return ''
   const d = new Date(value)
@@ -68,6 +75,7 @@ export default function RegistrationsPage() {
   const [renewalHouseholdId, setRenewalHouseholdId] = useState('')
   const [generatedLink, setGeneratedLink] = useState('')
   const [reviewNotes, setReviewNotes] = useState('')
+  const [deleteSubmissionConfirm, setDeleteSubmissionConfirm] = useState(false)
   const [consentTitle, setConsentTitle] = useState('')
   const [consentBody, setConsentBody] = useState('')
   const [consentRequired, setConsentRequired] = useState(true)
@@ -120,7 +128,10 @@ export default function RegistrationsPage() {
     setGeneratedLink('')
   }, [selectedProgramId, selectedProgram, programModes.join('|')])
 
-  useEffect(() => { setReviewNotes(selectedSubmission?.review_notes ?? '') }, [selectedSubmissionId, selectedSubmission])
+  useEffect(() => {
+    setReviewNotes(selectedSubmission?.review_notes ?? '')
+    setDeleteSubmissionConfirm(false)
+  }, [selectedSubmissionId, selectedSubmission])
 
   function restoreIntroSelection(start: number, end: number) {
     requestAnimationFrame(() => {
@@ -271,8 +282,37 @@ export default function RegistrationsPage() {
         status, review_notes: reviewNotes.trim() || null, reviewed_by: session.user.id, reviewed_at: new Date().toISOString(),
       }).eq('id', selectedSubmission.id)
       if (error) setMessage(error.message)
-      else { setMessage(status === 'declined' ? 'Registration declined.' : 'Registration marked for follow-up.'); await loadData() }
+      else { setMessage(status === 'declined' ? 'Registration declined.' : 'Registration marked as needing family follow-up.'); await loadData() }
     }
+    setSaving(false)
+  }
+
+  async function deleteSubmission() {
+    if (!selectedSubmission || profile?.role !== 'admin' || saving || selectedSubmission.status === 'approved') return
+
+    setSaving(true)
+    setMessage('')
+
+    const { data, error } = await supabase
+      .from('registration_submissions')
+      .delete()
+      .eq('id', selectedSubmission.id)
+      .neq('status', 'approved')
+      .select('id')
+      .maybeSingle()
+
+    if (error) {
+      setMessage(error.message)
+    } else if (!data) {
+      setMessage('This submission could not be deleted. Approved submissions are kept as registration history.')
+    } else {
+      setSubmissions((current) => current.filter((submission) => submission.id !== selectedSubmission.id))
+      setSelectedSubmissionId(null)
+      setDeleteSubmissionConfirm(false)
+      setReviewNotes('')
+      setMessage('Submission permanently deleted.')
+    }
+
     setSaving(false)
   }
 
@@ -303,8 +343,8 @@ export default function RegistrationsPage() {
           </div>
         </>}</section>
       </div> : <div className="registration-admin-grid review-grid">
-        <section className="card registration-submission-list"><div className="registration-list-heading"><h2>Submissions</h2><span>{submissions.length}</span></div>{submissions.map(s=><button key={s.id} className={selectedSubmissionId===s.id?'active':''} onClick={()=>setSelectedSubmissionId(s.id)}><span><strong>{s.submitter_name || 'Unnamed submission'}</strong><small>{programById.get(s.program_id)?.name || 'Program'} • {modeLabels[s.registration_mode]}</small><small>{new Date(s.created_at).toLocaleString()}</small></span><em className={`registration-status ${s.status}`}>{s.status.replace('_',' ')}</em></button>)}{!submissions.length&&<p className="subtle">No submissions yet.</p>}</section>
-        <section className="card registration-review-panel">{!selectedSubmission?<div className="registration-empty"><strong>Select a submission</strong><span>Review its information before approving it.</span></div>:<><div className="registration-review-heading"><div><small>Submission {selectedSubmission.submission_code}</small><h2>{selectedSubmission.submitter_name || 'Registration submission'}</h2><p>{programById.get(selectedSubmission.program_id)?.name} • {modeLabels[selectedSubmission.registration_mode]}</p></div><span className={`registration-status ${selectedSubmission.status}`}>{selectedSubmission.status.replace('_',' ')}</span></div>
+        <section className="card registration-submission-list"><div className="registration-list-heading"><h2>Submissions</h2><span>{submissions.length}</span></div>{submissions.map(s=><button key={s.id} className={selectedSubmissionId===s.id?'active':''} onClick={()=>setSelectedSubmissionId(s.id)}><span><strong>{s.submitter_name || 'Unnamed submission'}</strong><small>{programById.get(s.program_id)?.name || 'Program'} • {modeLabels[s.registration_mode]}</small><small>{new Date(s.created_at).toLocaleString()}</small></span><em className={`registration-status ${s.status}`}>{submissionStatusLabels[s.status]}</em></button>)}{!submissions.length&&<p className="subtle">No submissions yet.</p>}</section>
+        <section className="card registration-review-panel">{!selectedSubmission?<div className="registration-empty"><strong>Select a submission</strong><span>Review its information before approving it.</span></div>:<><div className="registration-review-heading"><div><small>Submission {selectedSubmission.submission_code}</small><h2>{selectedSubmission.submitter_name || 'Registration submission'}</h2><p>{programById.get(selectedSubmission.program_id)?.name} • {modeLabels[selectedSubmission.registration_mode]}</p></div><span className={`registration-status ${selectedSubmission.status}`}>{submissionStatusLabels[selectedSubmission.status]}</span></div>
           <div className="registration-review-contact"><div><small>Email</small><strong>{selectedSubmission.submitter_email || 'Not provided'}</strong></div><div><small>Phone</small><strong>{selectedSubmission.submitter_phone || 'Not provided'}</strong></div></div>
           {payload.guardian&&<section className="registration-review-section"><h3>Parent / Guardian</h3><p><strong>{payload.guardian.name}</strong>{payload.guardian.relationship?` • ${payload.guardian.relationship}`:''}</p><p>{payload.guardian.address || ''}</p></section>}
           {payload.adult&&<section className="registration-review-section"><h3>Adult participant</h3><p><strong>{payload.adult.first_name} {payload.adult.last_name}</strong></p><p>{payload.adult.address || ''}</p></section>}
@@ -312,7 +352,16 @@ export default function RegistrationsPage() {
           {Array.isArray(payload.consents)&&payload.consents.length>0&&<section className="registration-review-section"><h3>Permissions</h3>{payload.consents.map((c:any)=><p key={c.id}><strong>{c.agreed?'✓ Agreed':'✕ Did not agree'} — {c.title}</strong> {c.required?'(agreement required)':''}</p>)}</section>}
           <section className="registration-review-section"><h3>Signature</h3><p>{payload.signature_name || 'Not recorded'} • {payload.signature_date || ''}</p></section>
           <label className="field registration-review-notes"><span>Internal review notes</span><textarea rows={3} value={reviewNotes} onChange={e=>setReviewNotes(e.target.value)} /></label>
-          <div className="registration-review-actions"><button className="ghost" disabled={saving||selectedSubmission.status==='approved'} onClick={()=>void updateSubmissionStatus('needs_review')}>Needs follow-up</button><button className="ghost danger-button" disabled={saving||selectedSubmission.status==='approved'} onClick={()=>void updateSubmissionStatus('declined')}>Decline</button><button className="primary" disabled={saving||selectedSubmission.status==='approved'||selectedSubmission.status==='declined'} onClick={()=>void updateSubmissionStatus('approved')}>{saving?'Working…':'Approve & add to Juanita Hub'}</button></div>
+          <div className="registration-review-action-guide">
+            <div><strong>Needs family follow-up</strong><span>Hold this submission while you contact the family. No child, household, health, or roster records are changed.</span></div>
+            <div><strong>Decline</strong><span>Close the submission without adding it to Juanita Hub. You can reopen it for follow-up later.</span></div>
+            <div><strong>Approve & add</strong><span>Apply the submitted information to the real Juanita Hub records and enroll the participant.</span></div>
+          </div>
+          <div className="registration-review-actions"><button className="ghost" disabled={saving||selectedSubmission.status==='approved'} onClick={()=>void updateSubmissionStatus('needs_review')}>Needs family follow-up</button><button className="ghost danger-button" disabled={saving||selectedSubmission.status==='approved'} onClick={()=>void updateSubmissionStatus('declined')}>Decline</button><button className="primary" disabled={saving||selectedSubmission.status==='approved'||selectedSubmission.status==='declined'} onClick={()=>void updateSubmissionStatus('approved')}>{saving?'Working…':'Approve & add to Juanita Hub'}</button></div>
+          {selectedSubmission.status !== 'approved' && <div className="registration-delete-submission">
+            {!deleteSubmissionConfirm ? <button className="ghost danger-button" disabled={saving} onClick={()=>setDeleteSubmissionConfirm(true)}>Delete submission</button> : <div className="registration-delete-confirm"><span><strong>Permanently delete this submission?</strong><small>Use this for tests, duplicates, spam, or submissions you do not need to retain. This cannot be undone.</small></span><div><button className="ghost" disabled={saving} onClick={()=>setDeleteSubmissionConfirm(false)}>Keep submission</button><button className="ghost danger-button" disabled={saving} onClick={()=>void deleteSubmission()}>{saving?'Deleting…':'Yes, delete permanently'}</button></div></div>}
+          </div>}
+          {selectedSubmission.status === 'approved' && <div className="registration-approved-history-note"><strong>Approved submission retained</strong><span>Approved submissions cannot be deleted because they are part of the participant’s registration and consent history.</span></div>}
         </>}</section>
       </div>}
     </main></div>
