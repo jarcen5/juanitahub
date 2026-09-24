@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import RewardFulfillmentTask from '@/components/RewardFulfillmentTask'
 import RegistrationReviewTask from '@/components/RegistrationReviewTask'
 import DashboardTaskCard from '@/components/DashboardTaskCard'
+import InventoryLowStockTask from '@/components/InventoryLowStockTask'
 
 type StaffProfile = {
   display_name: string
@@ -374,14 +375,15 @@ export default function StaffHomePage() {
                 {missingCards > 0 ? <Link href="/card-tracking"><strong>{missingCards} card/status {missingCards === 1 ? 'entry is' : 'entries are'} still missing</strong><small>Open Card Tracking →</small></Link> : <div className="home-all-clear"><strong>✓ Card tracking is complete</strong><small>All active children have an entry today.</small></div>}
                 <RewardFulfillmentTask />
                 <RegistrationReviewTask />
+                <InventoryLowStockTask />
               </div>
             </section>
           </aside>
         </section>
 
         <section className="card home-roadmap">
-          <div><span className="home-section-kicker">Juanita Hub operations</span><h2>Calendar, attendance, and child profiles now feed the daily home page</h2><p>Center plans, saved sign-ins, and current school-year profiles can be managed once and reflected throughout Juanita Hub. Inventory, purchasing, programs, and staff/intern scheduling can be layered in next.</p></div>
-          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Children ✓</span><span>Reports ✓</span><span>Tasks ✓</span><span>Inventory</span><span>Staff Scheduling</span></div>
+          <div><span className="home-section-kicker">Juanita Hub operations</span><h2>Calendar, attendance, and child profiles now feed the daily home page</h2><p>Center plans, saved sign-ins, and current school-year profiles can be managed once and reflected throughout Juanita Hub. Inventory and staff/intern scheduling are now connected; purchasing can layer onto the same operational foundation next.</p></div>
+          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Children ✓</span><span>Reports ✓</span><span>Tasks ✓</span><span>Inventory ✓</span><span>Staff Scheduling ✓</span></div>
         </section>
       </main>
     </div>
