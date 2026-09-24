@@ -30,6 +30,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/tasks', label: 'Task Center', description: 'Assigned work, personal to-dos, and live items that still need attention.' },
       { href: '/calendar', label: 'Calendar', description: 'Center activities, trips, meetings, closures, and special events.' },
+      { href: '/inventory', label: 'Inventory', description: 'Supplies, equipment, locations, stock levels, and movement history.' },
       { href: '/attendance', label: 'Attendance', description: 'Daily child and community sign-ins with saved records.' },
       { href: '/programs', label: 'Programs & Enrollments', description: 'Create programs, choose registration paths, and manage participant rosters.' },
       { href: '/card-tracking', label: 'Card Tracking', description: 'Daily behavior cards, statuses, summaries, and child history.' },
