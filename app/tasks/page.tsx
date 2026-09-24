@@ -90,6 +90,7 @@ export default function TaskCenterPage() {
   const [tasks, setTasks] = useState<StaffTask[]>([])
   const [prizeCount, setPrizeCount] = useState(0)
   const [registrationCount, setRegistrationCount] = useState(0)
+  const [inventoryLowCount, setInventoryLowCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -145,7 +146,7 @@ export default function TaskCenterPage() {
       return
     }
 
-    const [teamResult, taskResult, prizeResult] = await Promise.all([
+    const [teamResult, taskResult, prizeResult, inventoryResult] = await Promise.all([
       supabase
         .from('team_members')
         .select('id,staff_user_id,display_name,member_type,active')
@@ -160,6 +161,9 @@ export default function TaskCenterPage() {
         .select('win_id', { count: 'exact', head: true })
         .eq('month_start', previousMonthStart())
         .is('received_at', null),
+      supabase
+        .from('inventory_low_stock_items')
+        .select('item_id', { count: 'exact', head: true }),
     ])
 
     let registrationOutstanding = 0
@@ -178,6 +182,7 @@ export default function TaskCenterPage() {
     setTasks((taskResult.data ?? []) as StaffTask[])
     setPrizeCount(prizeResult.count ?? 0)
     setRegistrationCount(registrationOutstanding)
+    setInventoryLowCount(inventoryResult.count ?? 0)
     const ownTeamMember = nextTeamMembers.find((person) => person.staff_user_id === session.user.id)
     setAssignee((current) => current || (ownTeamMember ? String(ownTeamMember.id) : String(nextTeamMembers[0]?.id ?? '')))
 
@@ -185,6 +190,7 @@ export default function TaskCenterPage() {
       ?? teamResult.error?.message
       ?? taskResult.error?.message
       ?? prizeResult.error?.message
+      ?? inventoryResult.error?.message
       ?? registrationError
       ?? ''
     setMessage(error)
@@ -357,7 +363,7 @@ export default function TaskCenterPage() {
     return tasks.filter((task) => task.assigned_to === session.user.id && !['completed', 'canceled'].includes(task.status)).length
   }, [tasks, session])
 
-  const systemCount = prizeCount > 0 ? 1 : 0
+  const systemCount = (prizeCount > 0 ? 1 : 0) + (inventoryLowCount > 0 ? 1 : 0)
   const adminSystemCount = profile?.role === 'admin' && registrationCount > 0 ? 1 : 0
   const noSystemTasks = systemCount + adminSystemCount === 0
   const today = localToday()
@@ -402,13 +408,19 @@ export default function TaskCenterPage() {
                     <span><strong>{prizeCount} {previousMonthLabel()} prize{prizeCount === 1 ? '' : 's'} still need{prizeCount === 1 ? 's' : ''} delivery</strong><small>Open Prize Fulfillment →</small></span>
                   </Link>
                 )}
+                {inventoryLowCount > 0 && (
+                  <Link href="/inventory" className="task-system-item inventory">
+                    <span className="task-system-icon">📦</span>
+                    <span><strong>{inventoryLowCount} inventory item{inventoryLowCount === 1 ? ' is' : 's are'} running low</strong><small>Open Inventory →</small></span>
+                  </Link>
+                )}
                 {profile.role === 'admin' && registrationCount > 0 && (
                   <Link href="/registrations" className="task-system-item registration">
                     <span className="task-system-icon">📝</span>
                     <span><strong>{registrationCount} registration {registrationCount === 1 ? 'submission needs' : 'submissions need'} review</strong><small>Open Registration Center →</small></span>
                   </Link>
                 )}
-                {noSystemTasks && <div className="task-all-clear"><strong>✓ System work is caught up</strong><span>No prize-delivery or registration-review items are waiting right now.</span></div>}
+                {noSystemTasks && <div className="task-all-clear"><strong>✓ System work is caught up</strong><span>No prize-delivery, low-stock, or registration-review items are waiting right now.</span></div>}
               </div>
             </section>
 
