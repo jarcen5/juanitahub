@@ -93,6 +93,7 @@ export default function TaskCenterPage() {
   const [inventoryLowCount, setInventoryLowCount] = useState(0)
   const [purchaseApprovalCount, setPurchaseApprovalCount] = useState(0)
   const [purchaseReceivingCount, setPurchaseReceivingCount] = useState(0)
+  const [personnelApprovalCount, setPersonnelApprovalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -173,7 +174,7 @@ export default function TaskCenterPage() {
     let purchaseReceivingOutstanding = 0
     let adminSystemError: string | null = null
     if (currentProfile.role === 'admin') {
-      const [registrationResult, approvalResult, receivingResult] = await Promise.all([
+      const [registrationResult, approvalResult, receivingResult, personnelResult] = await Promise.all([
         supabase
           .from('registration_submissions')
           .select('id', { count: 'exact', head: true })
@@ -186,11 +187,16 @@ export default function TaskCenterPage() {
           .from('purchase_requests')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'ordered'),
+        supabase
+          .from('budget_personnel_costs')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'awaiting_approval'),
       ])
       registrationOutstanding = registrationResult.count ?? 0
       purchaseApprovalOutstanding = approvalResult.count ?? 0
       purchaseReceivingOutstanding = receivingResult.count ?? 0
-      adminSystemError = registrationResult.error?.message ?? approvalResult.error?.message ?? receivingResult.error?.message ?? null
+      setPersonnelApprovalCount(personnelResult.count ?? 0)
+      adminSystemError = registrationResult.error?.message ?? approvalResult.error?.message ?? receivingResult.error?.message ?? personnelResult.error?.message ?? null
     }
 
     const nextTeamMembers = (teamResult.data ?? []) as TeamMember[]
@@ -382,7 +388,7 @@ export default function TaskCenterPage() {
   }, [tasks, session])
 
   const systemCount = (prizeCount > 0 ? 1 : 0) + (inventoryLowCount > 0 ? 1 : 0)
-  const adminSystemCount = profile?.role === 'admin' ? (registrationCount > 0 ? 1 : 0) + (purchaseApprovalCount > 0 ? 1 : 0) + (purchaseReceivingCount > 0 ? 1 : 0) : 0
+  const adminSystemCount = profile?.role === 'admin' ? (registrationCount > 0 ? 1 : 0) + (purchaseApprovalCount > 0 ? 1 : 0) + (purchaseReceivingCount > 0 ? 1 : 0) + (personnelApprovalCount > 0 ? 1 : 0) : 0
   const noSystemTasks = systemCount + adminSystemCount === 0
   const today = localToday()
 
@@ -430,6 +436,12 @@ export default function TaskCenterPage() {
                   <Link href="/inventory" className="task-system-item inventory">
                     <span className="task-system-icon">📦</span>
                     <span><strong>{inventoryLowCount} inventory item{inventoryLowCount === 1 ? ' is' : 's are'} running low</strong><small>Open Inventory →</small></span>
+                  </Link>
+                )}
+                {profile.role === 'admin' && personnelApprovalCount > 0 && (
+                  <Link href="/purchasing" className="task-system-item purchasing">
+                    <span className="task-system-icon">👷</span>
+                    <span><strong>{personnelApprovalCount} personnel pay plan{personnelApprovalCount === 1 ? ' needs' : 's need'} approval</strong><small>Open Budgets & Purchasing →</small></span>
                   </Link>
                 )}
                 {profile.role === 'admin' && purchaseApprovalCount > 0 && (
