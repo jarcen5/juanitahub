@@ -7,6 +7,7 @@ import AssignmentCompletionDialog from '@/components/AssignmentCompletionDialog'
 import AssignmentPreviewDialog from '@/components/AssignmentPreviewDialog'
 import TypingActivityRunner from '@/components/TypingActivityRunner'
 import AssignmentTestRunner from '@/components/AssignmentTestRunner'
+import QuizActivityRunner, { type QuizConfig, type QuizQuestion, type QuizQuestionType } from '@/components/QuizActivityRunner'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
@@ -20,6 +21,7 @@ type TypingConfig = {
   target_wpm?: number
   target_accuracy?: number
 }
+type ActivityConfig = TypingConfig & QuizConfig
 type LearningAssignment = {
   id: number
   title: string
@@ -33,7 +35,7 @@ type LearningAssignment = {
   estimated_minutes: number | null
   resource_url: string | null
   active: boolean
-  activity_config: TypingConfig
+  activity_config: ActivityConfig
 }
 type StudentAssignment = {
   id: number
@@ -80,7 +82,18 @@ type TypingAttempt = {
   mistake_counts: Record<string, number>
   created_at: string
 }
-type LearningTab = 'week' | 'library' | 'typing' | 'reading' | 'notes'
+type QuizAttempt = {
+  id: number
+  student_assignment_id: number
+  child_id: number
+  assignment_id: number
+  correct_count: number
+  question_count: number
+  percent: number
+  duration_seconds: number
+  created_at: string
+}
+type LearningTab = 'week' | 'library' | 'typing' | 'quizzes' | 'reading' | 'notes'
 type Subject = LearningAssignment['subject']
 type AssignmentType = LearningAssignment['assignment_type']
 type Difficulty = LearningAssignment['difficulty']
@@ -119,7 +132,27 @@ const typingKeyPresets = [
   { label: 'Bottom Row', value: 'z x c v b n m , . /' },
 ]
 
-type StarterAssignment = Omit<LearningAssignment, 'id' | 'active' | 'activity_config'> & { starter_config?: TypingConfig }
+const quizQuestionTypeLabels: Record<QuizQuestionType, string> = {
+  multiple_choice: 'Multiple choice',
+  correct_sentence: 'Choose corrected sentence',
+  fill_blank: 'Fill in the blank',
+  spelling: 'Spelling / vocabulary',
+  reading_comprehension: 'Reading comprehension',
+}
+
+function makeQuestion(type: QuizQuestionType = 'multiple_choice'): QuizQuestion {
+  return {
+    id: 'q-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
+    type,
+    prompt: '',
+    choices: type === 'multiple_choice' || type === 'correct_sentence' ? ['', '', '', ''] : [],
+    correct_answer: '',
+    explanation: '',
+    passage: '',
+  }
+}
+
+type StarterAssignment = Omit<LearningAssignment, 'id' | 'active' | 'activity_config'> & { starter_config?: ActivityConfig }
 
 const starterAssignments: StarterAssignment[] = [
   {
@@ -297,6 +330,7 @@ export default function LearningPage() {
   const [readingLogs, setReadingLogs] = useState<ReadingLog[]>([])
   const [notes, setNotes] = useState<LearningNote[]>([])
   const [typingAttempts, setTypingAttempts] = useState<TypingAttempt[]>([])
+  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -317,6 +351,7 @@ export default function LearningPage() {
   const [previewAssignment, setPreviewAssignment] = useState<LearningAssignment | null>(null)
   const [testAssignment, setTestAssignment] = useState<LearningAssignment | null>(null)
   const [typingTarget, setTypingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
+  const [quizTarget, setQuizTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
 
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState<Subject>('reading')
@@ -334,6 +369,9 @@ export default function LearningPage() {
   const [typingTargetKeystrokes, setTypingTargetKeystrokes] = useState('30')
   const [typingTargetWpm, setTypingTargetWpm] = useState('15')
   const [typingTargetAccuracy, setTypingTargetAccuracy] = useState('90')
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([])
+  const [quizPassingScore, setQuizPassingScore] = useState('80')
+  const [quizShowExplanations, setQuizShowExplanations] = useState(true)
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null)
   const [assignMode, setAssignMode] = useState<'child' | 'grade'>('child')
@@ -372,7 +410,7 @@ export default function LearningPage() {
   useEffect(() => {
     function syncTab() {
       const requested = window.location.hash.replace('#', '') as LearningTab
-      setTab(['week', 'library', 'typing', 'reading', 'notes'].includes(requested) ? requested : 'week')
+      setTab(['week', 'library', 'typing', 'quizzes', 'reading', 'notes'].includes(requested) ? requested : 'week')
     }
     syncTab()
     window.addEventListener('hashchange', syncTab)
