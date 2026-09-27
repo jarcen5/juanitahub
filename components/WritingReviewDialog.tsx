@@ -15,6 +15,7 @@ export type WritingSubmission = {
   started_at: string | null
   submitted_at: string | null
   last_saved_at: string
+  active_seconds: number
   staff_feedback: string | null
   rubric_scores: Record<string, number>
   reviewed_at: string | null
