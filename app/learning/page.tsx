@@ -782,6 +782,12 @@ export default function LearningPage() {
     setQuizQuestions([])
     setQuizPassingScore('80')
     setQuizShowExplanations(true)
+    setWritingMode('journal')
+    setWritingPrompt('')
+    setWritingStarters('')
+    setWritingMinWords('')
+    setWritingTargetWords('')
+    setWritingRubric('Ideas\nOrganization\nGrammar & conventions')
   }
 
   function beginAddAssignment() {
@@ -852,6 +858,12 @@ export default function LearningPage() {
     setQuizQuestions(Array.isArray(assignment.activity_config?.questions) ? assignment.activity_config.questions : [])
     setQuizPassingScore(typeof assignment.activity_config?.passing_score === 'number' ? String(assignment.activity_config.passing_score) : '80')
     setQuizShowExplanations(assignment.activity_config?.show_explanations !== false)
+    setWritingMode(assignment.activity_config?.writing_mode ?? 'journal')
+    setWritingPrompt(typeof assignment.activity_config?.prompt === 'string' ? assignment.activity_config.prompt : '')
+    setWritingStarters(Array.isArray(assignment.activity_config?.sentence_starters) ? assignment.activity_config.sentence_starters.join('\n') : '')
+    setWritingMinWords(typeof assignment.activity_config?.min_words === 'number' ? String(assignment.activity_config.min_words) : '')
+    setWritingTargetWords(typeof assignment.activity_config?.target_words === 'number' ? String(assignment.activity_config.target_words) : '')
+    setWritingRubric(Array.isArray(assignment.activity_config?.rubric_criteria) ? assignment.activity_config.rubric_criteria.join('\n') : 'Ideas\nOrganization\nGrammar & conventions')
     setEditorOpen(true)
   }
 
@@ -908,6 +920,21 @@ export default function LearningPage() {
         })),
         passing_score: parsedPassingScore,
         show_explanations: quizShowExplanations,
+      }
+    } else if (newType === 'writing') {
+      const parsedMinWords = writingMinWords.trim() ? Number(writingMinWords) : null
+      const parsedTargetWords = writingTargetWords.trim() ? Number(writingTargetWords) : null
+      if (!writingPrompt.trim()) return showMessage('Add a writing prompt before saving a Writing Lab activity.')
+      if (parsedMinWords != null && (!Number.isFinite(parsedMinWords) || parsedMinWords < 0 || parsedMinWords > 5000)) return showMessage('Minimum words must be between 0 and 5,000.')
+      if (parsedTargetWords != null && (!Number.isFinite(parsedTargetWords) || parsedTargetWords < 0 || parsedTargetWords > 5000)) return showMessage('Target words must be between 0 and 5,000.')
+      if (parsedMinWords != null && parsedTargetWords != null && parsedTargetWords < parsedMinWords) return showMessage('Target words cannot be lower than the minimum words.')
+      activityConfig = {
+        writing_mode: writingMode,
+        prompt: writingPrompt.trim(),
+        sentence_starters: writingStarters.split('\n').map((item) => item.trim()).filter(Boolean),
+        ...(parsedMinWords == null ? {} : { min_words: Math.round(parsedMinWords) }),
+        ...(parsedTargetWords == null ? {} : { target_words: Math.round(parsedTargetWords) }),
+        rubric_criteria: writingRubric.split('\n').map((item) => item.trim()).filter(Boolean),
       }
     }
 
