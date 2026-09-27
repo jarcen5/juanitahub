@@ -8,6 +8,8 @@ import AssignmentPreviewDialog from '@/components/AssignmentPreviewDialog'
 import TypingActivityRunner from '@/components/TypingActivityRunner'
 import AssignmentTestRunner from '@/components/AssignmentTestRunner'
 import QuizActivityRunner, { type QuizConfig, type QuizQuestion, type QuizQuestionType } from '@/components/QuizActivityRunner'
+import WritingActivityRunner, { type WritingConfig, type WritingMode } from '@/components/WritingActivityRunner'
+import WritingReviewDialog, { type WritingSubmission } from '@/components/WritingReviewDialog'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
@@ -21,7 +23,7 @@ type TypingConfig = {
   target_wpm?: number
   target_accuracy?: number
 }
-type ActivityConfig = TypingConfig & QuizConfig
+type ActivityConfig = TypingConfig & QuizConfig & WritingConfig
 type LearningAssignment = {
   id: number
   title: string
@@ -93,7 +95,7 @@ type QuizAttempt = {
   duration_seconds: number
   created_at: string
 }
-type LearningTab = 'week' | 'library' | 'typing' | 'quizzes' | 'reading' | 'notes'
+type LearningTab = 'week' | 'library' | 'typing' | 'quizzes' | 'writing' | 'reading' | 'notes'
 type Subject = LearningAssignment['subject']
 type AssignmentType = LearningAssignment['assignment_type']
 type Difficulty = LearningAssignment['difficulty']
@@ -437,6 +439,7 @@ export default function LearningPage() {
   const [notes, setNotes] = useState<LearningNote[]>([])
   const [typingAttempts, setTypingAttempts] = useState<TypingAttempt[]>([])
   const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([])
+  const [writingSubmissions, setWritingSubmissions] = useState<WritingSubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -458,6 +461,8 @@ export default function LearningPage() {
   const [testAssignment, setTestAssignment] = useState<LearningAssignment | null>(null)
   const [typingTarget, setTypingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
   const [quizTarget, setQuizTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
+  const [writingTarget, setWritingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
+  const [writingReviewTarget, setWritingReviewTarget] = useState<{ submission: WritingSubmission; child: Child; assignment: LearningAssignment } | null>(null)
 
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState<Subject>('reading')
@@ -478,6 +483,12 @@ export default function LearningPage() {
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([])
   const [quizPassingScore, setQuizPassingScore] = useState('80')
   const [quizShowExplanations, setQuizShowExplanations] = useState(true)
+  const [writingMode, setWritingMode] = useState<WritingMode>('journal')
+  const [writingPrompt, setWritingPrompt] = useState('')
+  const [writingStarters, setWritingStarters] = useState('')
+  const [writingMinWords, setWritingMinWords] = useState('')
+  const [writingTargetWords, setWritingTargetWords] = useState('')
+  const [writingRubric, setWritingRubric] = useState('Ideas\nOrganization\nGrammar & conventions')
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null)
   const [assignMode, setAssignMode] = useState<'child' | 'grade'>('child')
@@ -516,7 +527,7 @@ export default function LearningPage() {
   useEffect(() => {
     function syncTab() {
       const requested = window.location.hash.replace('#', '') as LearningTab
-      setTab(['week', 'library', 'typing', 'quizzes', 'reading', 'notes'].includes(requested) ? requested : 'week')
+      setTab(['week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
     }
     syncTab()
     window.addEventListener('hashchange', syncTab)
