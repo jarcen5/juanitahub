@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import PersonnelCostsPanel from '@/components/PersonnelCostsPanel'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Program = { id: number; name: string; season_label: string | null; status: string }
@@ -108,7 +109,7 @@ export default function PurchasingPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [tab, setTab] = useState<'budgets' | 'purchases'>('budgets')
+  const [tab, setTab] = useState<'budgets' | 'purchases' | 'personnel'>('budgets')
 
   const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(null)
   const [budgetName, setBudgetName] = useState('')
@@ -324,11 +325,27 @@ export default function PurchasingPage() {
       setMessage('Finish or cancel this budget’s open purchase requests before archiving it.')
       return
     }
+
+    const { count: openPersonnel, error: personnelError } = await supabase
+      .from('budget_personnel_costs')
+      .select('id', { count: 'exact', head: true })
+      .eq('budget_id', selectedBudget.id)
+      .not('status', 'in', '("paid","canceled")')
+
+    if (personnelError) {
+      setMessage(personnelError.message)
+      return
+    }
+    if ((openPersonnel ?? 0) > 0) {
+      setMessage('Finish or cancel this budget’s open personnel costs before archiving it.')
+      return
+    }
+
     setSaving(true)
     const { error } = await supabase.from('budget_accounts').update({ active: false, updated_by: session.user.id }).eq('id', selectedBudget.id)
     if (error) setMessage(error.message)
     else {
-      setMessage('Budget archived. Its purchase history is preserved.')
+      setMessage('Budget archived. Its purchase and personnel history is preserved.')
       resetBudgetForm()
       await loadData()
     }
@@ -560,6 +577,7 @@ export default function PurchasingPage() {
         <div className="purchasing-tabs">
           <button className={tab === 'budgets' ? 'active' : ''} onClick={() => setTab('budgets')}>Budgets</button>
           <button className={tab === 'purchases' ? 'active' : ''} onClick={() => setTab('purchases')}>Purchase Requests <span>{awaitingCount + orderedCount}</span></button>
+          <button className={tab === 'personnel' ? 'active' : ''} onClick={() => setTab('personnel')}>Personnel Costs</button>
         </div>
 
         {tab === 'budgets' && <section className="purchasing-budget-layout">
@@ -594,6 +612,8 @@ export default function PurchasingPage() {
             </div>
           </aside>
         </section>}
+
+        {tab === 'personnel' && <PersonnelCostsPanel budgets={budgets} programs={programs} onChanged={() => void loadData()} />}
 
         {tab === 'purchases' && <section className="purchasing-request-layout">
           <aside className="card purchasing-request-list">
