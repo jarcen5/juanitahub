@@ -548,7 +548,7 @@ export default function LearningPage() {
     setMessage('')
     const weekEnd = addDays(weekStart, 6)
 
-    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult, quizResult] = await Promise.all([
+    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult, quizResult, writingResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
@@ -559,6 +559,7 @@ export default function LearningPage() {
       supabase.from('learning_student_assignments').select('assignment_id, status'),
       supabase.from('learning_typing_attempts').select('id, student_assignment_id, child_id, assignment_id, wpm, accuracy, duration_seconds, correct_characters, typed_characters, activity_mode, focus_keys, mistake_counts, created_at').order('created_at', { ascending: false }).limit(80),
       supabase.from('learning_quiz_attempts').select('id, student_assignment_id, child_id, assignment_id, correct_count, question_count, percent, duration_seconds, created_at').order('created_at', { ascending: false }).limit(80),
+      supabase.from('learning_writing_submissions').select('id, student_assignment_id, child_id, assignment_id, content, word_count, status, started_at, submitted_at, last_saved_at, staff_feedback, rubric_scores, reviewed_at, updated_at').order('updated_at', { ascending: false }).limit(120),
     ])
 
     const error = profileResult.error
@@ -571,6 +572,7 @@ export default function LearningPage() {
       ?? usageResult.error
       ?? typingResult.error
       ?? quizResult.error
+      ?? writingResult.error
 
     const nextChildren = (childResult.data ?? []) as Child[]
     setProfile(profileResult.data as Profile | null)
@@ -583,6 +585,7 @@ export default function LearningPage() {
     setAssignmentUsageRows((usageResult.data ?? []) as { assignment_id: number; status: StudentAssignment['status'] }[])
     setTypingAttempts((typingResult.data ?? []) as TypingAttempt[])
     setQuizAttempts((quizResult.data ?? []) as QuizAttempt[])
+    setWritingSubmissions((writingResult.data ?? []) as WritingSubmission[])
     setAssignChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setReadingChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setNoteChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
@@ -741,6 +744,17 @@ export default function LearningPage() {
       averagePercent,
     }
   }, [weeklyQuizAssignments, weeklyQuizAttempts])
+
+  const weeklyWritingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'writing'), [weeklyAssignments, assignmentById])
+  const weeklyWritingIds = useMemo(() => new Set(weeklyWritingAssignments.map((row) => row.id)), [weeklyWritingAssignments])
+  const weeklyWritingSubmissions = useMemo(() => writingSubmissions.filter((submission) => weeklyWritingIds.has(submission.student_assignment_id)), [writingSubmissions, weeklyWritingIds])
+  const writingSummary = useMemo(() => ({
+    assigned: weeklyWritingAssignments.length,
+    submitted: weeklyWritingSubmissions.filter((submission) => submission.status === 'submitted').length,
+    reviewed: weeklyWritingSubmissions.filter((submission) => submission.status === 'reviewed').length,
+    drafts: weeklyWritingSubmissions.filter((submission) => submission.status === 'draft').length,
+    words: weeklyWritingSubmissions.reduce((sum, submission) => sum + Number(submission.word_count), 0),
+  }), [weeklyWritingAssignments, weeklyWritingSubmissions])
 
   function showMessage(text: string) {
     setMessage(text)
