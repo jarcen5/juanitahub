@@ -69,7 +69,7 @@ export default function WritingReviewDialog({
     supabase
       .from('learning_writing_revisions')
       .select('id, content, word_count, created_at')
-      .eq('writing_submission_id', submission.id)
+      .eq('writing_submission_id', activeSubmission.id)
       .order('created_at', { ascending: false })
       .then(({ data, error: revisionError }) => {
         setRevisions((data ?? []) as Revision[])
@@ -79,6 +79,7 @@ export default function WritingReviewDialog({
   }, [submission])
 
   if (!submission) return null
+  const activeSubmission = submission
 
   const filledScores = criteria.map((criterion) => scores[criterion]).filter((value): value is number => Number.isFinite(value))
   const scoreTotal = filledScores.reduce((sum, value) => sum + value, 0)
@@ -107,7 +108,7 @@ export default function WritingReviewDialog({
         updated_by: userId,
         updated_at: now,
       })
-      .eq('id', submission.id)
+      .eq('id', activeSubmission.id)
 
     if (submissionError) {
       setSaving(false)
@@ -117,7 +118,7 @@ export default function WritingReviewDialog({
 
     const assignmentUpdate: Record<string, unknown> = {
       status: 'completed',
-      staff_note: 'Writing reviewed • ' + submission.word_count + ' words' + (feedback.trim() ? ' • feedback added' : ''),
+      staff_note: 'Writing reviewed • ' + activeSubmission.word_count + ' words' + (feedback.trim() ? ' • feedback added' : ''),
       updated_by: userId,
       updated_at: now,
     }
@@ -130,7 +131,7 @@ export default function WritingReviewDialog({
     const { error: assignmentError } = await supabase
       .from('learning_student_assignments')
       .update(assignmentUpdate)
-      .eq('id', submission.student_assignment_id)
+      .eq('id', activeSubmission.student_assignment_id)
 
     setSaving(false)
     if (assignmentError) {
@@ -149,7 +150,7 @@ export default function WritingReviewDialog({
           <div>
             <span className="learning-kicker">Writing review</span>
             <h2 id="writing-review-title">{assignmentTitle}</h2>
-            <p>{studentName} • {submission.word_count} words • {submission.status}</p>
+            <p>{studentName} • {activeSubmission.word_count} words • {submission.status}</p>
           </div>
           <button className="ghost" type="button" disabled={saving} onClick={onClose}>Close</button>
         </header>
