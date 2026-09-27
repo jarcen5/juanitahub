@@ -11,7 +11,14 @@ type PreviewAssignment = {
   instructions: string | null
   estimated_minutes: number | null
   resource_url: string | null
-  activity_config?: { passage?: string; target_wpm?: number; target_accuracy?: number }
+  activity_config?: {
+    mode?: 'passage' | 'letter_drill' | 'guided_keys' | 'hand_placement'
+    passage?: string
+    focus_keys?: string[]
+    target_keystrokes?: number
+    target_wpm?: number
+    target_accuracy?: number
+  }
 }
 
 type Props = {
@@ -45,6 +52,13 @@ function formatLabel(value: PreviewAssignment['delivery_format']) {
 function typeLabel(value: PreviewAssignment['assignment_type']) {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
+
+const typingModeLabels = {
+  passage: 'Passage Practice',
+  letter_drill: 'Letter Practice',
+  guided_keys: 'Guided Keys',
+  hand_placement: 'Hand Placement',
+} as const
 
 export default function AssignmentPreviewDialog({ assignment, onClose }: Props) {
   if (!assignment) return null
@@ -84,13 +98,29 @@ export default function AssignmentPreviewDialog({ assignment, onClose }: Props) 
             <h2>What to do</h2>
             <p>{assignment.instructions || 'Your staff member will give you the directions for this activity.'}</p>
 
-            {assignment.assignment_type === 'typing' && assignment.activity_config?.passage && (
+            {assignment.assignment_type === 'typing' && (
               <div className="learning-preview-typing">
-                <div><strong>Typing passage</strong><span>{assignment.activity_config.passage.length} characters</span></div>
-                <p>{assignment.activity_config.passage}</p>
+                <div>
+                  <strong>{typingModeLabels[assignment.activity_config?.mode ?? 'passage']}</strong>
+                  <span>{(assignment.activity_config?.mode ?? 'passage') === 'passage' ? (assignment.activity_config?.passage?.length ?? 0) + ' characters' : (assignment.activity_config?.target_keystrokes ?? 30) + ' correct keys'}</span>
+                </div>
+
+                {(assignment.activity_config?.mode ?? 'passage') === 'passage' ? (
+                  <p>{assignment.activity_config?.passage || 'No passage has been added yet.'}</p>
+                ) : (
+                  <>
+                    <div className="learning-preview-focus-keys">
+                      {(assignment.activity_config?.focus_keys ?? []).map((key) => <span key={key}>{key === ' ' ? 'SPACE' : key.toUpperCase()}</span>)}
+                    </div>
+                    {assignment.activity_config?.mode === 'letter_drill' && <p>The student will type a repeated drill made only from the selected keys.</p>}
+                    {assignment.activity_config?.mode === 'guided_keys' && <p>Juanita Hub will highlight one key at a time and wait for the correct key before moving on.</p>}
+                    {assignment.activity_config?.mode === 'hand_placement' && <p>The student will see a home-row guide, highlighted target keys, and the correct finger for each key.</p>}
+                  </>
+                )}
+
                 <div className="learning-preview-typing-goals">
-                  {typeof assignment.activity_config.target_wpm === 'number' && <span>⌨️ Goal: {assignment.activity_config.target_wpm} WPM</span>}
-                  {typeof assignment.activity_config.target_accuracy === 'number' && <span>🎯 Goal: {assignment.activity_config.target_accuracy}% accuracy</span>}
+                  {typeof assignment.activity_config?.target_wpm === 'number' && <span>⌨️ Goal: {assignment.activity_config.target_wpm} WPM</span>}
+                  {typeof assignment.activity_config?.target_accuracy === 'number' && <span>🎯 Goal: {assignment.activity_config.target_accuracy}% accuracy</span>}
                 </div>
               </div>
             )}
