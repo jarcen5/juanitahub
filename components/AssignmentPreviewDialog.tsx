@@ -11,6 +11,7 @@ type PreviewAssignment = {
   instructions: string | null
   estimated_minutes: number | null
   resource_url: string | null
+  activity_config?: { passage?: string; target_wpm?: number; target_accuracy?: number }
 }
 
 type Props = {
@@ -83,14 +84,25 @@ export default function AssignmentPreviewDialog({ assignment, onClose }: Props) 
             <h2>What to do</h2>
             <p>{assignment.instructions || 'Your staff member will give you the directions for this activity.'}</p>
 
+            {assignment.assignment_type === 'typing' && assignment.activity_config?.passage && (
+              <div className="learning-preview-typing">
+                <div><strong>Typing passage</strong><span>{assignment.activity_config.passage.length} characters</span></div>
+                <p>{assignment.activity_config.passage}</p>
+                <div className="learning-preview-typing-goals">
+                  {typeof assignment.activity_config.target_wpm === 'number' && <span>⌨️ Goal: {assignment.activity_config.target_wpm} WPM</span>}
+                  {typeof assignment.activity_config.target_accuracy === 'number' && <span>🎯 Goal: {assignment.activity_config.target_accuracy}% accuracy</span>}
+                </div>
+              </div>
+            )}
+
             {assignment.resource_url ? (
               <a className="primary learning-preview-resource" href={assignment.resource_url} target="_blank" rel="noreferrer">Open assignment resource ↗</a>
-            ) : (
+            ) : assignment.assignment_type !== 'typing' ? (
               <div className="learning-preview-resource-empty">
                 <strong>No digital resource attached</strong>
                 <span>This activity will use the instructions above, a staff-provided activity, or a printable handout.</span>
               </div>
-            )}
+            ) : null}
           </section>
 
           <div className="learning-student-preview-note">
