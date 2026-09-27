@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import DailyCardNotes from '@/components/DailyCardNotes'
 
@@ -69,11 +69,11 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     icon: '🎁',
     routes: ['/rewards'],
     links: [
-      { href: '/rewards?tab=monthly', label: 'Monthly Spins' },
-      { href: '/rewards?tab=free', label: 'Free Spin' },
-      { href: '/rewards?tab=test', label: 'Test Wheel' },
-      { href: '/rewards?tab=setup', label: 'Prize Setup', adminOnly: true },
-      { href: '/rewards?tab=fulfillment', label: 'Fulfillment' },
+      { href: '/rewards#monthly', label: 'Monthly Spins' },
+      { href: '/rewards#free', label: 'Free Spin' },
+      { href: '/rewards#test', label: 'Test Wheel' },
+      { href: '/rewards#setup', label: 'Prize Setup', adminOnly: true },
+      { href: '/rewards#fulfillment', label: 'Fulfillment' },
     ],
   },
   {
@@ -177,11 +177,18 @@ const navGroups: NavGroup[] = [
 
 export default function SiteNavigation() {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const [locationHash, setLocationHash] = useState('')
   const navRef = useRef<HTMLElement | null>(null)
   const [access, setAccess] = useState<AccessState>({ active: false, role: null })
   const [mobileOpen, setMobileOpen] = useState(false)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
+
+  useEffect(() => {
+    function syncHash() { setLocationHash(window.location.hash.replace('#', '')) }
+    syncHash()
+    window.addEventListener('hashchange', syncHash)
+    return () => window.removeEventListener('hashchange', syncHash)
+  }, [pathname])
 
   useEffect(() => {
     let mounted = true
@@ -410,8 +417,8 @@ export default function SiteNavigation() {
           <div className="jh-workspace-links">
             {workspaceLinks.map((item) => {
               if (!item.href || item.comingSoon) return <span className="jh-workspace-link disabled" key={item.label}>{item.label}<small>Soon</small></span>
-              const rewardTab = searchParams.get('tab') ?? 'monthly'
-              const itemTab = item.href.startsWith('/rewards?tab=') ? item.href.split('=')[1] : null
+              const itemTab = item.href.startsWith('/rewards#') ? item.href.split('#')[1] : null
+              const rewardTab = locationHash || 'monthly'
               const active = itemTab
                 ? pathname === '/rewards' && rewardTab === itemTab
                 : pathname === item.href || pathname.startsWith(item.href + '/')
