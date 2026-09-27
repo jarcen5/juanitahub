@@ -59,3 +59,29 @@
   .child-learning-current-list article{grid-template-columns:auto minmax(0,1fr)}
   .child-learning-status{grid-column:2;justify-self:start}
 }
+
+
+/* Completion details inside the student profile */
+.child-learning-current-copy{display:grid;gap:2px;min-width:0}
+.child-learning-completion-meta{
+  margin-top:3px;
+  color:#4f7186;
+  font-size:9px;
+  line-height:1.4;
+}
+.child-learning-row-end{
+  display:grid;
+  justify-items:end;
+  gap:6px;
+}
+.child-learning-row-end button{
+  min-height:30px;
+  padding:5px 8px;
+  font-size:9px;
+}
+@media(max-width:560px){
+  .child-learning-row-end{
+    grid-column:2;
+    justify-items:start;
+  }
+}
