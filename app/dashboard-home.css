@@ -438,3 +438,201 @@
   .home-find-card .home-section-heading>p{text-align:left}
   .home-find-grid{grid-template-columns:1fr}
 }
+
+
+/* Home consolidation pass */
+.home-fast-card{
+  display:grid;
+  gap:2px;
+}
+.home-fast-card .home-section-heading{
+  align-items:end;
+}
+.home-fast-card .home-section-heading>p{
+  max-width:360px;
+  margin:0;
+  text-align:right;
+}
+
+.home-today-overview{
+  padding:0;
+  overflow:hidden;
+}
+.home-today-overview>summary{
+  min-height:82px;
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto 28px;
+  gap:18px;
+  align-items:center;
+  padding:16px 18px;
+  list-style:none;
+  cursor:pointer;
+  user-select:none;
+}
+.home-today-overview>summary::-webkit-details-marker{
+  display:none;
+}
+.home-today-overview>summary:hover{
+  background:#f9fcfe;
+}
+.home-overview-summary-copy{
+  min-width:0;
+  display:grid;
+  gap:4px;
+}
+.home-overview-summary-copy>strong{
+  color:#214762;
+  font-size:15px;
+}
+.home-overview-summary-stats{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.home-overview-summary-stats>span{
+  min-width:88px;
+  display:grid;
+  gap:2px;
+  padding:8px 10px;
+  border:1px solid #dce8f1;
+  border-radius:11px;
+  background:#f9fcfe;
+  text-align:center;
+}
+.home-overview-summary-stats strong{
+  color:#1d6599;
+  font-size:20px;
+  line-height:1;
+}
+.home-overview-summary-stats small{
+  color:#7b8d9d;
+  font-size:9.5px;
+  line-height:1.15;
+}
+.home-overview-chevron{
+  color:#6f8598;
+  font-size:22px;
+  line-height:1;
+  transition:transform .16s ease;
+}
+.home-today-overview[open] .home-overview-chevron{
+  transform:rotate(180deg);
+}
+.home-overview-body{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  padding:0 16px 16px;
+  border-top:1px solid #e3edf4;
+}
+.home-overview-panel{
+  min-width:0;
+  padding:16px;
+  border:1px solid #dce8f1;
+  border-radius:14px;
+  background:#fbfdff;
+}
+.home-overview-panel .home-section-heading{
+  margin-bottom:12px;
+}
+.home-overview-panel .home-snapshot-grid{
+  margin-top:0;
+}
+.home-overview-panel .home-snapshot-grid>div{
+  min-height:86px;
+}
+.home-overview-panel .home-task-row,
+.home-overview-panel .home-attention-list>a,
+.home-overview-panel .home-all-clear{
+  background:white;
+}
+
+.home-content-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(320px,.85fr);
+  gap:18px;
+  align-items:start;
+}
+.home-board-card{
+  display:grid;
+  gap:14px;
+}
+.home-board-card>.home-section-heading{
+  margin-bottom:0;
+}
+.home-board-section{
+  display:grid;
+  gap:10px;
+}
+.home-board-subheading{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#31536d;
+}
+.home-board-subheading strong{
+  font-size:13px;
+}
+.home-board-subheading .home-preview-pill{
+  margin-left:auto;
+}
+.home-board-divider{
+  height:1px;
+  background:#e3edf4;
+}
+.home-board-card .home-empty-state{
+  margin-top:0;
+}
+.home-board-card .home-attention-list>a{
+  border-color:#e2eaf0;
+  background:#fbfdff;
+}
+
+@media(max-width:1120px){
+  .home-overview-body{grid-template-columns:1fr 1fr}
+  .home-overview-panel.home-attention-card{grid-column:1/-1}
+}
+@media(max-width:920px){
+  .home-today-overview>summary{
+    grid-template-columns:1fr auto;
+  }
+  .home-overview-summary-stats{
+    grid-column:1/-1;
+    justify-content:flex-start;
+    flex-wrap:wrap;
+  }
+  .home-overview-chevron{
+    grid-column:2;
+    grid-row:1;
+  }
+  .home-content-grid{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .home-fast-card .home-section-heading{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .home-fast-card .home-section-heading>p{
+    text-align:left;
+  }
+  .home-overview-body{grid-template-columns:1fr}
+  .home-overview-panel.home-attention-card{grid-column:auto}
+}
+@media(max-width:560px){
+  .home-today-overview>summary{
+    padding:14px;
+    gap:12px;
+  }
+  .home-overview-summary-stats{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    width:100%;
+  }
+  .home-overview-summary-stats>span{
+    min-width:0;
+    padding:8px 5px;
+  }
+  .home-overview-body{
+    padding:0 10px 10px;
+  }
+}
