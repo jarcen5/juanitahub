@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import AssignmentCompletionDialog from '@/components/AssignmentCompletionDialog'
 import AssignmentPreviewDialog from '@/components/AssignmentPreviewDialog'
 import TypingActivityRunner from '@/components/TypingActivityRunner'
+import AssignmentTestRunner from '@/components/AssignmentTestRunner'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
@@ -314,6 +315,7 @@ export default function LearningPage() {
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
   const [starterAdding, setStarterAdding] = useState(false)
   const [previewAssignment, setPreviewAssignment] = useState<LearningAssignment | null>(null)
+  const [testAssignment, setTestAssignment] = useState<LearningAssignment | null>(null)
   const [typingTarget, setTypingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
 
   const [newTitle, setNewTitle] = useState('')
@@ -1038,6 +1040,7 @@ export default function LearningPage() {
                                   {profile.role === 'admin' && (
                                     <div className="learning-library-item-actions">
                                       <button className="ghost" type="button" onClick={() => setPreviewAssignment(assignment)}>Preview</button>
+                                      <button className="ghost" type="button" onClick={() => setTestAssignment(assignment)}>▶ Test</button>
                                       <button className="ghost" type="button" disabled={saving} onClick={() => beginEditAssignment(assignment)}>Edit</button>
                                       <button className="ghost" type="button" disabled={saving} onClick={() => void duplicateAssignment(assignment)}>Duplicate</button>
                                       <button className="ghost" type="button" disabled={saving} onClick={() => void toggleAssignmentArchive(assignment)}>{assignment.active ? 'Archive' : 'Reactivate'}</button>
@@ -1083,7 +1086,10 @@ export default function LearningPage() {
                   )}
                   {selectedAssignment.resource_url && <a className="learning-resource-link" href={selectedAssignment.resource_url} target="_blank" rel="noreferrer">Open resource ↗</a>}
 
-                  <button className="learning-preview-button primary" type="button" onClick={() => setPreviewAssignment(selectedAssignment)}>👁 Preview assignment</button>
+                  <div className="learning-preview-actions">
+                    <button className="ghost" type="button" onClick={() => setPreviewAssignment(selectedAssignment)}>👁 Preview setup</button>
+                    <button className="primary" type="button" onClick={() => setTestAssignment(selectedAssignment)}>▶ Test activity</button>
+                  </div>
 
                   {profile.role === 'admin' && (
                     <div className="learning-selected-admin-actions">
@@ -1267,6 +1273,11 @@ export default function LearningPage() {
       <AssignmentPreviewDialog
         assignment={previewAssignment}
         onClose={() => setPreviewAssignment(null)}
+      />
+
+      <AssignmentTestRunner
+        assignment={testAssignment}
+        onClose={() => setTestAssignment(null)}
       />
 
       {typingTarget && (
