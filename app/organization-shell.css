@@ -510,3 +510,116 @@ body:has(.site-nav) .topbar .badge {
     padding-right: 14px;
   }
 }
+
+
+/* Shared workspace tabs */
+.jh-workspace-bar{
+  position:fixed;
+  inset:0 0 auto 286px;
+  z-index:1100;
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:7px 16px;
+  border-bottom:1px solid #d9e6ef;
+  background:rgba(255,255,255,.97);
+  box-shadow:0 5px 18px rgba(35,76,107,.07);
+  backdrop-filter:blur(14px);
+}
+.jh-workspace-title{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding-right:13px;
+  border-right:1px solid #dce7ee;
+  color:#244a68;
+}
+.jh-workspace-title span{font-size:18px}
+.jh-workspace-title strong{font-size:13px}
+.jh-workspace-links{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  overflow-x:auto;
+  scrollbar-width:thin;
+}
+.jh-workspace-link{
+  min-height:40px;
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 12px;
+  border:1px solid transparent;
+  border-radius:10px;
+  color:#526c80;
+  font-size:12px;
+  font-weight:800;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.jh-workspace-link:hover{
+  border-color:#d2e1eb;
+  background:#f6fafc;
+  color:#1f628f;
+}
+.jh-workspace-link.active{
+  border-color:#c7deec;
+  background:#eaf6fd;
+  color:#185f91;
+  box-shadow:0 3px 10px rgba(35,92,132,.07);
+}
+.jh-workspace-link.disabled{
+  color:#8a99a5;
+  background:#f7f9fa;
+}
+.jh-workspace-link small{
+  padding:2px 5px;
+  border-radius:999px;
+  background:#e9eef2;
+  color:#71808d;
+  font-size:8px;
+  text-transform:uppercase;
+}
+body:has(.jh-workspace-bar) .shell{
+  padding-top:58px;
+}
+body:has(.jh-workspace-bar) .topbar{
+  display:none;
+}
+
+@media(max-width:1100px){
+  .jh-workspace-bar{
+    inset:66px 0 auto 0;
+    min-height:54px;
+    padding:6px 10px;
+    gap:8px;
+  }
+  .jh-workspace-title{
+    padding-right:9px;
+  }
+  .jh-workspace-title strong{
+    display:none;
+  }
+  body:has(.site-nav):has(.jh-workspace-bar) .shell{
+    padding-top:120px;
+  }
+}
+@media(max-width:560px){
+  .jh-workspace-bar{
+    padding-left:8px;
+    padding-right:8px;
+  }
+  .jh-workspace-title{
+    border-right:0;
+    padding-right:2px;
+  }
+  .jh-workspace-link{
+    min-height:38px;
+    padding:7px 10px;
+    font-size:11px;
+  }
+}
