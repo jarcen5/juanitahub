@@ -595,7 +595,7 @@ export default function LearningPage() {
       supabase.from('learning_student_assignments').select('assignment_id, status'),
       supabase.from('learning_typing_attempts').select('id, student_assignment_id, child_id, assignment_id, wpm, accuracy, duration_seconds, correct_characters, typed_characters, activity_mode, focus_keys, mistake_counts, created_at').order('created_at', { ascending: false }).limit(80),
       supabase.from('learning_quiz_attempts').select('id, student_assignment_id, child_id, assignment_id, correct_count, question_count, percent, duration_seconds, created_at').order('created_at', { ascending: false }).limit(80),
-      supabase.from('learning_writing_submissions').select('id, student_assignment_id, child_id, assignment_id, content, word_count, status, started_at, submitted_at, last_saved_at, staff_feedback, rubric_scores, reviewed_at, updated_at').order('updated_at', { ascending: false }).limit(120),
+      supabase.from('learning_writing_submissions').select('id, student_assignment_id, child_id, assignment_id, content, word_count, status, started_at, submitted_at, last_saved_at, active_seconds, staff_feedback, rubric_scores, reviewed_at, updated_at').order('updated_at', { ascending: false }).limit(120),
     ])
 
     const error = profileResult.error
