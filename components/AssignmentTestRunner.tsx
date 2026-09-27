@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import TypingActivityRunner from '@/components/TypingActivityRunner'
 import QuizActivityRunner, { type QuizConfig } from '@/components/QuizActivityRunner'
+import WritingActivityRunner, { type WritingConfig } from '@/components/WritingActivityRunner'
 
 type TestAssignment = {
   id: number
@@ -19,7 +20,7 @@ type TestAssignment = {
     target_keystrokes?: number
     target_wpm?: number
     target_accuracy?: number
-  } & QuizConfig
+  } & QuizConfig & WritingConfig
 }
 
 type Props = {
@@ -56,6 +57,18 @@ export default function AssignmentTestRunner({ assignment, onClose }: Props) {
   if (assignment.assignment_type === 'quiz') {
     return (
       <QuizActivityRunner
+        assignmentTitle={assignment.title}
+        studentName="Staff Test"
+        activityConfig={assignment.activity_config}
+        testMode
+        onClose={onClose}
+      />
+    )
+  }
+
+  if (assignment.assignment_type === 'writing') {
+    return (
+      <WritingActivityRunner
         assignmentTitle={assignment.title}
         studentName="Staff Test"
         activityConfig={assignment.activity_config}
