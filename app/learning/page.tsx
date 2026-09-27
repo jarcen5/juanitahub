@@ -1336,10 +1336,38 @@ export default function LearningPage() {
                       </div>
                     </section>
                   )}
+                  {newType === 'writing' && (
+                    <section className="learning-writing-editor wide">
+                      <div className="learning-writing-editor-heading">
+                        <span>✍️</span>
+                        <div><strong>Writing Prompt Builder</strong><small>Create a guided writing activity with optional sentence starters and a simple staff rubric.</small></div>
+                      </div>
+
+                      <label className="field"><span>Writing mode</span>
+                        <select value={writingMode} onChange={(event) => setWritingMode(event.target.value as WritingMode)}>
+                          <option value="journal">Journal Prompt</option>
+                          <option value="short_response">Short Response</option>
+                          <option value="paragraph">Paragraph Writing</option>
+                          <option value="creative">Creative Writing</option>
+                          <option value="reading_response">Reading Response</option>
+                        </select>
+                      </label>
+
+                      <label className="field"><span>Writing prompt</span><textarea rows={5} value={writingPrompt} onChange={(event) => setWritingPrompt(event.target.value)} placeholder="What should the student write about?" /></label>
+
+                      <div className="learning-writing-word-grid">
+                        <label className="field"><span>Minimum words <small>(optional)</small></span><input type="number" min="0" max="5000" step="1" value={writingMinWords} onChange={(event) => setWritingMinWords(event.target.value)} placeholder="50" /></label>
+                        <label className="field"><span>Target words <small>(optional)</small></span><input type="number" min="0" max="5000" step="1" value={writingTargetWords} onChange={(event) => setWritingTargetWords(event.target.value)} placeholder="100" /></label>
+                      </div>
+
+                      <label className="field"><span>Sentence starters <small>(optional, one per line)</small></span><textarea rows={4} value={writingStarters} onChange={(event) => setWritingStarters(event.target.value)} placeholder={'One thing I noticed was…\nI think the most important part was…'} /></label>
+                      <label className="field"><span>Review rubric <small>(optional, one area per line)</small></span><textarea rows={4} value={writingRubric} onChange={(event) => setWritingRubric(event.target.value)} placeholder={'Ideas\nOrganization\nGrammar & conventions'} /></label>
+                    </section>
+                  )}
                 </div>
                 <div className="learning-editor-actions">
                   <button className="ghost" type="button" disabled={saving} onClick={() => { resetAssignmentEditor(); setEditorOpen(false) }}>Cancel</button>
-                  <button className="primary" type="button" disabled={saving || !newTitle.trim() || (newType === 'typing' && ((typingMode === 'passage' && !typingPassage.trim()) || (typingMode !== 'passage' && !typingFocusKeys.trim()))) || (newType === 'quiz' && quizQuestions.length === 0)} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
+                  <button className="primary" type="button" disabled={saving || !newTitle.trim() || (newType === 'typing' && ((typingMode === 'passage' && !typingPassage.trim()) || (typingMode !== 'passage' && !typingFocusKeys.trim()))) || (newType === 'quiz' && quizQuestions.length === 0) || (newType === 'writing' && !writingPrompt.trim())} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
                 </div>
               </section>
             )}
