@@ -91,6 +91,8 @@ export default function TaskCenterPage() {
   const [prizeCount, setPrizeCount] = useState(0)
   const [registrationCount, setRegistrationCount] = useState(0)
   const [inventoryLowCount, setInventoryLowCount] = useState(0)
+  const [purchaseApprovalCount, setPurchaseApprovalCount] = useState(0)
+  const [purchaseReceivingCount, setPurchaseReceivingCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -167,14 +169,28 @@ export default function TaskCenterPage() {
     ])
 
     let registrationOutstanding = 0
-    let registrationError: string | null = null
+    let purchaseApprovalOutstanding = 0
+    let purchaseReceivingOutstanding = 0
+    let adminSystemError: string | null = null
     if (currentProfile.role === 'admin') {
-      const registrationResult = await supabase
-        .from('registration_submissions')
-        .select('id', { count: 'exact', head: true })
-        .in('status', ['submitted', 'needs_review'])
+      const [registrationResult, approvalResult, receivingResult] = await Promise.all([
+        supabase
+          .from('registration_submissions')
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['submitted', 'needs_review']),
+        supabase
+          .from('purchase_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'awaiting_approval'),
+        supabase
+          .from('purchase_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'ordered'),
+      ])
       registrationOutstanding = registrationResult.count ?? 0
-      registrationError = registrationResult.error?.message ?? null
+      purchaseApprovalOutstanding = approvalResult.count ?? 0
+      purchaseReceivingOutstanding = receivingResult.count ?? 0
+      adminSystemError = registrationResult.error?.message ?? approvalResult.error?.message ?? receivingResult.error?.message ?? null
     }
 
     const nextTeamMembers = (teamResult.data ?? []) as TeamMember[]
@@ -183,6 +199,8 @@ export default function TaskCenterPage() {
     setPrizeCount(prizeResult.count ?? 0)
     setRegistrationCount(registrationOutstanding)
     setInventoryLowCount(inventoryResult.count ?? 0)
+    setPurchaseApprovalCount(purchaseApprovalOutstanding)
+    setPurchaseReceivingCount(purchaseReceivingOutstanding)
     const ownTeamMember = nextTeamMembers.find((person) => person.staff_user_id === session.user.id)
     setAssignee((current) => current || (ownTeamMember ? String(ownTeamMember.id) : String(nextTeamMembers[0]?.id ?? '')))
 
@@ -191,7 +209,7 @@ export default function TaskCenterPage() {
       ?? taskResult.error?.message
       ?? prizeResult.error?.message
       ?? inventoryResult.error?.message
-      ?? registrationError
+      ?? adminSystemError
       ?? ''
     setMessage(error)
     setLoading(false)
@@ -364,7 +382,7 @@ export default function TaskCenterPage() {
   }, [tasks, session])
 
   const systemCount = (prizeCount > 0 ? 1 : 0) + (inventoryLowCount > 0 ? 1 : 0)
-  const adminSystemCount = profile?.role === 'admin' && registrationCount > 0 ? 1 : 0
+  const adminSystemCount = profile?.role === 'admin' ? (registrationCount > 0 ? 1 : 0) + (purchaseApprovalCount > 0 ? 1 : 0) + (purchaseReceivingCount > 0 ? 1 : 0) : 0
   const noSystemTasks = systemCount + adminSystemCount === 0
   const today = localToday()
 
@@ -414,13 +432,25 @@ export default function TaskCenterPage() {
                     <span><strong>{inventoryLowCount} inventory item{inventoryLowCount === 1 ? ' is' : 's are'} running low</strong><small>Open Inventory →</small></span>
                   </Link>
                 )}
+                {profile.role === 'admin' && purchaseApprovalCount > 0 && (
+                  <Link href="/purchasing" className="task-system-item purchasing">
+                    <span className="task-system-icon">💳</span>
+                    <span><strong>{purchaseApprovalCount} purchase {purchaseApprovalCount === 1 ? 'request needs' : 'requests need'} approval</strong><small>Open Budgets & Purchasing →</small></span>
+                  </Link>
+                )}
+                {profile.role === 'admin' && purchaseReceivingCount > 0 && (
+                  <Link href="/purchasing" className="task-system-item purchasing">
+                    <span className="task-system-icon">📦</span>
+                    <span><strong>{purchaseReceivingCount} ordered purchase{purchaseReceivingCount === 1 ? ' is' : 's are'} waiting to be received</strong><small>Open Budgets & Purchasing →</small></span>
+                  </Link>
+                )}
                 {profile.role === 'admin' && registrationCount > 0 && (
                   <Link href="/registrations" className="task-system-item registration">
                     <span className="task-system-icon">📝</span>
                     <span><strong>{registrationCount} registration {registrationCount === 1 ? 'submission needs' : 'submissions need'} review</strong><small>Open Registration Center →</small></span>
                   </Link>
                 )}
-                {noSystemTasks && <div className="task-all-clear"><strong>✓ System work is caught up</strong><span>No prize-delivery, low-stock, or registration-review items are waiting right now.</span></div>}
+                {noSystemTasks && <div className="task-all-clear"><strong>✓ System work is caught up</strong><span>No prize-delivery, low-stock, purchasing, or registration-review items are waiting right now.</span></div>}
               </div>
             </section>
 
