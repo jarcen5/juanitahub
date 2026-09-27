@@ -320,6 +320,10 @@ function statusLabel(status: StudentAssignment['status']) {
   return 'Assigned'
 }
 
+function normalizeQuizText(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
 export default function LearningPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -648,6 +652,9 @@ export default function LearningPage() {
     setTypingTargetKeystrokes('30')
     setTypingTargetWpm('15')
     setTypingTargetAccuracy('90')
+    setQuizQuestions([])
+    setQuizPassingScore('80')
+    setQuizShowExplanations(true)
   }
 
   function beginAddAssignment() {
@@ -673,6 +680,9 @@ export default function LearningPage() {
     setTypingTargetKeystrokes(typeof assignment.activity_config?.target_keystrokes === 'number' ? String(assignment.activity_config.target_keystrokes) : '30')
     setTypingTargetWpm(typeof assignment.activity_config?.target_wpm === 'number' ? String(assignment.activity_config.target_wpm) : '15')
     setTypingTargetAccuracy(typeof assignment.activity_config?.target_accuracy === 'number' ? String(assignment.activity_config.target_accuracy) : '90')
+    setQuizQuestions(Array.isArray(assignment.activity_config?.questions) ? assignment.activity_config.questions : [])
+    setQuizPassingScore(typeof assignment.activity_config?.passing_score === 'number' ? String(assignment.activity_config.passing_score) : '80')
+    setQuizShowExplanations(assignment.activity_config?.show_explanations !== false)
     setEditorOpen(true)
   }
 
@@ -695,15 +705,42 @@ export default function LearningPage() {
     if (newType === 'typing' && speedMode && parsedTargetWpm != null && (!Number.isFinite(parsedTargetWpm) || parsedTargetWpm <= 0)) return showMessage('Typing WPM goal must be greater than 0.')
     if (newType === 'typing' && parsedTargetAccuracy != null && (!Number.isFinite(parsedTargetAccuracy) || parsedTargetAccuracy < 0 || parsedTargetAccuracy > 100)) return showMessage('Typing accuracy goal must be between 0 and 100.')
 
+    const parsedPassingScore = quizPassingScore.trim() ? Number(quizPassingScore) : 80
+    if (newType === 'quiz') {
+      if (!quizQuestions.length) return showMessage('Add at least one quiz question before saving.')
+      if (!Number.isFinite(parsedPassingScore) || parsedPassingScore < 0 || parsedPassingScore > 100) return showMessage('Quiz goal must be between 0 and 100%.')
+      for (let index = 0; index < quizQuestions.length; index += 1) {
+        const question = quizQuestions[index]
+        if (!question.prompt.trim()) return showMessage('Question ' + (index + 1) + ' needs a prompt.')
+        if (!question.correct_answer.trim()) return showMessage('Question ' + (index + 1) + ' needs a correct answer.')
+        if ((question.type === 'multiple_choice' || question.type === 'correct_sentence') && (question.choices ?? []).filter((choice) => choice.trim()).length < 2) return showMessage('Question ' + (index + 1) + ' needs at least two answer choices.')
+        if ((question.type === 'multiple_choice' || question.type === 'correct_sentence') && !(question.choices ?? []).some((choice) => normalizeQuizText(choice) === normalizeQuizText(question.correct_answer))) return showMessage('Question ' + (index + 1) + ' correct answer must match one of its choices.')
+      }
+    }
+
     const grades = [...new Set(newGrades.split(',').map((grade) => grade.trim()).filter(Boolean))]
-    const activityConfig: TypingConfig = newType === 'typing'
-      ? {
-          mode: typingMode,
-          ...(typingMode === 'passage' ? { passage: typingPassage.trim() } : { focus_keys: focusKeys, target_keystrokes: Math.round(parsedTargetKeystrokes) }),
-          ...(speedMode && parsedTargetWpm != null ? { target_wpm: parsedTargetWpm } : {}),
-          ...(parsedTargetAccuracy == null ? {} : { target_accuracy: parsedTargetAccuracy }),
-        }
-      : {}
+    let activityConfig: ActivityConfig = {}
+    if (newType === 'typing') {
+      activityConfig = {
+        mode: typingMode,
+        ...(typingMode === 'passage' ? { passage: typingPassage.trim() } : { focus_keys: focusKeys, target_keystrokes: Math.round(parsedTargetKeystrokes) }),
+        ...(speedMode && parsedTargetWpm != null ? { target_wpm: parsedTargetWpm } : {}),
+        ...(parsedTargetAccuracy == null ? {} : { target_accuracy: parsedTargetAccuracy }),
+      }
+    } else if (newType === 'quiz') {
+      activityConfig = {
+        questions: quizQuestions.map((question) => ({
+          ...question,
+          prompt: question.prompt.trim(),
+          correct_answer: question.correct_answer.trim(),
+          choices: (question.choices ?? []).map((choice) => choice.trim()).filter(Boolean),
+          explanation: question.explanation?.trim() || '',
+          passage: question.passage?.trim() || '',
+        })),
+        passing_score: parsedPassingScore,
+        show_explanations: quizShowExplanations,
+      }
+    }
 
     const values = {
       title: newTitle.trim(),
