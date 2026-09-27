@@ -45,6 +45,7 @@ export default function AssignmentCompletionDialog({
   }, [row])
 
   if (!row) return null
+  const activeRow = row
 
   async function saveCompletion() {
     if (saving) return
@@ -88,7 +89,7 @@ export default function AssignmentCompletionDialog({
         updated_by: userId,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', row.id)
+      .eq('id', activeRow.id)
 
     setSaving(false)
     if (updateError) {
