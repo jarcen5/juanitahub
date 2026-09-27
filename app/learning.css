@@ -1457,3 +1457,208 @@
     font-size:38px;
   }
 }
+
+
+/* Live assignment testing */
+.learning-preview-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin:8px 0 2px;
+}
+.learning-preview-actions button{
+  width:100%;
+}
+.typing-runner-shell.test-mode{
+  grid-template-rows:auto auto 1fr;
+}
+.typing-test-banner,
+.assignment-test-banner{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:8px 14px;
+  background:#fff4c9;
+  border-bottom:1px solid #ead98e;
+  color:#715b12;
+  text-align:center;
+}
+.typing-test-banner strong,
+.assignment-test-banner strong{
+  padding:4px 7px;
+  border-radius:999px;
+  background:#715b12;
+  color:white;
+  font-size:8px;
+  letter-spacing:.08em;
+}
+.typing-test-banner span,
+.assignment-test-banner span{
+  font-size:9.5px;
+  font-weight:800;
+}
+.assignment-test-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:2200;
+  overflow:auto;
+  background:#edf5f9;
+}
+.assignment-test-shell{
+  min-height:100vh;
+  display:grid;
+  grid-template-rows:auto auto 1fr;
+  background:
+    radial-gradient(circle at top left,rgba(82,159,205,.12),transparent 36%),
+    radial-gradient(circle at top right,rgba(82,184,140,.10),transparent 34%),
+    #f7fbfd;
+}
+.assignment-test-topbar{
+  position:sticky;
+  top:0;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 20px;
+  border-bottom:1px solid #d9e6ed;
+  background:rgba(255,255,255,.96);
+  backdrop-filter:blur(10px);
+}
+.assignment-test-topbar>div{
+  display:grid;
+  gap:2px;
+}
+.assignment-test-topbar strong{
+  color:#34586f;
+  font-size:11px;
+}
+.assignment-test-content{
+  width:min(760px,100%);
+  margin:auto;
+  padding:38px 22px 48px;
+  text-align:center;
+}
+.assignment-test-icon{
+  width:68px;
+  height:68px;
+  display:grid;
+  place-items:center;
+  margin:0 auto 10px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#e8f5fd,#eaf8f0);
+  font-size:31px;
+}
+.assignment-test-content>h1{
+  margin:6px 0 18px;
+  color:#204d69;
+  font-size:clamp(2rem,5vw,3.2rem);
+}
+.assignment-test-card{
+  padding:22px;
+  border:1px solid #d8e6ee;
+  border-radius:18px;
+  background:white;
+  text-align:left;
+  box-shadow:0 8px 26px rgba(35,79,108,.07);
+}
+.assignment-test-card h2{
+  margin:4px 0 8px;
+  color:#28516c;
+}
+.assignment-test-card p{
+  margin:0;
+  color:#506f82;
+  font-size:13px;
+  line-height:1.65;
+  white-space:pre-wrap;
+}
+.assignment-test-resource{
+  display:flex;
+  width:max-content;
+  max-width:100%;
+  margin-top:18px;
+  text-decoration:none;
+}
+.assignment-test-placeholder{
+  display:grid;
+  gap:4px;
+  margin-top:18px;
+  padding:12px;
+  border:1px dashed #d5e0e7;
+  border-radius:11px;
+  background:#f8fafb;
+}
+.assignment-test-placeholder strong{
+  color:#607784;
+  font-size:10px;
+}
+.assignment-test-placeholder span{
+  color:#87959e;
+  font-size:9px;
+  line-height:1.45;
+}
+.assignment-test-actions{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  margin-top:16px;
+}
+.assignment-test-finished{
+  display:grid;
+  justify-items:center;
+  gap:8px;
+}
+.assignment-test-finished>span:first-child{
+  width:64px;
+  height:64px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#e6f6ed;
+  color:#317a52;
+  font-size:30px;
+  font-weight:950;
+}
+.assignment-test-finished h1{
+  margin:2px 0;
+  color:#204d69;
+}
+.assignment-test-finished p{
+  max-width:560px;
+  margin:0 0 8px;
+  color:#718693;
+  line-height:1.5;
+}
+.assignment-test-finished>div{
+  display:flex;
+  gap:8px;
+}
+@media(max-width:620px){
+  .learning-preview-actions{
+    grid-template-columns:1fr;
+  }
+  .typing-test-banner,
+  .assignment-test-banner{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .assignment-test-topbar{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .assignment-test-topbar button{
+    width:100%;
+  }
+  .assignment-test-content{
+    padding:26px 14px 36px;
+  }
+  .assignment-test-actions,
+  .assignment-test-finished>div{
+    display:grid;
+    grid-template-columns:1fr;
+    width:100%;
+  }
+}
