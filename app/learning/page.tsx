@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import AssignmentCompletionDialog from '@/components/AssignmentCompletionDialog'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
@@ -169,6 +170,7 @@ export default function LearningPage() {
   const [noteChildId, setNoteChildId] = useState<number | null>(null)
   const [noteDate, setNoteDate] = useState(localDate())
   const [noteText, setNoteText] = useState('')
+  const [completionTarget, setCompletionTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -473,11 +475,12 @@ export default function LearningPage() {
                           return (
                             <div className="learning-assignment-row" key={row.id}>
                               <span className="learning-subject-icon">{subjectIcons[assignment.subject]}</span>
-                              <span className="learning-assignment-copy"><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small></span>
+                              <span className="learning-assignment-copy"><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small>{row.status === 'completed' && (row.score != null || row.minutes_spent != null || row.staff_note) && <span className="learning-completion-meta">{row.score != null && row.max_score != null ? `Score ${row.score}/${row.max_score} • ${Math.round((row.score / row.max_score) * 100)}%` : ''}{row.score != null && row.max_score != null && row.minutes_spent != null ? ' • ' : ''}{row.minutes_spent != null ? row.minutes_spent + ' min' : ''}{(row.score != null || row.minutes_spent != null) && row.staff_note ? ' • ' : ''}{row.staff_note || ''}</span>}</span>
                               <span className={'learning-status ' + row.status}>{statusLabel(row.status)}</span>
                               <span className="learning-row-actions">
                                 {row.status === 'assigned' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'in_progress')}>Start</button>}
-                                {row.status !== 'completed' && <button className="primary" type="button" disabled={saving} onClick={() => void updateStatus(row, 'completed')}>Complete</button>}
+                                {row.status !== 'completed' && <button className="primary" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Complete</button>}
+                                {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Edit details</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'assigned')}>Reopen</button>}
                               </span>
                             </div>
@@ -613,6 +616,15 @@ export default function LearningPage() {
           </section>
         )}
       </main>
+
+      <AssignmentCompletionDialog
+        row={completionTarget?.row ?? null}
+        assignmentTitle={completionTarget?.assignment.title ?? ''}
+        studentName={completionTarget ? childName(completionTarget.child) : ''}
+        userId={session.user.id}
+        onClose={() => setCompletionTarget(null)}
+        onSaved={loadData}
+      />
     </div>
   )
 }
