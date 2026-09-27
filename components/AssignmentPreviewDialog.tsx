@@ -29,6 +29,12 @@ type PreviewAssignment = {
     }>
     passing_score?: number
     show_explanations?: boolean
+    writing_mode?: 'journal' | 'short_response' | 'paragraph' | 'creative' | 'reading_response'
+    prompt?: string
+    sentence_starters?: string[]
+    min_words?: number
+    target_words?: number
+    rubric_criteria?: string[]
   }
 }
 
@@ -154,6 +160,25 @@ export default function AssignmentPreviewDialog({ assignment, onClose }: Props) 
                     </article>
                   ))}
                   {(assignment.activity_config?.questions?.length ?? 0) === 0 && <p>No quiz questions have been added yet.</p>}
+                </div>
+              </div>
+            )}
+
+            {assignment.assignment_type === 'writing' && (
+              <div className="learning-preview-writing">
+                <div>
+                  <strong>Writing Lab</strong>
+                  <span>{assignment.activity_config?.writing_mode?.replaceAll('_', ' ') ?? 'writing prompt'}</span>
+                </div>
+                <section>
+                  <span>Prompt</span>
+                  <p>{assignment.activity_config?.prompt || 'No writing prompt has been added yet.'}</p>
+                </section>
+                {(assignment.activity_config?.sentence_starters?.length ?? 0) > 0 && <div className="learning-preview-writing-starters">{assignment.activity_config?.sentence_starters?.map((starter) => <small key={starter}>{starter}</small>)}</div>}
+                <div className="learning-preview-writing-meta">
+                  {typeof assignment.activity_config?.min_words === 'number' && <span>Minimum {assignment.activity_config.min_words} words</span>}
+                  {typeof assignment.activity_config?.target_words === 'number' && <span>Target {assignment.activity_config.target_words} words</span>}
+                  {(assignment.activity_config?.rubric_criteria?.length ?? 0) > 0 && <span>{assignment.activity_config?.rubric_criteria?.length} review areas</span>}
                 </div>
               </div>
             )}
