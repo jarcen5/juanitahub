@@ -16,6 +16,9 @@ type Props = {
   resultName?: string | null
   centerLabel?: string
   title?: string
+  actionLabel?: string
+  actionDisabled?: boolean
+  onAction?: () => void
 }
 
 function polar(cx: number, cy: number, radius: number, angle: number) {
@@ -57,6 +60,9 @@ export default function RewardWheel({
   resultName,
   centerLabel = 'REWARD',
   title = 'Reward wheel',
+  actionLabel,
+  actionDisabled = false,
+  onAction,
 }: Props) {
   const presentationRef = useRef<HTMLDivElement | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
@@ -167,6 +173,12 @@ export default function RewardWheel({
           ))}
         </aside>
       </div>
+
+      {actionLabel && onAction && (
+        <div className="reward-wheel-action">
+          <button className="primary" type="button" disabled={actionDisabled} onClick={onAction}>{actionLabel}</button>
+        </div>
+      )}
     </div>
   )
 }
