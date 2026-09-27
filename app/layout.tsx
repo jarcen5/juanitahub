@@ -21,6 +21,7 @@ import './rewards-workspace.css'
 import './task-center.css'
 import './team.css'
 import './inventory.css'
+import './learning.css'
 import './purchasing.css'
 import './organization-shell.css'
 
