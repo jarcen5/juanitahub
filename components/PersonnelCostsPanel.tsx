@@ -303,6 +303,7 @@ export default function PersonnelCostsPanel({ budgets, programs, onChanged }: Pr
         </div>
 
         {selected && <PersonnelCostWorkflow
+          key={selected.id}
           cost={selected}
           onChanged={async () => {
             await loadPersonnel()
