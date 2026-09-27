@@ -1702,6 +1702,98 @@ export default function LearningPage() {
           </section>
         )}
 
+        {tab === 'writing' && (
+          <section className="learning-section">
+            <div className="learning-heading">
+              <div>
+                <span className="learning-kicker">Written expression</span>
+                <h2>Writing Lab</h2>
+                <p>Launch guided writing prompts, resume drafts, and review submitted work with lightweight feedback and an optional rubric.</p>
+              </div>
+            </div>
+
+            <div className="learning-metrics">
+              <article><strong>{writingSummary.assigned}</strong><span>Writing assignments</span><small>{writingSummary.drafts} drafts in progress</small></article>
+              <article><strong>{writingSummary.submitted}</strong><span>Awaiting review</span><small>Submitted this week</small></article>
+              <article><strong>{writingSummary.reviewed}</strong><span>Reviewed</span><small>Feedback completed</small></article>
+              <article><strong>{writingSummary.words}</strong><span>Words written</span><small>Across saved writing this week</small></article>
+            </div>
+
+            {weeklyWritingAssignments.length === 0 ? (
+              <section className="card learning-empty">
+                <span>✍️</span>
+                <h2>No writing assignments this week</h2>
+                <p>Assign a Writing activity from Assignment Library, then drafts and submissions will appear here.</p>
+                <button className="primary" type="button" onClick={() => { window.location.hash = 'library'; setTab('library'); setSubjectFilter('writing') }}>Open writing assignments</button>
+              </section>
+            ) : (
+              <div className="writing-lab-grid">
+                <section className="card writing-lab-assignments">
+                  <div className="section-heading"><div><h2>{weekLabel(weekStart)}</h2><p className="subtle">Assigned writing activities</p></div></div>
+                  <div className="writing-lab-list">
+                    {weeklyWritingAssignments.map((row) => {
+                      const assignment = assignmentById.get(row.assignment_id)
+                      const child = childById.get(row.child_id)
+                      if (!assignment || !child) return null
+                      const submission = weeklyWritingSubmissions.find((item) => item.student_assignment_id === row.id)
+                      return (
+                        <article key={row.id}>
+                          <span className="learning-avatar">{child.first_name[0]?.toUpperCase()}</span>
+                          <span className="writing-lab-row-copy">
+                            <strong>{childName(child)}</strong>
+                            <small>{assignment.title}{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</small>
+                            {submission && <em>{submission.word_count} words • {submission.status === 'draft' ? 'Draft saved' : submission.status === 'submitted' ? 'Awaiting review' : 'Reviewed'}</em>}
+                          </span>
+                          <span className={'learning-status ' + row.status}>{submission?.status === 'submitted' ? 'Submitted' : submission?.status === 'reviewed' ? 'Reviewed' : statusLabel(row.status)}</span>
+                          <span className="writing-lab-row-actions">
+                            <button className="primary" type="button" onClick={() => setWritingTarget({ row, child, assignment })}>{submission?.status === 'draft' ? 'Continue' : submission ? 'Open writing' : 'Launch'}</button>
+                            {submission && submission.status !== 'draft' && <button className="ghost" type="button" onClick={() => setWritingReviewTarget({ submission, child, assignment })}>{submission.status === 'reviewed' ? 'Edit review' : 'Review'}</button>}
+                          </span>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </section>
+
+                <section className="card writing-review-queue">
+                  <div className="section-heading"><div><h2>Review queue</h2><p className="subtle">Submitted writing that is ready for staff feedback.</p></div><span className="badge">{weeklyWritingSubmissions.filter((item) => item.status === 'submitted').length}</span></div>
+                  <div className="writing-review-list">
+                    {weeklyWritingSubmissions.filter((item) => item.status === 'submitted').map((submission) => {
+                      const child = childById.get(submission.child_id)
+                      const assignment = assignmentById.get(submission.assignment_id)
+                      if (!child || !assignment) return null
+                      return (
+                        <article key={submission.id}>
+                          <span><strong>{childName(child)}</strong><small>{assignment.title} • {submission.word_count} words{submission.submitted_at ? ' • ' + new Date(submission.submitted_at).toLocaleDateString() : ''}</small></span>
+                          <button className="primary" type="button" onClick={() => setWritingReviewTarget({ submission, child, assignment })}>Review</button>
+                        </article>
+                      )
+                    })}
+                    {weeklyWritingSubmissions.filter((item) => item.status === 'submitted').length === 0 && <div className="learning-inline-empty">Nothing is waiting for review right now.</div>}
+                  </div>
+
+                  {weeklyWritingSubmissions.filter((item) => item.status === 'reviewed').length > 0 && <>
+                    <div className="writing-reviewed-heading"><strong>Recently reviewed</strong><span>{weeklyWritingSubmissions.filter((item) => item.status === 'reviewed').length}</span></div>
+                    <div className="writing-review-list reviewed">
+                      {weeklyWritingSubmissions.filter((item) => item.status === 'reviewed').slice(0, 8).map((submission) => {
+                        const child = childById.get(submission.child_id)
+                        const assignment = assignmentById.get(submission.assignment_id)
+                        if (!child || !assignment) return null
+                        return (
+                          <article key={submission.id}>
+                            <span><strong>{childName(child)}</strong><small>{assignment.title} • {submission.word_count} words</small></span>
+                            <button className="ghost" type="button" onClick={() => setWritingReviewTarget({ submission, child, assignment })}>View review</button>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </>}
+                </section>
+              </div>
+            )}
+          </section>
+        )}
+
         {tab === 'reading' && (
           <section className="learning-section">
             <div className="learning-heading"><div><span className="learning-kicker">Reading practice</span><h2>Reading Log</h2><p>Track minutes and books without requiring a full assignment.</p></div></div>
@@ -1806,6 +1898,31 @@ export default function LearningPage() {
           onSaved={loadData}
         />
       )}
+
+      {writingTarget && (
+        <WritingActivityRunner
+          studentAssignmentId={writingTarget.row.id}
+          studentAssignmentStatus={writingTarget.row.status}
+          childId={writingTarget.child.id}
+          assignmentId={writingTarget.assignment.id}
+          assignmentTitle={writingTarget.assignment.title}
+          studentName={childName(writingTarget.child)}
+          activityConfig={writingTarget.assignment.activity_config}
+          userId={session.user.id}
+          onClose={() => setWritingTarget(null)}
+          onSaved={loadData}
+        />
+      )}
+
+      <WritingReviewDialog
+        submission={writingReviewTarget?.submission ?? null}
+        assignmentTitle={writingReviewTarget?.assignment.title ?? ''}
+        studentName={writingReviewTarget ? childName(writingReviewTarget.child) : ''}
+        activityConfig={writingReviewTarget?.assignment.activity_config ?? null}
+        userId={session.user.id}
+        onClose={() => setWritingReviewTarget(null)}
+        onSaved={loadData}
+      />
     </div>
   )
 }
