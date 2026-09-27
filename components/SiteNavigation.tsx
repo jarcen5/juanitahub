@@ -61,6 +61,7 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     links: [
       { href: '/learning#week', label: 'This Week' },
       { href: '/learning#library', label: 'Assignment Library' },
+      { href: '/learning#typing', label: 'Typing Lab' },
       { href: '/learning#reading', label: 'Reading' },
       { href: '/learning#notes', label: 'Notes' },
     ],
