@@ -285,10 +285,17 @@ function MonthlySpinsPanel({ session }: { session: Session }) {
 
         <section className="card rewards-wheel-card">
           <div className="section-heading"><div><h2>{category?.name ?? 'Reward'} wheel</h2><p className="subtle">The legend shows the real chance of each currently eligible prize.</p></div><span className="badge">{available.length} available</span></div>
-          <RewardWheel prizes={available} rotation={rotation} spinning={spinning} resultName={result?.prize_name} centerLabel="REWARD" title={(category?.name ?? 'Reward') + ' wheel'} />
-          <button type="button" className="primary rewards-spin-button" disabled={loading || spinning || !selectedChild || selectedChild.remaining_spins <= 0 || !available.length} onClick={() => void spin()}>
-            {spinning ? 'Selecting reward…' : selectedChild?.remaining_spins ? 'SPIN • ' + selectedChild.remaining_spins + ' remaining' : 'No spins remaining'}
-          </button>
+          <RewardWheel
+            prizes={available}
+            rotation={rotation}
+            spinning={spinning}
+            resultName={result?.prize_name}
+            centerLabel="REWARD"
+            title={(category?.name ?? 'Reward') + ' wheel'}
+            actionLabel={spinning ? 'Selecting reward…' : selectedChild?.remaining_spins ? 'SPIN • ' + selectedChild.remaining_spins + ' remaining' : 'No spins remaining'}
+            actionDisabled={loading || spinning || !selectedChild || selectedChild.remaining_spins <= 0 || !available.length}
+            onAction={() => void spin()}
+          />
         </section>
       </div>
 
@@ -405,8 +412,17 @@ function FreeSpinsPanel({ session }: { session: Session }) {
 
         <section className="card rewards-wheel-card">
           <div className="section-heading"><div><h2>{categoryName} — {tierName}</h2><p className="subtle">This bonus spin does not change monthly spin counts.</p></div><span className="badge">{available.length} available</span></div>
-          <RewardWheel prizes={available} rotation={rotation} spinning={spinning} resultName={result?.prize_name} centerLabel="FREE" title={categoryName + ' free-spin wheel'} />
-          <button type="button" className="primary rewards-spin-button" disabled={spinning || !selectedChild || !available.length} onClick={() => void spin()}>{spinning ? 'Selecting free reward…' : 'FREE SPIN • ' + tierName}</button>
+          <RewardWheel
+            prizes={available}
+            rotation={rotation}
+            spinning={spinning}
+            resultName={result?.prize_name}
+            centerLabel="FREE"
+            title={categoryName + ' free-spin wheel'}
+            actionLabel={spinning ? 'Selecting free reward…' : 'FREE SPIN • ' + tierName}
+            actionDisabled={spinning || !selectedChild || !available.length}
+            onAction={() => void spin()}
+          />
         </section>
       </div>
 
@@ -489,8 +505,17 @@ function TestWheelPanel() {
         </aside>
         <section className="card rewards-wheel-card">
           <div className="section-heading"><div><h2>{selectedCategory?.name ?? 'Reward'} — {selectedTier?.name ?? 'Tier'}</h2><p className="subtle">This is the same live wheel configuration children would use right now.</p></div><span className="badge">{available.length} available</span></div>
-          <RewardWheel prizes={available} rotation={rotation} spinning={spinning} resultName={result} centerLabel="TEST" title={(selectedCategory?.name ?? 'Reward') + ' test wheel'} />
-          <button type="button" className="primary rewards-spin-button" disabled={spinning || !available.length} onClick={spin}>{spinning ? 'Testing spin…' : 'TEST REAL WHEEL'}</button>
+          <RewardWheel
+            prizes={available}
+            rotation={rotation}
+            spinning={spinning}
+            resultName={result}
+            centerLabel="TEST"
+            title={(selectedCategory?.name ?? 'Reward') + ' test wheel'}
+            actionLabel={spinning ? 'Testing spin…' : 'TEST REAL WHEEL'}
+            actionDisabled={spinning || !available.length}
+            onAction={spin}
+          />
           {history.length > 0 && <div className="reward-test-history" style={{ marginTop: 14 }}>{history.map((name, index) => <span key={index}>#{history.length - index} {name}</span>)}</div>}
         </section>
       </div>
@@ -518,6 +543,10 @@ function PrizeSetupPanel() {
   const [newTierId, setNewTierId] = useState<number | null>(null)
   const [newStock, setNewStock] = useState(1)
   const [adding, setAdding] = useState(false)
+  const [prizeSearch, setPrizeSearch] = useState('')
+  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState<number | 'all'>('all')
+  const [inventoryTierFilter, setInventoryTierFilter] = useState<number | 'all'>('all')
+  const [inventoryStatusFilter, setInventoryStatusFilter] = useState<'all' | 'enabled' | 'disabled' | 'out'>('all')
 
   useEffect(() => { void loadData() }, [])
 
@@ -563,6 +592,20 @@ function PrizeSetupPanel() {
     [prizes, chanceCategoryId, chanceTierMin, tierById, stockByPrize])
 
   const chanceTotal = eligibleChancePrizes.reduce((sum, item) => sum + Number(item.stock?.weight ?? 0), 0)
+
+  const filteredInventoryPrizes = useMemo(() => {
+    const needle = prizeSearch.trim().toLowerCase()
+    return prizes.filter((prize) => {
+      const row = stockByPrize.get(prize.id)
+      if (needle && !prize.name.toLowerCase().includes(needle)) return false
+      if (inventoryCategoryFilter !== 'all' && prize.category_id !== inventoryCategoryFilter) return false
+      if (inventoryTierFilter !== 'all' && prize.required_tier_id !== inventoryTierFilter) return false
+      if (inventoryStatusFilter === 'enabled' && !row?.enabled) return false
+      if (inventoryStatusFilter === 'disabled' && row?.enabled) return false
+      if (inventoryStatusFilter === 'out' && Number(row?.quantity_remaining ?? 0) > 0) return false
+      return true
+    })
+  }, [prizes, stockByPrize, prizeSearch, inventoryCategoryFilter, inventoryTierFilter, inventoryStatusFilter])
 
   useEffect(() => {
     const next: Record<number, number> = {}
@@ -692,10 +735,18 @@ function PrizeSetupPanel() {
       </section>
 
       <section className="card">
-        <div className="section-heading"><div><h2>Prize Inventory</h2><p className="subtle">Rename prizes, adjust remaining stock, enable/disable them, or permanently remove them.</p></div></div>
+        <div className="section-heading"><div><h2>Prize Inventory</h2><p className="subtle">Search or filter first, then rename prizes, adjust stock, enable/disable them, or remove them.</p></div><span className="badge">{filteredInventoryPrizes.length} shown</span></div>
+        <div className="reward-inventory-filters">
+          <label className="field reward-search-field"><span>Search prizes</span><input type="search" value={prizeSearch} onChange={(event) => setPrizeSearch(event.target.value)} placeholder="Search by prize name…" /></label>
+          <label className="field"><span>Category</span><select value={inventoryCategoryFilter} onChange={(event) => setInventoryCategoryFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))}><option value="all">All categories</option>{categories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label>
+          <label className="field"><span>Tier</span><select value={inventoryTierFilter} onChange={(event) => setInventoryTierFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))}><option value="all">All tiers</option>{tiers.map((tier) => <option value={tier.id} key={tier.id}>{tier.name}</option>)}</select></label>
+          <label className="field"><span>Status</span><select value={inventoryStatusFilter} onChange={(event) => setInventoryStatusFilter(event.target.value as typeof inventoryStatusFilter)}><option value="all">All prizes</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option><option value="out">Out of stock</option></select></label>
+          <button className="ghost reward-clear-filters" type="button" onClick={() => { setPrizeSearch(''); setInventoryCategoryFilter('all'); setInventoryTierFilter('all'); setInventoryStatusFilter('all') }}>Clear filters</button>
+        </div>
         <div className="reward-prize-list">
+          {filteredInventoryPrizes.length === 0 && <div className="empty">No prizes match these filters.</div>}
           {categories.map((category) => {
-            const categoryPrizes = prizes.filter((prize) => prize.category_id === category.id)
+            const categoryPrizes = filteredInventoryPrizes.filter((prize) => prize.category_id === category.id)
             if (!categoryPrizes.length) return null
             return <div key={category.id}>
               <h3>{categoryIcon(category.slug)} {category.name}</h3>
