@@ -8,6 +8,7 @@ import RewardFulfillmentTask from '@/components/RewardFulfillmentTask'
 import RegistrationReviewTask from '@/components/RegistrationReviewTask'
 import DashboardTaskCard from '@/components/DashboardTaskCard'
 import InventoryLowStockTask from '@/components/InventoryLowStockTask'
+import PurchasingAttentionTask from '@/components/PurchasingAttentionTask'
 
 type StaffProfile = {
   display_name: string
@@ -376,14 +377,15 @@ export default function StaffHomePage() {
                 <RewardFulfillmentTask />
                 <RegistrationReviewTask />
                 <InventoryLowStockTask />
+                <PurchasingAttentionTask />
               </div>
             </section>
           </aside>
         </section>
 
         <section className="card home-roadmap">
-          <div><span className="home-section-kicker">Juanita Hub operations</span><h2>Calendar, attendance, and child profiles now feed the daily home page</h2><p>Center plans, saved sign-ins, and current school-year profiles can be managed once and reflected throughout Juanita Hub. Inventory and staff/intern scheduling are now connected; purchasing can layer onto the same operational foundation next.</p></div>
-          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Children ✓</span><span>Reports ✓</span><span>Tasks ✓</span><span>Inventory ✓</span><span>Staff Scheduling ✓</span></div>
+          <div><span className="home-section-kicker">Juanita Hub operations</span><h2>Calendar, attendance, and child profiles now feed the daily home page</h2><p>Center plans, saved sign-ins, and current school-year profiles can be managed once and reflected throughout Juanita Hub. Inventory, purchasing, and staff/intern scheduling now feed the same operational foundation.</p></div>
+          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Children ✓</span><span>Reports ✓</span><span>Tasks ✓</span><span>Inventory ✓</span><span>Purchasing ✓</span><span>Staff Scheduling ✓</span></div>
         </section>
       </main>
     </div>
