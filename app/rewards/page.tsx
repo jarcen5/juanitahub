@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import RewardWheel, { type WheelPrize } from '@/components/RewardWheel'
@@ -100,7 +99,7 @@ export default function RewardsPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
-  const searchParams = useSearchParams()
+  const [tab, setTab] = useState<RewardTab>('monthly')
 
   useEffect(() => {
     let mounted = true
@@ -118,6 +117,17 @@ export default function RewardsPage() {
     void loadProfile()
   }, [session])
 
+  useEffect(() => {
+    const validTabs: RewardTab[] = ['monthly', 'free', 'test', 'setup', 'fulfillment']
+    function syncTabFromHash() {
+      const requested = window.location.hash.replace('#', '') as RewardTab
+      setTab(validTabs.includes(requested) ? requested : 'monthly')
+    }
+    syncTabFromHash()
+    window.addEventListener('hashchange', syncTabFromHash)
+    return () => window.removeEventListener('hashchange', syncTabFromHash)
+  }, [])
+
   async function loadProfile() {
     if (!session) return
     setLoading(true)
@@ -131,10 +141,7 @@ export default function RewardsPage() {
   if (!session) return <main className="login-wrap"><section className="card login-card"><h1>Reward Center</h1><p className="subtle">Sign in through Juanita Hub before opening rewards.</p><Link className="primary" style={{ display: 'inline-block', textDecoration: 'none' }} href="/">Go to sign in</Link></section></main>
   if (!profile?.active) return <main className="login-wrap"><section className="card login-card"><h1>Reward Center</h1><div className="notice">Your staff account must be approved before rewards are available.</div><Link className="ghost" style={{ display: 'inline-block', textDecoration: 'none' }} href="/">Back to Juanita Hub</Link></section></main>
 
-  const requestedTab = searchParams.get('tab')
-  const validTabs: RewardTab[] = ['monthly', 'free', 'test', 'setup', 'fulfillment']
-  let tab: RewardTab = validTabs.includes(requestedTab as RewardTab) ? requestedTab as RewardTab : 'monthly'
-  if (tab === 'setup' && profile.role !== 'admin') tab = 'monthly'
+  const activeTab: RewardTab = tab === 'setup' && profile.role !== 'admin' ? 'monthly' : tab
 
   return (
     <div className="shell">
@@ -150,11 +157,11 @@ export default function RewardsPage() {
 
         {message && <div className="notice error">{message}</div>}
 
-        {tab === 'monthly' && <MonthlySpinsPanel session={session} />}
-        {tab === 'free' && <FreeSpinsPanel session={session} />}
-        {tab === 'test' && <TestWheelPanel />}
-        {tab === 'setup' && profile.role === 'admin' && <PrizeSetupPanel />}
-        {tab === 'fulfillment' && <FulfillmentPanel session={session} />}
+        {activeTab === 'monthly' && <MonthlySpinsPanel session={session} />}
+        {activeTab === 'free' && <FreeSpinsPanel session={session} />}
+        {activeTab === 'test' && <TestWheelPanel />}
+        {activeTab === 'setup' && profile.role === 'admin' && <PrizeSetupPanel />}
+        {activeTab === 'fulfillment' && <FulfillmentPanel session={session} />}
       </main>
     </div>
   )
