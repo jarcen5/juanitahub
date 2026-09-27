@@ -100,8 +100,10 @@ export default function WritingActivityRunner({
         if (data) {
           setSubmissionId(data.id as number)
           setContent((data.content as string) ?? '')
-          setSubmissionStatus(data.status as 'draft' | 'submitted' | 'reviewed')
+          const loadedStatus = data.status as 'draft' | 'submitted' | 'reviewed'
+          setSubmissionStatus(loadedStatus)
           setSavedActiveSeconds(Number(data.active_seconds ?? 0))
+          if (loadedStatus !== 'draft') setFinished(true)
         }
         setLoadingDraft(false)
       })
@@ -290,9 +292,9 @@ export default function WritingActivityRunner({
         ) : finished ? (
           <section className="writing-results">
             <span className="writing-results-icon">✓</span>
-            <span className="learning-kicker">{testMode ? 'Test submission complete' : 'Writing submitted'}</span>
+            <span className="learning-kicker">{testMode ? 'Test submission complete' : submissionStatus === 'reviewed' ? 'Writing reviewed' : 'Writing submitted'}</span>
             <h1>{assignmentTitle}</h1>
-            <p>{testMode ? 'Nothing was saved. This is the same submission experience a child will see.' : 'Your writing has been sent to staff for review and feedback.'}</p>
+            <p>{testMode ? 'Nothing was saved. This is the same submission experience a child will see.' : submissionStatus === 'reviewed' ? 'Staff review is complete. Your submitted writing is locked so the reviewed version stays unchanged.' : 'Your writing has been sent to staff for review and is locked while it is waiting for feedback.'}</p>
 
             <div className="writing-results-grid">
               <article><strong>{wordCount}</strong><span>Words</span><small>{goalWords ? 'Goal ' + goalWords : 'No word goal'}</small></article>
