@@ -764,6 +764,48 @@ export default function LearningPage() {
     setEditorOpen(true)
   }
 
+  function updateQuizQuestion(id: string, patch: Partial<QuizQuestion>) {
+    setQuizQuestions((questions) => questions.map((question) => question.id === id ? { ...question, ...patch } : question))
+  }
+
+  function changeQuizQuestionType(id: string, type: QuizQuestionType) {
+    setQuizQuestions((questions) => questions.map((question) => {
+      if (question.id !== id) return question
+      return {
+        ...question,
+        type,
+        choices: isQuizChoiceType(type) ? (question.choices?.length ? question.choices : ['', '', '', '']) : [],
+        passage: type === 'reading_comprehension' ? (question.passage ?? '') : '',
+        correct_answer: '',
+      }
+    }))
+  }
+
+  function updateQuizChoice(questionId: string, index: number, value: string) {
+    setQuizQuestions((questions) => questions.map((question) => {
+      if (question.id !== questionId) return question
+      const choices = [...(question.choices ?? ['', '', '', ''])]
+      const oldValue = choices[index] ?? ''
+      choices[index] = value
+      return {
+        ...question,
+        choices,
+        correct_answer: normalizeQuizText(question.correct_answer) === normalizeQuizText(oldValue) ? value : question.correct_answer,
+      }
+    }))
+  }
+
+  function moveQuizQuestion(index: number, direction: -1 | 1) {
+    setQuizQuestions((questions) => {
+      const nextIndex = index + direction
+      if (nextIndex < 0 || nextIndex >= questions.length) return questions
+      const next = [...questions]
+      const [item] = next.splice(index, 1)
+      next.splice(nextIndex, 0, item)
+      return next
+    })
+  }
+
   function beginEditAssignment(assignment: LearningAssignment) {
     setEditingAssignmentId(assignment.id)
     setNewTitle(assignment.title)
@@ -815,8 +857,8 @@ export default function LearningPage() {
         const question = quizQuestions[index]
         if (!question.prompt.trim()) return showMessage('Question ' + (index + 1) + ' needs a prompt.')
         if (!question.correct_answer.trim()) return showMessage('Question ' + (index + 1) + ' needs a correct answer.')
-        if ((question.type === 'multiple_choice' || question.type === 'correct_sentence') && (question.choices ?? []).filter((choice) => choice.trim()).length < 2) return showMessage('Question ' + (index + 1) + ' needs at least two answer choices.')
-        if ((question.type === 'multiple_choice' || question.type === 'correct_sentence') && !(question.choices ?? []).some((choice) => normalizeQuizText(choice) === normalizeQuizText(question.correct_answer))) return showMessage('Question ' + (index + 1) + ' correct answer must match one of its choices.')
+        if (isQuizChoiceType(question.type) && (question.choices ?? []).filter((choice) => choice.trim()).length < 2) return showMessage('Question ' + (index + 1) + ' needs at least two answer choices.')
+        if (isQuizChoiceType(question.type) && !(question.choices ?? []).some((choice) => normalizeQuizText(choice) === normalizeQuizText(question.correct_answer))) return showMessage('Question ' + (index + 1) + ' correct answer must match one of its choices.')
       }
     }
 
