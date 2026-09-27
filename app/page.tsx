@@ -314,15 +314,6 @@ export default function StaffHomePage() {
 
         <section className="home-layout">
           <div className="home-main-column">
-            <section className="card home-board-card">
-              <div className="home-section-heading"><div><span className="home-section-kicker">Bulletin board</span><h2>Announcements</h2></div><span className="home-preview-pill">Preview content</span></div>
-              <div className="home-announcements">
-                <article className="home-announcement important"><span className="home-announcement-icon">📌</span><div><strong>Staff reminder</strong><p>Announcements will eventually be editable by admins and can appear for one day, a date range, or on a repeating schedule.</p></div></article>
-                <article className="home-announcement"><span className="home-announcement-icon">🎨</span><div><strong>Example daily activity</strong><p>Art activity at 4:00 PM • Homework support afterward.</p></div></article>
-                <article className="home-announcement"><span className="home-announcement-icon">🖨️</span><div><strong>Example community note</strong><p>Computer, printing, faxing, and forms assistance available during center hours.</p></div></article>
-              </div>
-            </section>
-
             <section className="card home-schedule-card">
               <div className="home-section-heading"><div><span className="home-section-kicker">What’s happening</span><h2>Today’s Schedule</h2></div><Link className="ghost" href="/calendar">Open calendar →</Link></div>
               <div className="home-schedule-list">
@@ -338,6 +329,14 @@ export default function StaffHomePage() {
                 ))}
               </div>
             </section>
+
+            <section className="card home-board-card">
+              <div className="home-section-heading"><div><span className="home-section-kicker">Staff board</span><h2>Announcements</h2></div><span className="home-preview-pill">Coming soon</span></div>
+              <div className="home-announcements">
+                <article className="home-announcement"><span className="home-announcement-icon">📌</span><div><strong>No staff announcements posted</strong><p>This space is reserved for real center reminders and announcements once the announcement editor is added.</p></div></article>
+              </div>
+            </section>
+
           </div>
 
           <aside className="home-side-column">
