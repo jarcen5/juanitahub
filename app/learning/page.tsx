@@ -431,7 +431,7 @@ export default function LearningPage() {
     setMessage('')
     const weekEnd = addDays(weekStart, 6)
 
-    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult] = await Promise.all([
+    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult, quizResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
@@ -441,6 +441,7 @@ export default function LearningPage() {
       supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
       supabase.from('learning_student_assignments').select('assignment_id, status'),
       supabase.from('learning_typing_attempts').select('id, student_assignment_id, child_id, assignment_id, wpm, accuracy, duration_seconds, correct_characters, typed_characters, activity_mode, focus_keys, mistake_counts, created_at').order('created_at', { ascending: false }).limit(80),
+      supabase.from('learning_quiz_attempts').select('id, student_assignment_id, child_id, assignment_id, correct_count, question_count, percent, duration_seconds, created_at').order('created_at', { ascending: false }).limit(80),
     ])
 
     const error = profileResult.error
@@ -452,6 +453,7 @@ export default function LearningPage() {
       ?? notesResult.error
       ?? usageResult.error
       ?? typingResult.error
+      ?? quizResult.error
 
     const nextChildren = (childResult.data ?? []) as Child[]
     setProfile(profileResult.data as Profile | null)
@@ -463,6 +465,7 @@ export default function LearningPage() {
     setNotes((notesResult.data ?? []) as LearningNote[])
     setAssignmentUsageRows((usageResult.data ?? []) as { assignment_id: number; status: StudentAssignment['status'] }[])
     setTypingAttempts((typingResult.data ?? []) as TypingAttempt[])
+    setQuizAttempts((quizResult.data ?? []) as QuizAttempt[])
     setAssignChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setReadingChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setNoteChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
@@ -607,6 +610,20 @@ export default function LearningPage() {
       averageAccuracy,
     }
   }, [weeklyTypingAssignments, weeklyTypingAttempts])
+
+  const weeklyQuizAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'quiz'), [weeklyAssignments, assignmentById])
+  const weeklyQuizIds = useMemo(() => new Set(weeklyQuizAssignments.map((row) => row.id)), [weeklyQuizAssignments])
+  const weeklyQuizAttempts = useMemo(() => quizAttempts.filter((attempt) => weeklyQuizIds.has(attempt.student_assignment_id)), [quizAttempts, weeklyQuizIds])
+  const quizSummary = useMemo(() => {
+    const attempts = weeklyQuizAttempts.length
+    const averagePercent = attempts ? weeklyQuizAttempts.reduce((sum, attempt) => sum + Number(attempt.percent), 0) / attempts : 0
+    return {
+      assigned: weeklyQuizAssignments.length,
+      completed: weeklyQuizAssignments.filter((row) => row.status === 'completed').length,
+      attempts,
+      averagePercent,
+    }
+  }, [weeklyQuizAssignments, weeklyQuizAttempts])
 
   function showMessage(text: string) {
     setMessage(text)
