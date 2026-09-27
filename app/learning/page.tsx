@@ -744,62 +744,153 @@ export default function LearningPage() {
 
         {tab === 'library' && (
           <section className="learning-section">
-            <div className="learning-heading"><div><span className="learning-kicker">Reusable activities</span><h2>Assignment Library</h2><p>Organize work by subject, skill, grade, difficulty, and whether it is digital or printable.</p></div></div>
+            <div className="learning-heading">
+              <div>
+                <span className="learning-kicker">Reusable activities</span>
+                <h2>Assignment Library</h2>
+                <p>Browse by grade, subject, and skill; manage reusable activities without losing student history.</p>
+              </div>
+              {profile.role === 'admin' && (
+                <div className="learning-library-admin-actions">
+                  <button className="ghost" type="button" disabled={starterAdding} onClick={() => void addStarterTemplates()}>{starterAdding ? 'Adding…' : '＋ Starter templates'}</button>
+                  <button className="primary" type="button" onClick={beginAddAssignment}>＋ Add assignment</button>
+                </div>
+              )}
+            </div>
 
-            {profile.role === 'admin' && (
-              <details className="card learning-create-card">
-                <summary>＋ Add assignment to library</summary>
+            {profile.role === 'admin' && editorOpen && (
+              <section className="card learning-create-card learning-editor-card">
+                <div className="learning-editor-heading">
+                  <div>
+                    <span className="learning-kicker">{editingAssignmentId ? 'Edit activity' : 'New activity'}</span>
+                    <h2>{editingAssignmentId ? 'Update assignment' : 'Add assignment to library'}</h2>
+                  </div>
+                  <button className="ghost" type="button" onClick={() => { resetAssignmentEditor(); setEditorOpen(false) }} disabled={saving}>Close</button>
+                </div>
                 <div className="learning-form-grid">
                   <label className="field wide"><span>Assignment title</span><input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="Example: Main idea practice" /></label>
                   <label className="field"><span>Subject</span><select value={newSubject} onChange={(event) => setNewSubject(event.target.value as Subject)}>{Object.entries(subjectLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
                   <label className="field"><span>Type</span><select value={newType} onChange={(event) => setNewType(event.target.value as AssignmentType)}><option value="activity">Activity</option><option value="reading">Reading</option><option value="writing">Writing</option><option value="quiz">Quiz</option><option value="typing">Typing</option><option value="worksheet">Worksheet</option><option value="practice">Practice</option></select></label>
                   <label className="field"><span>Skill</span><input value={newSkill} onChange={(event) => setNewSkill(event.target.value)} placeholder="Main idea, punctuation…" /></label>
-                  <label className="field"><span>Grades</span><input value={newGrades} onChange={(event) => setNewGrades(event.target.value)} placeholder="3, 4, 5" /></label>
+                  <label className="field"><span>Grades</span><input value={newGrades} onChange={(event) => setNewGrades(event.target.value)} placeholder="3, 4, 5 — blank means all grades" /></label>
                   <label className="field"><span>Difficulty</span><select value={newDifficulty} onChange={(event) => setNewDifficulty(event.target.value as Difficulty)}><option value="support">Support</option><option value="standard">Standard</option><option value="challenge">Challenge</option></select></label>
                   <label className="field"><span>Format</span><select value={newFormat} onChange={(event) => setNewFormat(event.target.value as DeliveryFormat)}><option value="either">Digital or printable</option><option value="digital">Digital</option><option value="printable">Printable</option></select></label>
                   <label className="field"><span>Est. minutes</span><input type="number" min="1" max="240" value={newMinutes} onChange={(event) => setNewMinutes(event.target.value)} placeholder="20" /></label>
                   <label className="field wide"><span>Instructions</span><textarea rows={3} value={newInstructions} onChange={(event) => setNewInstructions(event.target.value)} placeholder="What should the student do?" /></label>
                   <label className="field wide"><span>Resource link <small>(optional)</small></span><input type="url" value={newResourceUrl} onChange={(event) => setNewResourceUrl(event.target.value)} placeholder="https://…" /></label>
                 </div>
-                <button className="primary" type="button" disabled={saving || !newTitle.trim()} onClick={() => void createAssignment()}>{saving ? 'Saving…' : 'Add to library'}</button>
-              </details>
+                <div className="learning-editor-actions">
+                  <button className="ghost" type="button" disabled={saving} onClick={() => { resetAssignmentEditor(); setEditorOpen(false) }}>Cancel</button>
+                  <button className="primary" type="button" disabled={saving || !newTitle.trim()} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
+                </div>
+              </section>
             )}
 
-            <div className="learning-library-layout">
+            <section className="card learning-library-browser">
+              <div className="learning-library-browser-heading">
+                <div><strong>{filteredLibrary.length}</strong><span>shown</span></div>
+                <p>Browse path: <strong>{gradeFilter === 'all' ? 'All grades' : 'Grade ' + gradeFilter}</strong> → <strong>{subjectFilter === 'all' ? 'All subjects' : subjectLabels[subjectFilter]}</strong> → <strong>{skillFilter === 'all' ? 'All skills' : skillFilter}</strong></p>
+              </div>
+              <div className="learning-library-filters v2">
+                <label className="field search"><span>Search</span><input type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="Title, skill, or instructions…" /></label>
+                <label className="field"><span>Grade</span><select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>
+                <label className="field"><span>Subject</span><select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value as typeof subjectFilter)}><option value="all">All subjects</option>{Object.entries(subjectLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+                <label className="field"><span>Skill</span><select value={skillFilter} onChange={(event) => setSkillFilter(event.target.value)}><option value="all">All skills</option>{skillOptions.map((skill) => <option value={skill} key={skill}>{skill}</option>)}</select></label>
+                <label className="field"><span>Difficulty</span><select value={difficultyFilter} onChange={(event) => setDifficultyFilter(event.target.value as typeof difficultyFilter)}><option value="all">All levels</option><option value="support">Support</option><option value="standard">Standard</option><option value="challenge">Challenge</option></select></label>
+                <label className="field"><span>Format</span><select value={formatFilter} onChange={(event) => setFormatFilter(event.target.value as typeof formatFilter)}><option value="all">All formats</option><option value="digital">Digital</option><option value="printable">Printable</option><option value="either">Either</option></select></label>
+                <label className="field"><span>Status</span><select value={libraryStatusFilter} onChange={(event) => setLibraryStatusFilter(event.target.value as typeof libraryStatusFilter)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">Active + archived</option></select></label>
+                <button className="ghost learning-filter-clear" type="button" onClick={() => { setLibrarySearch(''); setGradeFilter('all'); setSubjectFilter('all'); setSkillFilter('all'); setDifficultyFilter('all'); setFormatFilter('all'); setLibraryStatusFilter('active') }}>Clear filters</button>
+              </div>
+            </section>
+
+            <div className="learning-library-layout v2">
               <section className="card learning-library-card">
-                <div className="learning-library-filters">
-                  <label className="field wide"><span>Search</span><input type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="Search title, skill, or instructions…" /></label>
-                  <label className="field"><span>Subject</span><select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value as typeof subjectFilter)}><option value="all">All subjects</option>{Object.entries(subjectLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-                  <label className="field"><span>Grade</span><select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>{grade}</option>)}</select></label>
-                </div>
-                <div className="learning-library-list">
-                  {filteredLibrary.map((assignment) => (
-                    <button type="button" className={'learning-library-item ' + (selectedAssignmentId === assignment.id ? 'selected' : '')} onClick={() => setSelectedAssignmentId(assignment.id)} key={assignment.id}>
-                      <span className="learning-subject-icon">{subjectIcons[assignment.subject]}</span>
-                      <span><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}</small><em>{assignment.grade_levels.length ? 'Grades ' + assignment.grade_levels.join(', ') : 'All grades'} • {assignment.delivery_format} • {assignment.difficulty}</em></span>
-                    </button>
+                <div className="learning-library-groups">
+                  {libraryGroups.map((group) => (
+                    <section className="learning-library-subject-group" key={group.subject}>
+                      <div className="learning-library-subject-heading"><span>{subjectIcons[group.subject]}</span><strong>{subjectLabels[group.subject]}</strong><small>{group.skills.reduce((sum, skill) => sum + skill.assignments.length, 0)} activities</small></div>
+                      {group.skills.map((skillGroup) => (
+                        <div className="learning-library-skill-group" key={group.subject + ':' + skillGroup.skill}>
+                          <div className="learning-library-skill-heading"><span>{skillGroup.skill}</span><small>{skillGroup.assignments.length}</small></div>
+                          <div className="learning-library-list">
+                            {skillGroup.assignments.map((assignment) => {
+                              const usage = usageByAssignment.get(assignment.id) ?? { assigned: 0, completed: 0 }
+                              return (
+                                <article className={'learning-library-item-v2 ' + (selectedAssignmentId === assignment.id ? 'selected ' : '') + (!assignment.active ? 'archived' : '')} key={assignment.id}>
+                                  <button className="learning-library-select" type="button" onClick={() => setSelectedAssignmentId(assignment.id)}>
+                                    <span className="learning-subject-icon">{subjectIcons[assignment.subject]}</span>
+                                    <span className="learning-library-item-copy">
+                                      <span className="learning-library-title-row"><strong>{assignment.title}</strong>{!assignment.active && <em>Archived</em>}</span>
+                                      <small>{assignment.grade_levels.length ? 'Grades ' + assignment.grade_levels.join(', ') : 'All grades'} • {assignment.delivery_format} • {assignment.difficulty}</small>
+                                      <span className="learning-library-usage">{usage.assigned} assigned • {usage.completed} completed{usage.assigned ? ' • ' + Math.round((usage.completed / usage.assigned) * 100) + '% completion' : ''}</span>
+                                    </span>
+                                  </button>
+                                  {profile.role === 'admin' && (
+                                    <div className="learning-library-item-actions">
+                                      <button className="ghost" type="button" disabled={saving} onClick={() => beginEditAssignment(assignment)}>Edit</button>
+                                      <button className="ghost" type="button" disabled={saving} onClick={() => void duplicateAssignment(assignment)}>Duplicate</button>
+                                      <button className="ghost" type="button" disabled={saving} onClick={() => void toggleAssignmentArchive(assignment)}>{assignment.active ? 'Archive' : 'Reactivate'}</button>
+                                    </div>
+                                  )}
+                                </article>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </section>
                   ))}
                   {filteredLibrary.length === 0 && <div className="learning-inline-empty">No assignments match these filters yet.</div>}
                 </div>
               </section>
 
               <aside className="card learning-assign-card">
-                <span className="learning-kicker">Assign work</span>
+                <span className="learning-kicker">Assignment details</span>
                 <h2>{selectedAssignment?.title ?? 'Choose an assignment'}</h2>
                 {selectedAssignment ? <>
                   <p>{selectedAssignment.instructions || 'No additional instructions.'}</p>
-                  <div className="learning-selected-meta"><span>{subjectLabels[selectedAssignment.subject]}</span><span>{selectedAssignment.delivery_format}</span><span>{selectedAssignment.estimated_minutes ? selectedAssignment.estimated_minutes + ' min' : 'No time estimate'}</span></div>
-                  <div className="learning-toggle">
-                    <button type="button" className={assignMode === 'child' ? 'active' : ''} onClick={() => setAssignMode('child')}>One student</button>
-                    <button type="button" className={assignMode === 'grade' ? 'active' : ''} onClick={() => setAssignMode('grade')}>Whole grade</button>
+                  <div className="learning-selected-meta">
+                    <span>{subjectLabels[selectedAssignment.subject]}</span>
+                    <span>{selectedAssignment.skill || 'General skill'}</span>
+                    <span>{selectedAssignment.delivery_format}</span>
+                    <span>{selectedAssignment.difficulty}</span>
+                    <span>{selectedAssignment.estimated_minutes ? selectedAssignment.estimated_minutes + ' min' : 'No time estimate'}</span>
+                    <span>{selectedAssignment.grade_levels.length ? 'Grades ' + selectedAssignment.grade_levels.join(', ') : 'All grades'}</span>
                   </div>
-                  {assignMode === 'child'
-                    ? <label className="field"><span>Student</span><select value={assignChildId ?? ''} onChange={(event) => setAssignChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{registrationByChild.get(child.id)?.grade ? ' — Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}</select></label>
-                    : <label className="field"><span>Grade</span><select value={assignGrade} onChange={(event) => setAssignGrade(event.target.value)}>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>}
-                  <label className="field"><span>Week</span><input type="date" value={weekStart} onChange={(event) => event.target.value && setWeekStart(mondayFor(event.target.value))} /></label>
-                  <label className="field"><span>Due date <small>(optional)</small></span><input type="date" value={assignDueDate} onChange={(event) => setAssignDueDate(event.target.value)} /></label>
-                  <button className="primary" type="button" disabled={saving} onClick={() => void assignWork()}>{saving ? 'Assigning…' : assignMode === 'grade' ? 'Assign to grade' : 'Assign to student'}</button>
-                </> : <div className="learning-inline-empty">Select an assignment from the library to assign it for {weekLabel(weekStart)}.</div>}
+                  {selectedAssignment.resource_url && <a className="learning-resource-link" href={selectedAssignment.resource_url} target="_blank" rel="noreferrer">Open resource ↗</a>}
+
+                  {profile.role === 'admin' && (
+                    <div className="learning-selected-admin-actions">
+                      <button className="ghost" type="button" onClick={() => beginEditAssignment(selectedAssignment)}>Edit</button>
+                      <button className="ghost" type="button" onClick={() => void duplicateAssignment(selectedAssignment)}>Duplicate</button>
+                      <button className="ghost" type="button" onClick={() => void toggleAssignmentArchive(selectedAssignment)}>{selectedAssignment.active ? 'Archive' : 'Reactivate'}</button>
+                    </div>
+                  )}
+
+                  {selectedAssignment.active ? <>
+                    <div className="learning-assign-divider" />
+                    <span className="learning-kicker">Assign this week</span>
+                    <div className="learning-toggle">
+                      <button type="button" className={assignMode === 'child' ? 'active' : ''} onClick={() => setAssignMode('child')}>One student</button>
+                      <button type="button" className={assignMode === 'grade' ? 'active' : ''} onClick={() => setAssignMode('grade')}>Whole grade</button>
+                    </div>
+                    {assignMode === 'child'
+                      ? <label className="field"><span>Student</span><select value={assignChildId ?? ''} onChange={(event) => setAssignChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{registrationByChild.get(child.id)?.grade ? ' — Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}</select></label>
+                      : <label className="field"><span>Grade</span><select value={assignGrade} onChange={(event) => setAssignGrade(event.target.value)}>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>}
+                    <label className="field"><span>Week</span><input type="date" value={weekStart} onChange={(event) => event.target.value && setWeekStart(mondayFor(event.target.value))} /></label>
+                    <label className="field"><span>Due date <small>(optional)</small></span><input type="date" value={assignDueDate} onChange={(event) => setAssignDueDate(event.target.value)} /></label>
+
+                    <div className={'learning-assignment-preview ' + (assignmentPreview.willAssign ? 'ready' : 'already')}>
+                      {assignMode === 'grade'
+                        ? <><strong>{assignmentPreview.willAssign}</strong><span>of {assignmentPreview.total} Grade {assignGrade || '—'} students will receive this assignment.</span>{assignmentPreview.already > 0 && <small>{assignmentPreview.already} already assigned for this week.</small>}</>
+                        : <><strong>{assignmentPreview.already ? 'Already assigned' : assignmentPreview.total ? 'Ready to assign' : 'Choose a student'}</strong><span>{assignmentPreview.already ? 'This student already has the activity this week.' : assignmentPreview.total ? 'This assignment will be added to the selected student.' : 'Select a student to preview the assignment.'}</span></>}
+                    </div>
+
+                    <button className="primary" type="button" disabled={saving || assignmentPreview.willAssign === 0} onClick={() => void assignWork()}>{saving ? 'Assigning…' : assignMode === 'grade' ? 'Assign to ' + assignmentPreview.willAssign + ' student' + (assignmentPreview.willAssign === 1 ? '' : 's') : 'Assign to student'}</button>
+                  </> : (
+                    <div className="learning-archived-message"><strong>Archived assignment</strong><p>This activity stays in student history but cannot be newly assigned until it is reactivated.</p></div>
+                  )}
+                </> : <div className="learning-inline-empty">Select an assignment from the library to view details and assign it for {weekLabel(weekStart)}.</div>}
               </aside>
             </div>
           </section>
