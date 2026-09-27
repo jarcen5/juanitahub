@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
@@ -81,6 +82,8 @@ export default function ChildrenPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
+  const [gradeFilter, setGradeFilter] = useState('all')
+  const [registrationFilter, setRegistrationFilter] = useState<'all' | 'current' | 'missing'>('all')
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<ProfileForm>(blankForm())
@@ -129,10 +132,24 @@ export default function ChildrenPage() {
   const healthByRegistration = useMemo(() => new Map(healthInfo.map((h) => [h.registration_id, h])), [healthInfo])
   const pickupsByRegistration = useMemo(() => { const map = new Map<number, AuthorizedPickup[]>(); pickups.forEach((p) => map.set(p.registration_id, [...(map.get(p.registration_id) ?? []), p])); return map }, [pickups])
   const agreementByRegistration = useMemo(() => new Map(agreements.map((a) => [a.registration_id, a])), [agreements])
+  const gradeOptions = useMemo(() => {
+    return [...new Set(registrations.map((registration) => registration.grade?.trim()).filter((grade): grade is string => Boolean(grade)))]
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  }, [registrations])
+
   const visibleChildren = useMemo(() => {
-    const q = search.trim().toLowerCase(); if (!q) return children
-    return children.filter((child) => { const r = registrationByChild.get(child.id); return [childName(child), r?.school ?? '', r?.grade ?? ''].some((v) => v.toLowerCase().includes(q)) })
-  }, [children, registrationByChild, search])
+    const q = search.trim().toLowerCase()
+    return children.filter((child) => {
+      const registration = registrationByChild.get(child.id)
+      const matchesSearch = !q || [childName(child), registration?.school ?? '', registration?.grade ?? ''].some((value) => value.toLowerCase().includes(q))
+      const matchesGrade = gradeFilter === 'all' || registration?.grade === gradeFilter
+      const matchesRegistration =
+        registrationFilter === 'all' ||
+        (registrationFilter === 'current' && Boolean(registration)) ||
+        (registrationFilter === 'missing' && !registration)
+      return matchesSearch && matchesGrade && matchesRegistration
+    })
+  }, [children, registrationByChild, search, gradeFilter, registrationFilter])
 
   function closeProfile() { if (!saving) { setSelectedChild(null); setEditing(false) } }
   function openEditor(child: Child) {
@@ -242,11 +259,11 @@ export default function ChildrenPage() {
   )
 
   return <div className="shell">
-    <header className="topbar"><div className="brand">Juanita Hub<small>Children & Registrations</small></div><div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span></div></header>
+    <header className="topbar"><div className="brand">Juanita Hub<small>Student Directory</small></div><div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span></div></header>
     <main className="main children-page">
-      <section className="hero children-hero"><div><span className="children-eyebrow">People</span><h1>Children & Registrations</h1><p className="subtle">School-year profiles, schedules, contacts, safety information, dismissal plans, and registration permissions in one place.</p></div><div className="children-security-pill">🔒 Sensitive details restricted</div></section>
+      <section className="hero children-hero"><div><span className="children-eyebrow">Students</span><h1>Student Directory</h1><p className="subtle">Find a child once, then open their school-year profile, routine, registration details, and connected Juanita Hub tools.</p></div><div className="children-security-pill">🔒 Sensitive details restricted</div></section>
       {message && <div className="notice">{message}</div>}
-      <section className="card children-directory-toolbar"><label className="children-search"><span>Search children</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, school, or grade…" /></label><div className="children-directory-count"><strong>{visibleChildren.length}</strong><span>of {children.length} active children</span></div></section>
+      <section className="card children-directory-toolbar"><div className="children-directory-controls"><label className="children-search"><span>Search students</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, school, or grade…" /></label><label className="children-filter"><span>Grade</span><select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>{grade}</option>)}</select></label><label className="children-filter"><span>Registration</span><select value={registrationFilter} onChange={(e) => setRegistrationFilter(e.target.value as typeof registrationFilter)}><option value="all">All students</option><option value="current">Current registration</option><option value="missing">Needs registration</option></select></label></div><div className="children-directory-count"><strong>{visibleChildren.length}</strong><span>of {children.length} active students</span></div></section>
       <section className="children-grid">{visibleChildren.map((child) => { const r = registrationByChild.get(child.id); const age = calculateAge(r?.birth_date ?? null); return <button type="button" className="card child-profile-card" key={child.id} onClick={() => setSelectedChild(child)}><span className="child-profile-avatar">{child.first_name[0]?.toUpperCase()}</span><span className="child-profile-card-copy"><strong>{childName(child)}</strong>{r ? <><small>{[r.grade ? `Grade ${r.grade}` : '', r.school ?? ''].filter(Boolean).join(' • ') || 'School details not added'}</small><span>{formatBirthday(r.birth_date)}{age != null ? ` • Age ${age}` : ''}</span></> : <><small>No current registration</small><span>Open profile to add school-year details</span></>}</span><span className={`child-registration-status ${r ? 'current' : 'missing'}`}>{r ? 'Current' : 'Needs registration'}</span></button> })}</section>
       {visibleChildren.length === 0 && <section className="card children-empty">No children match that search.</section>}
       <section className="card children-retention-note"><strong>School-year privacy</strong><p>Annual registrations are separate from the permanent child roster so old family, health, schedule, dismissal, and consent information can later be expired and purged under the center’s retention policy.</p></section>
@@ -254,6 +271,7 @@ export default function ChildrenPage() {
 
     {selectedChild && !editing && <div className="children-modal-backdrop" role="presentation" onClick={closeProfile}><section className="card children-profile-modal" role="dialog" aria-modal="true" aria-labelledby="child-profile-title" onClick={(e) => e.stopPropagation()}><button type="button" className="children-modal-close" onClick={closeProfile}>×</button>
       <div className="children-profile-heading"><span className="child-profile-avatar large">{selectedChild.first_name[0]?.toUpperCase()}</span><div><span className="children-eyebrow">Child profile</span><h2 id="child-profile-title">{childName(selectedChild)}</h2><p>{selectedRegistration ? `${selectedRegistration.school_year} registration` : 'No current school-year registration yet'}</p></div>{profile.role === 'admin' && <button type="button" className="primary" onClick={() => openEditor(selectedChild)}>{selectedRegistration ? 'Edit registration' : 'Add registration'}</button>}</div>
+      <nav className="children-profile-shortcuts" aria-label={`${childName(selectedChild)} profile shortcuts`}><Link href="/attendance"><span>✓</span><strong>Attendance</strong><small>Sign-ins & visits</small></Link><Link href="/card-tracking"><span>◆</span><strong>Behavior</strong><small>Cards & history</small></Link><Link href="/rewards"><span>★</span><strong>Rewards</strong><small>Spins & prizes</small></Link><div className="coming"><span>📘</span><strong>Learning</strong><small>Assignments coming soon</small></div></nav>
       <div className="children-profile-sections">
         <section className="children-profile-section"><div className="children-section-title"><span>🎓</span><div><small>Overview</small><h3>School-year registration</h3></div></div><div className="children-facts-grid"><div><small>Birthday</small><strong>{formatBirthday(selectedRegistration?.birth_date ?? null)}</strong></div><div><small>Age</small><strong>{calculateAge(selectedRegistration?.birth_date ?? null) ?? '—'}</strong></div><div><small>School</small><strong>{selectedRegistration?.school || 'Not added'}</strong></div><div><small>Grade</small><strong>{selectedRegistration?.grade || 'Not added'}</strong></div><div><small>School year</small><strong>{selectedRegistration?.school_year || 'Not added'}</strong></div><div><small>Expected days</small><strong>{selectedRegistration?.attendance_days?.length ? selectedRegistration.attendance_days.map((d) => d.slice(0,3)).join(', ') : 'Not recorded'}</strong></div></div></section>
         <section className="children-profile-section"><div className="children-section-title"><span>🗓️</span><div><small>Schedule & dismissal</small><h3>Daily plan</h3></div></div><div className="children-facts-grid"><div><small>Other after-school program</small><strong>{selectedRegistration ? (selectedRegistration.attends_other_program ? 'Yes' : 'No') : '—'}</strong></div><div><small>Arrival notes</small><strong>{selectedRegistration?.other_program_arrival_notes || 'None'}</strong></div><div><small>Dismissal plan</small><strong>{dismissalLabel(selectedRegistration?.dismissal_plan ?? null)}</strong></div></div>{selectedRegistration?.dismissal_notes && <div className="children-care-notes"><small>Dismissal notes</small><p>{selectedRegistration.dismissal_notes}</p></div>}</section>
