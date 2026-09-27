@@ -26,6 +26,74 @@ type NavGroup = {
   items: NavItem[]
 }
 
+type WorkspaceLink = {
+  href?: string
+  label: string
+  adminOnly?: boolean
+  comingSoon?: boolean
+}
+
+type WorkspaceDefinition = {
+  label: string
+  icon: string
+  routes: string[]
+  links: WorkspaceLink[]
+}
+
+const workspaceDefinitions: WorkspaceDefinition[] = [
+  {
+    label: 'Students',
+    icon: '👥',
+    routes: ['/children', '/attendance', '/card-tracking', '/missed-cards', '/households'],
+    links: [
+      { href: '/children', label: 'Directory' },
+      { href: '/attendance', label: 'Attendance' },
+      { href: '/card-tracking', label: 'Behavior' },
+      { href: '/missed-cards', label: 'Missed Cards' },
+      { href: '/households', label: 'Households' },
+      { label: 'Learning', comingSoon: true },
+    ],
+  },
+  {
+    label: 'Programs',
+    icon: '🗓️',
+    routes: ['/programs', '/calendar', '/registrations'],
+    links: [
+      { href: '/programs', label: 'Programs' },
+      { href: '/calendar', label: 'Calendar' },
+      { href: '/registrations', label: 'Registration', adminOnly: true },
+    ],
+  },
+  {
+    label: 'Operations',
+    icon: '🛠️',
+    routes: ['/tasks', '/inventory', '/purchasing'],
+    links: [
+      { href: '/tasks', label: 'Tasks' },
+      { href: '/inventory', label: 'Inventory' },
+      { href: '/purchasing', label: 'Purchasing', adminOnly: true },
+    ],
+  },
+  {
+    label: 'Reports',
+    icon: '📊',
+    routes: ['/reports'],
+    links: [
+      { href: '/reports/attendance', label: 'Attendance' },
+      { label: 'Student Progress', comingSoon: true },
+    ],
+  },
+  {
+    label: 'Staff',
+    icon: '🧑‍💼',
+    routes: ['/team', '/staff'],
+    links: [
+      { href: '/team', label: 'Team & Schedule' },
+      { href: '/staff', label: 'Account Access', adminOnly: true },
+    ],
+  },
+]
+
 const navGroups: NavGroup[] = [
   {
     label: 'Students',
@@ -146,6 +214,11 @@ export default function SiteNavigation() {
   function visibleItems(group: NavGroup) {
     return group.items.filter((item) => !item.adminOnly || access.role === 'admin')
   }
+
+  const workspace = workspaceDefinitions.find((definition) =>
+    definition.routes.some((route) => pathname === route || pathname.startsWith(route + '/')),
+  )
+  const workspaceLinks = workspace?.links.filter((item) => !item.adminOnly || access.role === 'admin') ?? []
 
   function currentItemHref(items: NavItem[]) {
     return items
@@ -317,6 +390,20 @@ export default function SiteNavigation() {
       </nav>
 
       {mobileOpen && <button className="jh-nav-overlay" type="button" onClick={closeMobile} aria-label="Close navigation" />}
+
+      {workspace && (
+        <nav className="jh-workspace-bar" aria-label={workspace.label + ' workspace sections'}>
+          <div className="jh-workspace-title"><span aria-hidden="true">{workspace.icon}</span><strong>{workspace.label}</strong></div>
+          <div className="jh-workspace-links">
+            {workspaceLinks.map((item) => {
+              if (!item.href || item.comingSoon) return <span className="jh-workspace-link disabled" key={item.label}>{item.label}<small>Soon</small></span>
+              const active = pathname === item.href || pathname.startsWith(item.href + '/')
+              return <Link className={`jh-workspace-link ${active ? 'active' : ''}`} href={item.href} key={item.href} aria-current={active ? 'page' : undefined}>{item.label}</Link>
+            })}
+          </div>
+        </nav>
+      )}
+
       <DailyCardNotes />
     </>
   )
