@@ -140,12 +140,16 @@ const quizQuestionTypeLabels: Record<QuizQuestionType, string> = {
   reading_comprehension: 'Reading comprehension',
 }
 
+function isQuizChoiceType(type: QuizQuestionType) {
+  return type === 'multiple_choice' || type === 'correct_sentence' || type === 'reading_comprehension'
+}
+
 function makeQuestion(type: QuizQuestionType = 'multiple_choice'): QuizQuestion {
   return {
     id: 'q-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
     type,
     prompt: '',
-    choices: type === 'multiple_choice' || type === 'correct_sentence' ? ['', '', '', ''] : [],
+    choices: isQuizChoiceType(type) ? ['', '', '', ''] : [],
     correct_answer: '',
     explanation: '',
     passage: '',
@@ -178,6 +182,104 @@ const starterAssignments: StarterAssignment[] = [
     instructions: 'Correct capitalization, punctuation, spelling, and sentence structure in a short set of sentences.',
     estimated_minutes: 15,
     resource_url: null,
+  },
+  {
+    title: 'Punctuation & Capitalization Check',
+    subject: 'grammar',
+    assignment_type: 'quiz',
+    skill: 'Capitalization & punctuation',
+    grade_levels: [],
+    difficulty: 'standard',
+    delivery_format: 'digital',
+    instructions: 'Choose or enter the best answer for each grammar question.',
+    estimated_minutes: 10,
+    resource_url: null,
+    starter_config: {
+      passing_score: 80,
+      show_explanations: true,
+      questions: [
+        {
+          id: 'punct-1',
+          type: 'correct_sentence',
+          prompt: 'Which sentence is written correctly?',
+          choices: ['my friend Maya lives in Boston.', 'My friend maya lives in Boston.', 'My friend Maya lives in Boston.', 'My friend Maya lives in boston.'],
+          correct_answer: 'My friend Maya lives in Boston.',
+          explanation: 'Names and the first word of a sentence begin with capital letters.',
+        },
+        {
+          id: 'punct-2',
+          type: 'multiple_choice',
+          prompt: 'Which punctuation mark belongs at the end of this sentence? Where did you put the book',
+          choices: ['.', '?', '!', ','],
+          correct_answer: '?',
+          explanation: 'A direct question ends with a question mark.',
+        },
+        {
+          id: 'punct-3',
+          type: 'fill_blank',
+          prompt: 'Type the correctly capitalized word to complete the sentence: We visit our family every ___.',
+          correct_answer: 'Sunday',
+          explanation: 'Days of the week are proper nouns and begin with capital letters.',
+        },
+        {
+          id: 'punct-4',
+          type: 'correct_sentence',
+          prompt: 'Which sentence uses commas correctly?',
+          choices: ['We bought apples oranges and bananas.', 'We bought apples, oranges, and bananas.', 'We bought, apples oranges, and bananas.', 'We bought apples oranges, and, bananas.'],
+          correct_answer: 'We bought apples, oranges, and bananas.',
+          explanation: 'Commas separate items in a list.',
+        },
+        {
+          id: 'punct-5',
+          type: 'multiple_choice',
+          prompt: 'Which word should be capitalized? My aunt lives in california.',
+          choices: ['aunt', 'lives', 'california', 'in'],
+          correct_answer: 'california',
+          explanation: 'California is the name of a state, so it should be capitalized.',
+        },
+      ],
+    },
+  },
+  {
+    title: 'Vocabulary in Context',
+    subject: 'grammar',
+    assignment_type: 'quiz',
+    skill: 'Vocabulary & context clues',
+    grade_levels: [],
+    difficulty: 'standard',
+    delivery_format: 'digital',
+    instructions: 'Use the sentence clues to choose the meaning that fits best.',
+    estimated_minutes: 10,
+    resource_url: null,
+    starter_config: {
+      passing_score: 80,
+      show_explanations: true,
+      questions: [
+        {
+          id: 'vocab-1',
+          type: 'multiple_choice',
+          prompt: 'In the sentence “Nia was exhausted after running three laps,” what does exhausted mean?',
+          choices: ['Very tired', 'Very excited', 'Very hungry', 'Very confused'],
+          correct_answer: 'Very tired',
+          explanation: 'Running several laps can make someone very tired, which is what exhausted means here.',
+        },
+        {
+          id: 'vocab-2',
+          type: 'multiple_choice',
+          prompt: 'In the sentence “The tiny puppy could fit inside the basket,” what does tiny mean?',
+          choices: ['Very small', 'Very loud', 'Very fast', 'Very old'],
+          correct_answer: 'Very small',
+          explanation: 'The clue that the puppy fits inside a basket shows that tiny means very small.',
+        },
+        {
+          id: 'vocab-3',
+          type: 'spelling',
+          prompt: 'Type the word that means “to look at something carefully”: examine',
+          correct_answer: 'examine',
+          explanation: 'Examine means to inspect or look at something carefully.',
+        },
+      ],
+    },
   },
   {
     title: 'Typing Warm-Up',
