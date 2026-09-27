@@ -1502,6 +1502,15 @@ export default function LearningPage() {
                       <small>{selectedAssignment.activity_config?.show_explanations === false ? 'Explanations hidden' : 'Answer explanations on'}</small>
                     </div>
                   )}
+                  {selectedAssignment.assignment_type === 'writing' && (
+                    <div className="learning-writing-details">
+                      <span>✍️ Writing Lab ready</span>
+                      <strong>{selectedAssignment.activity_config?.writing_mode ? selectedAssignment.activity_config.writing_mode.replaceAll('_', ' ') : 'Writing prompt'}</strong>
+                      {typeof selectedAssignment.activity_config?.min_words === 'number' && <small>Minimum {selectedAssignment.activity_config.min_words} words</small>}
+                      {typeof selectedAssignment.activity_config?.target_words === 'number' && <small>Target {selectedAssignment.activity_config.target_words} words</small>}
+                      <small>{selectedAssignment.activity_config?.rubric_criteria?.length ?? 0} review areas</small>
+                    </div>
+                  )}
                   {selectedAssignment.resource_url && <a className="learning-resource-link" href={selectedAssignment.resource_url} target="_blank" rel="noreferrer">Open resource ↗</a>}
 
                   <div className="learning-preview-actions">
