@@ -243,7 +243,9 @@ export default function WritingActivityRunner({
       return
     }
 
-    setElapsedSeconds(seconds)
+    setSavedActiveSeconds(totalActiveSeconds)
+    setElapsedSeconds(0)
+    setStartedAt(null)
     setSubmissionStatus('submitted')
     setFinished(true)
     if (!revisionError) setMessage('')
