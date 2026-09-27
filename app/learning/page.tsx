@@ -75,6 +75,81 @@ const subjectIcons: Record<Subject, string> = {
   general: '📘',
 }
 
+const starterAssignments: Omit<LearningAssignment, 'id' | 'active'>[] = [
+  {
+    title: 'Reading Reflection',
+    subject: 'reading',
+    assignment_type: 'writing',
+    skill: 'Comprehension & reflection',
+    grade_levels: [],
+    difficulty: 'standard',
+    delivery_format: 'either',
+    instructions: 'Read for 15–20 minutes, then write or discuss the main idea, one important detail, and one question you still have.',
+    estimated_minutes: 25,
+    resource_url: null,
+  },
+  {
+    title: 'Edit the Sentence',
+    subject: 'grammar',
+    assignment_type: 'practice',
+    skill: 'Capitalization & punctuation',
+    grade_levels: [],
+    difficulty: 'standard',
+    delivery_format: 'either',
+    instructions: 'Correct capitalization, punctuation, spelling, and sentence structure in a short set of sentences.',
+    estimated_minutes: 15,
+    resource_url: null,
+  },
+  {
+    title: 'Typing Warm-Up',
+    subject: 'typing',
+    assignment_type: 'typing',
+    skill: 'Accuracy & keyboard fluency',
+    grade_levels: [],
+    difficulty: 'standard',
+    delivery_format: 'digital',
+    instructions: 'Complete a short focused typing practice. Prioritize accuracy before speed and record the result when finished.',
+    estimated_minutes: 15,
+    resource_url: null,
+  },
+  {
+    title: 'Quick Write Journal',
+    subject: 'writing',
+    assignment_type: 'writing',
+    skill: 'Idea development',
+    grade_levels: [],
+    difficulty: 'standard',
+    delivery_format: 'either',
+    instructions: 'Respond to a staff-selected prompt with a complete paragraph or age-appropriate written response.',
+    estimated_minutes: 20,
+    resource_url: null,
+  },
+  {
+    title: 'Math Skill Practice',
+    subject: 'math',
+    assignment_type: 'practice',
+    skill: 'Targeted math review',
+    grade_levels: [],
+    difficulty: 'standard',
+    delivery_format: 'either',
+    instructions: 'Complete a short staff-selected math practice set matched to the student’s current grade or skill need.',
+    estimated_minutes: 20,
+    resource_url: null,
+  },
+  {
+    title: 'Vocabulary Builder',
+    subject: 'reading',
+    assignment_type: 'practice',
+    skill: 'Vocabulary',
+    grade_levels: [],
+    difficulty: 'standard',
+    delivery_format: 'either',
+    instructions: 'Choose five unfamiliar or useful words, define them in your own words, and use each one in a sentence.',
+    estimated_minutes: 20,
+    resource_url: null,
+  },
+]
+
 function childName(child: Child) {
   return child.first_name + (child.last_name ? ' ' + child.last_name : '')
 }
@@ -142,6 +217,14 @@ export default function LearningPage() {
   const [librarySearch, setLibrarySearch] = useState('')
   const [subjectFilter, setSubjectFilter] = useState<'all' | Subject>('all')
   const [gradeFilter, setGradeFilter] = useState('all')
+  const [skillFilter, setSkillFilter] = useState('all')
+  const [difficultyFilter, setDifficultyFilter] = useState<'all' | Difficulty>('all')
+  const [formatFilter, setFormatFilter] = useState<'all' | DeliveryFormat>('all')
+  const [libraryStatusFilter, setLibraryStatusFilter] = useState<'active' | 'archived' | 'all'>('active')
+  const [assignmentUsageRows, setAssignmentUsageRows] = useState<{ assignment_id: number; status: StudentAssignment['status'] }[]>([])
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
+  const [starterAdding, setStarterAdding] = useState(false)
 
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState<Subject>('reading')
@@ -212,14 +295,15 @@ export default function LearningPage() {
     setMessage('')
     const weekEnd = addDays(weekStart, 6)
 
-    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult] = await Promise.all([
+    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
-      supabase.from('learning_assignments').select('id, title, subject, assignment_type, skill, grade_levels, difficulty, delivery_format, instructions, estimated_minutes, resource_url, active').eq('active', true).order('subject').order('title'),
+      supabase.from('learning_assignments').select('id, title, subject, assignment_type, skill, grade_levels, difficulty, delivery_format, instructions, estimated_minutes, resource_url, active').order('subject').order('title'),
       supabase.from('learning_student_assignments').select('id, child_id, assignment_id, week_start, due_date, status, completed_at, score, max_score, minutes_spent, staff_note').eq('week_start', weekStart).order('child_id').order('id'),
       supabase.from('learning_reading_logs').select('id, child_id, read_on, title, minutes, pages, note, created_at').gte('read_on', weekStart).lte('read_on', weekEnd).order('read_on', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
+      supabase.from('learning_student_assignments').select('assignment_id, status'),
     ])
 
     const error = profileResult.error
@@ -229,6 +313,7 @@ export default function LearningPage() {
       ?? weeklyResult.error
       ?? readingResult.error
       ?? notesResult.error
+      ?? usageResult.error
 
     const nextChildren = (childResult.data ?? []) as Child[]
     setProfile(profileResult.data as Profile | null)
@@ -238,6 +323,7 @@ export default function LearningPage() {
     setWeeklyAssignments((weeklyResult.data ?? []) as StudentAssignment[])
     setReadingLogs((readingResult.data ?? []) as ReadingLog[])
     setNotes((notesResult.data ?? []) as LearningNote[])
+    setAssignmentUsageRows((usageResult.data ?? []) as { assignment_id: number; status: StudentAssignment['status'] }[])
     setAssignChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setReadingChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setNoteChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
@@ -254,20 +340,87 @@ export default function LearningPage() {
     if (!assignGrade && gradeOptions.length) setAssignGrade(gradeOptions[0])
   }, [gradeOptions, assignGrade])
 
+  const skillOptions = useMemo(() => {
+    return [...new Set(library
+      .filter((assignment) => {
+        if (libraryStatusFilter === 'active' && !assignment.active) return false
+        if (libraryStatusFilter === 'archived' && assignment.active) return false
+        if (gradeFilter !== 'all' && assignment.grade_levels.length > 0 && !assignment.grade_levels.includes(gradeFilter)) return false
+        if (subjectFilter !== 'all' && assignment.subject !== subjectFilter) return false
+        return Boolean(assignment.skill?.trim())
+      })
+      .map((assignment) => assignment.skill!.trim()))]
+      .sort((a, b) => a.localeCompare(b))
+  }, [library, libraryStatusFilter, gradeFilter, subjectFilter])
+
+  useEffect(() => {
+    if (skillFilter !== 'all' && !skillOptions.includes(skillFilter)) setSkillFilter('all')
+  }, [skillOptions, skillFilter])
+
   const filteredLibrary = useMemo(() => {
     const needle = librarySearch.trim().toLowerCase()
     return library.filter((assignment) => {
+      if (libraryStatusFilter === 'active' && !assignment.active) return false
+      if (libraryStatusFilter === 'archived' && assignment.active) return false
       if (subjectFilter !== 'all' && assignment.subject !== subjectFilter) return false
-      if (gradeFilter !== 'all' && !assignment.grade_levels.includes(gradeFilter)) return false
+      if (gradeFilter !== 'all' && assignment.grade_levels.length > 0 && !assignment.grade_levels.includes(gradeFilter)) return false
+      if (skillFilter !== 'all' && assignment.skill !== skillFilter) return false
+      if (difficultyFilter !== 'all' && assignment.difficulty !== difficultyFilter) return false
+      if (formatFilter !== 'all' && assignment.delivery_format !== formatFilter) return false
       if (!needle) return true
       return [assignment.title, assignment.skill ?? '', assignment.instructions ?? '', subjectLabels[assignment.subject]]
         .join(' ')
         .toLowerCase()
         .includes(needle)
     })
-  }, [library, librarySearch, subjectFilter, gradeFilter])
+  }, [library, librarySearch, subjectFilter, gradeFilter, skillFilter, difficultyFilter, formatFilter, libraryStatusFilter])
+
+  const usageByAssignment = useMemo(() => {
+    const map = new Map<number, { assigned: number; completed: number }>()
+    for (const row of assignmentUsageRows) {
+      const current = map.get(row.assignment_id) ?? { assigned: 0, completed: 0 }
+      current.assigned += 1
+      if (row.status === 'completed') current.completed += 1
+      map.set(row.assignment_id, current)
+    }
+    return map
+  }, [assignmentUsageRows])
+
+  const libraryGroups = useMemo(() => {
+    const groups: { subject: Subject; skills: { skill: string; assignments: LearningAssignment[] }[] }[] = []
+    for (const subject of Object.keys(subjectLabels) as Subject[]) {
+      const subjectAssignments = filteredLibrary.filter((assignment) => assignment.subject === subject)
+      if (!subjectAssignments.length) continue
+      const skillMap = new Map<string, LearningAssignment[]>()
+      for (const assignment of subjectAssignments) {
+        const key = assignment.skill?.trim() || 'General'
+        skillMap.set(key, [...(skillMap.get(key) ?? []), assignment])
+      }
+      groups.push({
+        subject,
+        skills: [...skillMap.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([skill, assignments]) => ({ skill, assignments })),
+      })
+    }
+    return groups
+  }, [filteredLibrary])
 
   const selectedAssignment = useMemo(() => library.find((assignment) => assignment.id === selectedAssignmentId) ?? null, [library, selectedAssignmentId])
+
+  const assignmentPreview = useMemo(() => {
+    if (!selectedAssignment) return { total: 0, already: 0, willAssign: 0 }
+    const targetIds = assignMode === 'child'
+      ? (assignChildId ? [assignChildId] : [])
+      : children.filter((child) => registrationByChild.get(child.id)?.grade === assignGrade).map((child) => child.id)
+    const assignedIds = new Set(
+      weeklyAssignments
+        .filter((row) => row.assignment_id === selectedAssignment.id)
+        .map((row) => row.child_id),
+    )
+    const already = targetIds.filter((id) => assignedIds.has(id)).length
+    return { total: targetIds.length, already, willAssign: targetIds.length - already }
+  }, [selectedAssignment, assignMode, assignChildId, assignGrade, children, registrationByChild, weeklyAssignments])
 
   const weeklyByChild = useMemo(() => {
     const map = new Map<number, StudentAssignment[]>()
@@ -303,12 +456,44 @@ export default function LearningPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  async function createAssignment() {
+  function resetAssignmentEditor() {
+    setEditingAssignmentId(null)
+    setNewTitle('')
+    setNewSubject('reading')
+    setNewType('activity')
+    setNewSkill('')
+    setNewGrades('')
+    setNewDifficulty('standard')
+    setNewFormat('either')
+    setNewMinutes('')
+    setNewInstructions('')
+    setNewResourceUrl('')
+  }
+
+  function beginAddAssignment() {
+    resetAssignmentEditor()
+    setEditorOpen(true)
+  }
+
+  function beginEditAssignment(assignment: LearningAssignment) {
+    setEditingAssignmentId(assignment.id)
+    setNewTitle(assignment.title)
+    setNewSubject(assignment.subject)
+    setNewType(assignment.assignment_type)
+    setNewSkill(assignment.skill ?? '')
+    setNewGrades(assignment.grade_levels.join(', '))
+    setNewDifficulty(assignment.difficulty)
+    setNewFormat(assignment.delivery_format)
+    setNewMinutes(assignment.estimated_minutes == null ? '' : String(assignment.estimated_minutes))
+    setNewInstructions(assignment.instructions ?? '')
+    setNewResourceUrl(assignment.resource_url ?? '')
+    setEditorOpen(true)
+  }
+
+  async function saveAssignment() {
     if (!session || profile?.role !== 'admin' || saving || !newTitle.trim()) return
     const grades = [...new Set(newGrades.split(',').map((grade) => grade.trim()).filter(Boolean))]
-    setSaving(true)
-    setMessage('')
-    const { data, error } = await supabase.from('learning_assignments').insert({
+    const values = {
       title: newTitle.trim(),
       subject: newSubject,
       assignment_type: newType,
@@ -319,21 +504,82 @@ export default function LearningPage() {
       instructions: newInstructions.trim() || null,
       estimated_minutes: newMinutes ? Math.max(1, Number(newMinutes)) : null,
       resource_url: newResourceUrl.trim() || null,
-      created_by: session.user.id,
-    }).select('id').single()
+      updated_at: new Date().toISOString(),
+    }
 
+    setSaving(true)
+    setMessage('')
+    const result = editingAssignmentId
+      ? await supabase.from('learning_assignments').update(values).eq('id', editingAssignmentId).select('id').single()
+      : await supabase.from('learning_assignments').insert({ ...values, created_by: session.user.id }).select('id').single()
+    setSaving(false)
+
+    if (result.error) return showMessage(result.error.message)
+
+    const savedId = result.data?.id as number | undefined
+    await loadData()
+    resetAssignmentEditor()
+    setEditorOpen(false)
+    if (savedId) setSelectedAssignmentId(savedId)
+    setMessage(editingAssignmentId ? 'Assignment updated.' : 'Assignment added to the library.')
+  }
+
+  async function toggleAssignmentArchive(assignment: LearningAssignment) {
+    if (profile?.role !== 'admin' || saving) return
+    setSaving(true)
+    const { error } = await supabase.from('learning_assignments')
+      .update({ active: !assignment.active, updated_at: new Date().toISOString() })
+      .eq('id', assignment.id)
     setSaving(false)
     if (error) return showMessage(error.message)
-
-    setNewTitle('')
-    setNewSkill('')
-    setNewGrades('')
-    setNewMinutes('')
-    setNewInstructions('')
-    setNewResourceUrl('')
-    setMessage('Assignment added to the library.')
-    if (data?.id) setSelectedAssignmentId(data.id as number)
     await loadData()
+    setMessage(assignment.active ? 'Assignment archived. Student history is unchanged.' : 'Assignment reactivated.')
+  }
+
+  async function duplicateAssignment(assignment: LearningAssignment) {
+    if (!session || profile?.role !== 'admin' || saving) return
+    setSaving(true)
+    const { data, error } = await supabase.from('learning_assignments').insert({
+      title: assignment.title + ' — Copy',
+      subject: assignment.subject,
+      assignment_type: assignment.assignment_type,
+      skill: assignment.skill,
+      grade_levels: assignment.grade_levels,
+      difficulty: assignment.difficulty,
+      delivery_format: assignment.delivery_format,
+      instructions: assignment.instructions,
+      estimated_minutes: assignment.estimated_minutes,
+      resource_url: assignment.resource_url,
+      active: true,
+      created_by: session.user.id,
+    }).select('id').single()
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    await loadData()
+    if (data?.id) {
+      const duplicate = { ...assignment, id: data.id as number, title: assignment.title + ' — Copy', active: true }
+      setSelectedAssignmentId(data.id as number)
+      beginEditAssignment(duplicate)
+    }
+    setMessage('Duplicate created. Make any changes, then save it.')
+  }
+
+  async function addStarterTemplates() {
+    if (!session || profile?.role !== 'admin' || starterAdding) return
+    const existingTitles = new Set(library.map((assignment) => assignment.title.trim().toLowerCase()))
+    const missing = starterAssignments.filter((assignment) => !existingTitles.has(assignment.title.toLowerCase()))
+    if (!missing.length) {
+      setMessage('All starter templates are already in the library.')
+      return
+    }
+    setStarterAdding(true)
+    const { error } = await supabase.from('learning_assignments').insert(
+      missing.map((assignment) => ({ ...assignment, active: true, created_by: session.user.id })),
+    )
+    setStarterAdding(false)
+    if (error) return showMessage(error.message)
+    await loadData()
+    setMessage('Added ' + missing.length + ' starter template' + (missing.length === 1 ? '' : 's') + '.')
   }
 
   async function assignWork() {
