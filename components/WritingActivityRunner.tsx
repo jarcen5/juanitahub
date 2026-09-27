@@ -72,6 +72,7 @@ export default function WritingActivityRunner({
   const [submissionStatus, setSubmissionStatus] = useState<'draft' | 'submitted' | 'reviewed'>('draft')
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [savedActiveSeconds, setSavedActiveSeconds] = useState(0)
   const [loadingDraft, setLoadingDraft] = useState(!testMode)
   const [saving, setSaving] = useState(false)
   const [finished, setFinished] = useState(false)
@@ -90,7 +91,7 @@ export default function WritingActivityRunner({
     let mounted = true
     supabase
       .from('learning_writing_submissions')
-      .select('id, content, status, started_at')
+      .select('id, content, status, active_seconds')
       .eq('student_assignment_id', studentAssignmentId)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -100,7 +101,7 @@ export default function WritingActivityRunner({
           setSubmissionId(data.id as number)
           setContent((data.content as string) ?? '')
           setSubmissionStatus(data.status as 'draft' | 'submitted' | 'reviewed')
-          if (data.started_at) setStartedAt(new Date(data.started_at as string).getTime())
+          setSavedActiveSeconds(Number(data.active_seconds ?? 0))
         }
         setLoadingDraft(false)
       })
@@ -144,7 +145,8 @@ export default function WritingActivityRunner({
     setSaving(true)
     setMessage('')
     const now = new Date().toISOString()
-    const startedIso = startedAt == null ? now : new Date(startedAt).toISOString()
+    const sessionSeconds = startedAt == null ? 0 : Math.max(0, Math.round((Date.now() - startedAt) / 1000))
+    const totalActiveSeconds = Math.min(864000, savedActiveSeconds + sessionSeconds)
     let currentSubmissionId = submissionId
 
     if (currentSubmissionId) {
@@ -154,7 +156,7 @@ export default function WritingActivityRunner({
           content,
           word_count: wordCount,
           status,
-          started_at: startedIso,
+          active_seconds: totalActiveSeconds,
           submitted_at: status === 'submitted' ? now : null,
           last_saved_at: now,
           updated_by: userId,
@@ -177,7 +179,8 @@ export default function WritingActivityRunner({
           content,
           word_count: wordCount,
           status,
-          started_at: startedIso,
+          started_at: startedAt == null ? now : new Date(startedAt).toISOString(),
+          active_seconds: totalActiveSeconds,
           submitted_at: status === 'submitted' ? now : null,
           updated_by: userId,
         })
@@ -209,6 +212,9 @@ export default function WritingActivityRunner({
           .update({ status: 'in_progress', updated_by: userId, updated_at: now })
           .eq('id', studentAssignmentId)
       }
+      setSavedActiveSeconds(totalActiveSeconds)
+      setStartedAt(Date.now())
+      setElapsedSeconds(0)
       setSubmissionStatus('draft')
       setSaving(false)
       if (!revisionError) setMessage('Draft saved.')
@@ -216,7 +222,7 @@ export default function WritingActivityRunner({
       return
     }
 
-    const seconds = Math.max(1, startedAt == null ? 1 : Math.round((Date.now() - startedAt) / 1000))
+    const seconds = Math.max(1, totalActiveSeconds)
     const { error: assignmentError } = await supabase
       .from('learning_student_assignments')
       .update({
@@ -250,6 +256,7 @@ export default function WritingActivityRunner({
     setSubmissionStatus('draft')
     setStartedAt(null)
     setElapsedSeconds(0)
+    setSavedActiveSeconds(0)
     setFinished(false)
     setMessage('')
   }
@@ -287,7 +294,7 @@ export default function WritingActivityRunner({
 
             <div className="writing-results-grid">
               <article><strong>{wordCount}</strong><span>Words</span><small>{goalWords ? 'Goal ' + goalWords : 'No word goal'}</small></article>
-              <article><strong>{timeLabel(elapsedSeconds)}</strong><span>Writing time</span><small>{submissionStatus === 'submitted' ? 'Submitted' : submissionStatus}</small></article>
+              <article><strong>{timeLabel(savedActiveSeconds + elapsedSeconds)}</strong><span>Writing time</span><small>{submissionStatus === 'submitted' ? 'Submitted' : submissionStatus}</small></article>
               <article><strong>{rubricCriteria.length || '—'}</strong><span>Review areas</span><small>{rubricCriteria.length ? 'Staff rubric' : 'Feedback only'}</small></article>
             </div>
 
@@ -301,7 +308,7 @@ export default function WritingActivityRunner({
           <section className="writing-workspace">
             <div className="writing-heading">
               <div><span className="learning-kicker">{modeLabels[mode]}</span><h1>{assignmentTitle}</h1></div>
-              <div className="writing-live-stats"><article><strong>{wordCount}</strong><span>Words</span></article><article><strong>{goalWords || '—'}</strong><span>Goal</span></article><article><strong>{timeLabel(elapsedSeconds)}</strong><span>Time</span></article></div>
+              <div className="writing-live-stats"><article><strong>{wordCount}</strong><span>Words</span></article><article><strong>{goalWords || '—'}</strong><span>Goal</span></article><article><strong>{timeLabel(savedActiveSeconds + elapsedSeconds)}</strong><span>Time</span></article></div>
             </div>
 
             {goalWords > 0 && <div className="writing-progress-line"><span style={{ width: progress + '%' }} /></div>}
