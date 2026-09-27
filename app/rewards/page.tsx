@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import RewardWheel, { type WheelPrize } from '@/components/RewardWheel'
@@ -98,8 +99,8 @@ export default function RewardsPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<RewardTab>('monthly')
   const [message, setMessage] = useState('')
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     let mounted = true
@@ -130,13 +131,10 @@ export default function RewardsPage() {
   if (!session) return <main className="login-wrap"><section className="card login-card"><h1>Reward Center</h1><p className="subtle">Sign in through Juanita Hub before opening rewards.</p><Link className="primary" style={{ display: 'inline-block', textDecoration: 'none' }} href="/">Go to sign in</Link></section></main>
   if (!profile?.active) return <main className="login-wrap"><section className="card login-card"><h1>Reward Center</h1><div className="notice">Your staff account must be approved before rewards are available.</div><Link className="ghost" style={{ display: 'inline-block', textDecoration: 'none' }} href="/">Back to Juanita Hub</Link></section></main>
 
-  const tabs: { key: RewardTab; label: string; adminOnly?: boolean }[] = [
-    { key: 'monthly', label: '★ Monthly Spins' },
-    { key: 'free', label: '＋ Free Spin' },
-    { key: 'test', label: '🧪 Test Wheel' },
-    { key: 'setup', label: '⚙ Prize Setup', adminOnly: true },
-    { key: 'fulfillment', label: '🎁 Fulfillment' },
-  ]
+  const requestedTab = searchParams.get('tab')
+  const validTabs: RewardTab[] = ['monthly', 'free', 'test', 'setup', 'fulfillment']
+  let tab: RewardTab = validTabs.includes(requestedTab as RewardTab) ? requestedTab as RewardTab : 'monthly'
+  if (tab === 'setup' && profile.role !== 'admin') tab = 'monthly'
 
   return (
     <div className="shell">
@@ -151,12 +149,6 @@ export default function RewardsPage() {
         </section>
 
         {message && <div className="notice error">{message}</div>}
-
-        <nav className="rewards-tabs" aria-label="Reward Center sections">
-          {tabs.filter((item) => !item.adminOnly || profile.role === 'admin').map((item) => (
-            <button type="button" key={item.key} className={tab === item.key ? 'active' : ''} onClick={() => setTab(item.key)}>{item.label}</button>
-          ))}
-        </nav>
 
         {tab === 'monthly' && <MonthlySpinsPanel session={session} />}
         {tab === 'free' && <FreeSpinsPanel session={session} />}
