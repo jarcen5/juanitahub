@@ -1125,8 +1125,9 @@ export default function LearningPage() {
                               <span className={'learning-status ' + row.status}>{statusLabel(row.status)}</span>
                               <span className="learning-row-actions">
                                 {assignment.assignment_type === 'typing' && <button className="primary" type="button" disabled={saving} onClick={() => setTypingTarget({ row, child, assignment })}>{row.status === 'completed' ? 'Retry typing' : 'Launch typing'}</button>}
-                                {row.status === 'assigned' && assignment.assignment_type !== 'typing' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'in_progress')}>Start</button>}
-                                {row.status !== 'completed' && assignment.assignment_type !== 'typing' && <button className="primary" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Complete</button>}
+                                {assignment.assignment_type === 'quiz' && <button className="primary" type="button" disabled={saving} onClick={() => setQuizTarget({ row, child, assignment })}>{row.status === 'completed' ? 'Retry quiz' : 'Launch quiz'}</button>}
+                                {row.status === 'assigned' && assignment.assignment_type !== 'typing' && assignment.assignment_type !== 'quiz' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'in_progress')}>Start</button>}
+                                {row.status !== 'completed' && assignment.assignment_type !== 'typing' && assignment.assignment_type !== 'quiz' && <button className="primary" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Complete</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Edit details</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'assigned')}>Reopen</button>}
                               </span>
@@ -1374,6 +1375,14 @@ export default function LearningPage() {
                           </>}
                       {typeof selectedAssignment.activity_config?.target_wpm === 'number' && <small>{selectedAssignment.activity_config.target_wpm} WPM goal</small>}
                       {typeof selectedAssignment.activity_config?.target_accuracy === 'number' && <small>{selectedAssignment.activity_config.target_accuracy}% accuracy goal</small>}
+                    </div>
+                  )}
+                  {selectedAssignment.assignment_type === 'quiz' && (
+                    <div className="learning-quiz-details">
+                      <span>🧠 Quiz Lab ready</span>
+                      <strong>{selectedAssignment.activity_config?.questions?.length ?? 0} questions</strong>
+                      <small>Goal {selectedAssignment.activity_config?.passing_score ?? 80}%</small>
+                      <small>{selectedAssignment.activity_config?.show_explanations === false ? 'Explanations hidden' : 'Answer explanations on'}</small>
                     </div>
                   )}
                   {selectedAssignment.resource_url && <a className="learning-resource-link" href={selectedAssignment.resource_url} target="_blank" rel="noreferrer">Open resource ↗</a>}
