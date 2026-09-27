@@ -65,7 +65,7 @@ export default function WritingActivityRunner({
   const starters = (activityConfig?.sentence_starters ?? []).map((item) => item.trim()).filter(Boolean)
   const rubricCriteria = (activityConfig?.rubric_criteria ?? []).map((item) => item.trim()).filter(Boolean)
   const minWords = Math.max(0, Math.round(Number(activityConfig?.min_words ?? 0)))
-  const targetWords = Math.max(minWords, Math.round(Number(activityConfig?.target_words ?? minWords || 0)))
+  const targetWords = Math.max(minWords, Math.round(Number(activityConfig?.target_words ?? minWords ?? 0)))
 
   const [content, setContent] = useState('')
   const [submissionId, setSubmissionId] = useState<number | null>(null)
