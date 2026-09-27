@@ -1,0 +1,618 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
+
+type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
+type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
+type Registration = { child_id: number; grade: string | null; school: string | null }
+type LearningAssignment = {
+  id: number
+  title: string
+  subject: 'reading' | 'writing' | 'grammar' | 'typing' | 'math' | 'general'
+  assignment_type: 'activity' | 'reading' | 'writing' | 'quiz' | 'typing' | 'worksheet' | 'practice'
+  skill: string | null
+  grade_levels: string[]
+  difficulty: 'support' | 'standard' | 'challenge'
+  delivery_format: 'digital' | 'printable' | 'either'
+  instructions: string | null
+  estimated_minutes: number | null
+  resource_url: string | null
+  active: boolean
+}
+type StudentAssignment = {
+  id: number
+  child_id: number
+  assignment_id: number
+  week_start: string
+  due_date: string | null
+  status: 'assigned' | 'in_progress' | 'completed' | 'skipped'
+  completed_at: string | null
+  score: number | null
+  max_score: number | null
+  minutes_spent: number | null
+  staff_note: string | null
+}
+type ReadingLog = {
+  id: number
+  child_id: number
+  read_on: string
+  title: string | null
+  minutes: number
+  pages: string | null
+  note: string | null
+  created_at: string
+}
+type LearningNote = {
+  id: number
+  child_id: number
+  note_date: string
+  note: string
+  created_at: string
+}
+type LearningTab = 'week' | 'library' | 'reading' | 'notes'
+type Subject = LearningAssignment['subject']
+type AssignmentType = LearningAssignment['assignment_type']
+type Difficulty = LearningAssignment['difficulty']
+type DeliveryFormat = LearningAssignment['delivery_format']
+
+const subjectLabels: Record<Subject, string> = {
+  reading: 'Reading',
+  writing: 'Writing',
+  grammar: 'Grammar',
+  typing: 'Typing',
+  math: 'Math',
+  general: 'General',
+}
+const subjectIcons: Record<Subject, string> = {
+  reading: '📖',
+  writing: '✍️',
+  grammar: '🔤',
+  typing: '⌨️',
+  math: '➗',
+  general: '📘',
+}
+
+function childName(child: Child) {
+  return child.first_name + (child.last_name ? ' ' + child.last_name : '')
+}
+
+function localDate() {
+  const now = new Date()
+  const offset = now.getTimezoneOffset()
+  return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 10)
+}
+
+function mondayFor(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  const weekday = date.getDay()
+  const offset = weekday === 0 ? -6 : 1 - weekday
+  date.setDate(date.getDate() + offset)
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function addDays(value: string, days: number) {
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  date.setDate(date.getDate() + days)
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function dateLabel(value: string) {
+  return new Date(value + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function weekLabel(value: string) {
+  return dateLabel(value) + ' – ' + dateLabel(addDays(value, 6))
+}
+
+function statusLabel(status: StudentAssignment['status']) {
+  if (status === 'in_progress') return 'In progress'
+  if (status === 'completed') return 'Completed'
+  if (status === 'skipped') return 'Skipped'
+  return 'Assigned'
+}
+
+export default function LearningPage() {
+  const [session, setSession] = useState<Session | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [children, setChildren] = useState<Child[]>([])
+  const [registrations, setRegistrations] = useState<Registration[]>([])
+  const [library, setLibrary] = useState<LearningAssignment[]>([])
+  const [weeklyAssignments, setWeeklyAssignments] = useState<StudentAssignment[]>([])
+  const [readingLogs, setReadingLogs] = useState<ReadingLog[]>([])
+  const [notes, setNotes] = useState<LearningNote[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [tab, setTab] = useState<LearningTab>('week')
+  const [weekStart, setWeekStart] = useState(mondayFor(localDate()))
+
+  const [librarySearch, setLibrarySearch] = useState('')
+  const [subjectFilter, setSubjectFilter] = useState<'all' | Subject>('all')
+  const [gradeFilter, setGradeFilter] = useState('all')
+
+  const [newTitle, setNewTitle] = useState('')
+  const [newSubject, setNewSubject] = useState<Subject>('reading')
+  const [newType, setNewType] = useState<AssignmentType>('activity')
+  const [newSkill, setNewSkill] = useState('')
+  const [newGrades, setNewGrades] = useState('')
+  const [newDifficulty, setNewDifficulty] = useState<Difficulty>('standard')
+  const [newFormat, setNewFormat] = useState<DeliveryFormat>('either')
+  const [newMinutes, setNewMinutes] = useState('')
+  const [newInstructions, setNewInstructions] = useState('')
+  const [newResourceUrl, setNewResourceUrl] = useState('')
+
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null)
+  const [assignMode, setAssignMode] = useState<'child' | 'grade'>('child')
+  const [assignChildId, setAssignChildId] = useState<number | null>(null)
+  const [assignGrade, setAssignGrade] = useState('')
+  const [assignDueDate, setAssignDueDate] = useState('')
+
+  const [readingChildId, setReadingChildId] = useState<number | null>(null)
+  const [readingDate, setReadingDate] = useState(localDate())
+  const [readingTitle, setReadingTitle] = useState('')
+  const [readingMinutes, setReadingMinutes] = useState('15')
+  const [readingPages, setReadingPages] = useState('')
+  const [readingNote, setReadingNote] = useState('')
+
+  const [noteChildId, setNoteChildId] = useState<number | null>(null)
+  const [noteDate, setNoteDate] = useState(localDate())
+  const [noteText, setNoteText] = useState('')
+
+  useEffect(() => {
+    let mounted = true
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return
+      setSession(data.session)
+      if (!data.session) setLoading(false)
+    })
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
+      if (mounted) setSession(next)
+    })
+    return () => {
+      mounted = false
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    function syncTab() {
+      const requested = window.location.hash.replace('#', '') as LearningTab
+      setTab(['week', 'library', 'reading', 'notes'].includes(requested) ? requested : 'week')
+    }
+    syncTab()
+    window.addEventListener('hashchange', syncTab)
+    return () => window.removeEventListener('hashchange', syncTab)
+  }, [])
+
+  useEffect(() => {
+    if (!session) {
+      setProfile(null)
+      return
+    }
+    void loadData()
+  }, [session, weekStart])
+
+  async function loadData() {
+    if (!session) return
+    setLoading(true)
+    setMessage('')
+    const weekEnd = addDays(weekStart, 6)
+
+    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult] = await Promise.all([
+      supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
+      supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
+      supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
+      supabase.from('learning_assignments').select('id, title, subject, assignment_type, skill, grade_levels, difficulty, delivery_format, instructions, estimated_minutes, resource_url, active').eq('active', true).order('subject').order('title'),
+      supabase.from('learning_student_assignments').select('id, child_id, assignment_id, week_start, due_date, status, completed_at, score, max_score, minutes_spent, staff_note').eq('week_start', weekStart).order('child_id').order('id'),
+      supabase.from('learning_reading_logs').select('id, child_id, read_on, title, minutes, pages, note, created_at').gte('read_on', weekStart).lte('read_on', weekEnd).order('read_on', { ascending: false }).order('created_at', { ascending: false }),
+      supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
+    ])
+
+    const error = profileResult.error
+      ?? childResult.error
+      ?? registrationResult.error
+      ?? libraryResult.error
+      ?? weeklyResult.error
+      ?? readingResult.error
+      ?? notesResult.error
+
+    const nextChildren = (childResult.data ?? []) as Child[]
+    setProfile(profileResult.data as Profile | null)
+    setChildren(nextChildren)
+    setRegistrations((registrationResult.data ?? []) as Registration[])
+    setLibrary((libraryResult.data ?? []) as LearningAssignment[])
+    setWeeklyAssignments((weeklyResult.data ?? []) as StudentAssignment[])
+    setReadingLogs((readingResult.data ?? []) as ReadingLog[])
+    setNotes((notesResult.data ?? []) as LearningNote[])
+    setAssignChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
+    setReadingChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
+    setNoteChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
+    if (error) setMessage(error.message)
+    setLoading(false)
+  }
+
+  const childById = useMemo(() => new Map(children.map((child) => [child.id, child])), [children])
+  const registrationByChild = useMemo(() => new Map(registrations.map((registration) => [registration.child_id, registration])), [registrations])
+  const assignmentById = useMemo(() => new Map(library.map((assignment) => [assignment.id, assignment])), [library])
+  const gradeOptions = useMemo(() => [...new Set(registrations.map((registration) => registration.grade?.trim()).filter((grade): grade is string => Boolean(grade)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [registrations])
+
+  useEffect(() => {
+    if (!assignGrade && gradeOptions.length) setAssignGrade(gradeOptions[0])
+  }, [gradeOptions, assignGrade])
+
+  const filteredLibrary = useMemo(() => {
+    const needle = librarySearch.trim().toLowerCase()
+    return library.filter((assignment) => {
+      if (subjectFilter !== 'all' && assignment.subject !== subjectFilter) return false
+      if (gradeFilter !== 'all' && !assignment.grade_levels.includes(gradeFilter)) return false
+      if (!needle) return true
+      return [assignment.title, assignment.skill ?? '', assignment.instructions ?? '', subjectLabels[assignment.subject]]
+        .join(' ')
+        .toLowerCase()
+        .includes(needle)
+    })
+  }, [library, librarySearch, subjectFilter, gradeFilter])
+
+  const selectedAssignment = useMemo(() => library.find((assignment) => assignment.id === selectedAssignmentId) ?? null, [library, selectedAssignmentId])
+
+  const weeklyByChild = useMemo(() => {
+    const map = new Map<number, StudentAssignment[]>()
+    for (const row of weeklyAssignments) {
+      const current = map.get(row.child_id) ?? []
+      current.push(row)
+      map.set(row.child_id, current)
+    }
+    return map
+  }, [weeklyAssignments])
+
+  const readingByChild = useMemo(() => {
+    const map = new Map<number, ReadingLog[]>()
+    for (const row of readingLogs) {
+      const current = map.get(row.child_id) ?? []
+      current.push(row)
+      map.set(row.child_id, current)
+    }
+    return map
+  }, [readingLogs])
+
+  const weeklyChildren = useMemo(() => children.filter((child) => (weeklyByChild.get(child.id)?.length ?? 0) > 0 || (readingByChild.get(child.id)?.length ?? 0) > 0), [children, weeklyByChild, readingByChild])
+
+  const metrics = useMemo(() => ({
+    assigned: weeklyAssignments.length,
+    completed: weeklyAssignments.filter((row) => row.status === 'completed').length,
+    readingMinutes: readingLogs.reduce((sum, row) => sum + Number(row.minutes), 0),
+    children: new Set([...weeklyAssignments.map((row) => row.child_id), ...readingLogs.map((row) => row.child_id)]).size,
+  }), [weeklyAssignments, readingLogs])
+
+  function showMessage(text: string) {
+    setMessage(text)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function createAssignment() {
+    if (!session || profile?.role !== 'admin' || saving || !newTitle.trim()) return
+    const grades = [...new Set(newGrades.split(',').map((grade) => grade.trim()).filter(Boolean))]
+    setSaving(true)
+    setMessage('')
+    const { data, error } = await supabase.from('learning_assignments').insert({
+      title: newTitle.trim(),
+      subject: newSubject,
+      assignment_type: newType,
+      skill: newSkill.trim() || null,
+      grade_levels: grades,
+      difficulty: newDifficulty,
+      delivery_format: newFormat,
+      instructions: newInstructions.trim() || null,
+      estimated_minutes: newMinutes ? Math.max(1, Number(newMinutes)) : null,
+      resource_url: newResourceUrl.trim() || null,
+      created_by: session.user.id,
+    }).select('id').single()
+
+    setSaving(false)
+    if (error) return showMessage(error.message)
+
+    setNewTitle('')
+    setNewSkill('')
+    setNewGrades('')
+    setNewMinutes('')
+    setNewInstructions('')
+    setNewResourceUrl('')
+    setMessage('Assignment added to the library.')
+    if (data?.id) setSelectedAssignmentId(data.id as number)
+    await loadData()
+  }
+
+  async function assignWork() {
+    if (!session || !selectedAssignment || saving) return
+    const targetChildIds = assignMode === 'child'
+      ? (assignChildId ? [assignChildId] : [])
+      : children.filter((child) => registrationByChild.get(child.id)?.grade === assignGrade).map((child) => child.id)
+
+    if (!targetChildIds.length) return showMessage(assignMode === 'grade' ? 'No active students are currently registered in that grade.' : 'Choose a student first.')
+
+    const existingKeys = new Set(weeklyAssignments.map((row) => row.child_id + ':' + row.assignment_id))
+    const rows = targetChildIds
+      .filter((childId) => !existingKeys.has(childId + ':' + selectedAssignment.id))
+      .map((childId) => ({
+        child_id: childId,
+        assignment_id: selectedAssignment.id,
+        week_start: weekStart,
+        due_date: assignDueDate || null,
+        assigned_by: session.user.id,
+        updated_by: session.user.id,
+      }))
+
+    if (!rows.length) return showMessage('That assignment is already assigned to the selected student or grade for this week.')
+
+    setSaving(true)
+    const { error } = await supabase.from('learning_student_assignments').insert(rows)
+    setSaving(false)
+    if (error) return showMessage(error.message)
+
+    setMessage('Assigned ' + selectedAssignment.title + ' to ' + rows.length + ' student' + (rows.length === 1 ? '' : 's') + '.')
+    await loadData()
+  }
+
+  async function updateStatus(row: StudentAssignment, status: StudentAssignment['status']) {
+    if (!session || saving) return
+    setSaving(true)
+    const { error } = await supabase.from('learning_student_assignments').update({
+      status,
+      completed_at: status === 'completed' ? new Date().toISOString() : null,
+      updated_by: session.user.id,
+      updated_at: new Date().toISOString(),
+    }).eq('id', row.id)
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    await loadData()
+  }
+
+  async function addReadingLog() {
+    if (!session || !readingChildId || saving) return
+    const minutes = Number(readingMinutes)
+    if (!Number.isFinite(minutes) || minutes <= 0) return showMessage('Enter the number of minutes read.')
+    setSaving(true)
+    const { error } = await supabase.from('learning_reading_logs').insert({
+      child_id: readingChildId,
+      read_on: readingDate,
+      title: readingTitle.trim() || null,
+      minutes: Math.round(minutes),
+      pages: readingPages.trim() || null,
+      note: readingNote.trim() || null,
+      recorded_by: session.user.id,
+    })
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    setReadingTitle('')
+    setReadingPages('')
+    setReadingNote('')
+    setMessage('Reading time recorded.')
+    await loadData()
+  }
+
+  async function addNote() {
+    if (!session || !noteChildId || saving || !noteText.trim()) return
+    setSaving(true)
+    const { error } = await supabase.from('learning_staff_notes').insert({
+      child_id: noteChildId,
+      note_date: noteDate,
+      note: noteText.trim(),
+      created_by: session.user.id,
+    })
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    setNoteText('')
+    setMessage('Learning note saved.')
+    await loadData()
+  }
+
+  if (loading && !session) return <main className="login-wrap"><div className="card login-card">Loading Learning Hub…</div></main>
+  if (!session) return <main className="login-wrap"><section className="card login-card"><h1>Learning Hub</h1><p className="subtle">Sign in through Juanita Hub to manage student learning.</p></section></main>
+  if (!profile?.active) return <main className="login-wrap"><section className="card login-card"><h1>Learning Hub</h1><div className="notice">Your staff account must be active to use Learning Hub.</div></section></main>
+
+  return (
+    <div className="shell">
+      <header className="topbar">
+        <div className="brand">Juanita Hub<small>Learning Hub</small></div>
+        <div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span></div>
+      </header>
+
+      <main className="main learning-page">
+        <section className="learning-hero">
+          <div>
+            <span className="learning-kicker">Supplemental learning</span>
+            <h1>Learning Hub</h1>
+            <p>Plan the week, assign practice, record reading, and keep lightweight academic notes without turning the center into a school.</p>
+          </div>
+          <label className="field learning-week-picker"><span>Week of</span><input type="date" value={weekStart} onChange={(event) => event.target.value && setWeekStart(mondayFor(event.target.value))} /></label>
+        </section>
+
+        {message && <div className="notice">{message}</div>}
+
+        {tab === 'week' && (
+          <section className="learning-section">
+            <div className="learning-heading"><div><span className="learning-kicker">This week</span><h2>{weekLabel(weekStart)}</h2><p>One view of assigned practice and reading activity for the week.</p></div></div>
+            <div className="learning-metrics">
+              <article><strong>{metrics.assigned}</strong><span>Assignments</span><small>{metrics.completed} completed</small></article>
+              <article><strong>{metrics.children}</strong><span>Students active</span><small>Assignments or reading</small></article>
+              <article><strong>{metrics.readingMinutes}</strong><span>Reading minutes</span><small>Recorded this week</small></article>
+              <article><strong>{metrics.assigned ? Math.round((metrics.completed / metrics.assigned) * 100) : 0}%</strong><span>Completion</span><small>Across assigned work</small></article>
+            </div>
+
+            {weeklyChildren.length === 0 ? (
+              <section className="card learning-empty"><span>📘</span><h2>No learning activity yet this week</h2><p>Use Assignment Library to assign work, or Reading to log time with a book.</p></section>
+            ) : (
+              <div className="learning-student-list">
+                {weeklyChildren.map((child) => {
+                  const assignments = weeklyByChild.get(child.id) ?? []
+                  const logs = readingByChild.get(child.id) ?? []
+                  const minutes = logs.reduce((sum, row) => sum + Number(row.minutes), 0)
+                  return (
+                    <article className="card learning-student-card" key={child.id}>
+                      <header>
+                        <span className="learning-avatar">{child.first_name[0]?.toUpperCase()}</span>
+                        <span><strong>{childName(child)}</strong><small>{registrationByChild.get(child.id)?.grade ? 'Grade ' + registrationByChild.get(child.id)?.grade : 'Grade not recorded'} • {minutes} reading min</small></span>
+                        <span className="learning-progress">{assignments.filter((row) => row.status === 'completed').length}/{assignments.length} done</span>
+                      </header>
+                      <div className="learning-assignment-list">
+                        {assignments.map((row) => {
+                          const assignment = assignmentById.get(row.assignment_id)
+                          if (!assignment) return null
+                          return (
+                            <div className="learning-assignment-row" key={row.id}>
+                              <span className="learning-subject-icon">{subjectIcons[assignment.subject]}</span>
+                              <span className="learning-assignment-copy"><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small></span>
+                              <span className={'learning-status ' + row.status}>{statusLabel(row.status)}</span>
+                              <span className="learning-row-actions">
+                                {row.status === 'assigned' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'in_progress')}>Start</button>}
+                                {row.status !== 'completed' && <button className="primary" type="button" disabled={saving} onClick={() => void updateStatus(row, 'completed')}>Complete</button>}
+                                {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'assigned')}>Reopen</button>}
+                              </span>
+                            </div>
+                          )
+                        })}
+                        {assignments.length === 0 && <div className="learning-inline-empty">No assignments yet — reading activity only.</div>}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {tab === 'library' && (
+          <section className="learning-section">
+            <div className="learning-heading"><div><span className="learning-kicker">Reusable activities</span><h2>Assignment Library</h2><p>Organize work by subject, skill, grade, difficulty, and whether it is digital or printable.</p></div></div>
+
+            {profile.role === 'admin' && (
+              <details className="card learning-create-card">
+                <summary>＋ Add assignment to library</summary>
+                <div className="learning-form-grid">
+                  <label className="field wide"><span>Assignment title</span><input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="Example: Main idea practice" /></label>
+                  <label className="field"><span>Subject</span><select value={newSubject} onChange={(event) => setNewSubject(event.target.value as Subject)}>{Object.entries(subjectLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+                  <label className="field"><span>Type</span><select value={newType} onChange={(event) => setNewType(event.target.value as AssignmentType)}><option value="activity">Activity</option><option value="reading">Reading</option><option value="writing">Writing</option><option value="quiz">Quiz</option><option value="typing">Typing</option><option value="worksheet">Worksheet</option><option value="practice">Practice</option></select></label>
+                  <label className="field"><span>Skill</span><input value={newSkill} onChange={(event) => setNewSkill(event.target.value)} placeholder="Main idea, punctuation…" /></label>
+                  <label className="field"><span>Grades</span><input value={newGrades} onChange={(event) => setNewGrades(event.target.value)} placeholder="3, 4, 5" /></label>
+                  <label className="field"><span>Difficulty</span><select value={newDifficulty} onChange={(event) => setNewDifficulty(event.target.value as Difficulty)}><option value="support">Support</option><option value="standard">Standard</option><option value="challenge">Challenge</option></select></label>
+                  <label className="field"><span>Format</span><select value={newFormat} onChange={(event) => setNewFormat(event.target.value as DeliveryFormat)}><option value="either">Digital or printable</option><option value="digital">Digital</option><option value="printable">Printable</option></select></label>
+                  <label className="field"><span>Est. minutes</span><input type="number" min="1" max="240" value={newMinutes} onChange={(event) => setNewMinutes(event.target.value)} placeholder="20" /></label>
+                  <label className="field wide"><span>Instructions</span><textarea rows={3} value={newInstructions} onChange={(event) => setNewInstructions(event.target.value)} placeholder="What should the student do?" /></label>
+                  <label className="field wide"><span>Resource link <small>(optional)</small></span><input type="url" value={newResourceUrl} onChange={(event) => setNewResourceUrl(event.target.value)} placeholder="https://…" /></label>
+                </div>
+                <button className="primary" type="button" disabled={saving || !newTitle.trim()} onClick={() => void createAssignment()}>{saving ? 'Saving…' : 'Add to library'}</button>
+              </details>
+            )}
+
+            <div className="learning-library-layout">
+              <section className="card learning-library-card">
+                <div className="learning-library-filters">
+                  <label className="field wide"><span>Search</span><input type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="Search title, skill, or instructions…" /></label>
+                  <label className="field"><span>Subject</span><select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value as typeof subjectFilter)}><option value="all">All subjects</option>{Object.entries(subjectLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+                  <label className="field"><span>Grade</span><select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>{grade}</option>)}</select></label>
+                </div>
+                <div className="learning-library-list">
+                  {filteredLibrary.map((assignment) => (
+                    <button type="button" className={'learning-library-item ' + (selectedAssignmentId === assignment.id ? 'selected' : '')} onClick={() => setSelectedAssignmentId(assignment.id)} key={assignment.id}>
+                      <span className="learning-subject-icon">{subjectIcons[assignment.subject]}</span>
+                      <span><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}</small><em>{assignment.grade_levels.length ? 'Grades ' + assignment.grade_levels.join(', ') : 'All grades'} • {assignment.delivery_format} • {assignment.difficulty}</em></span>
+                    </button>
+                  ))}
+                  {filteredLibrary.length === 0 && <div className="learning-inline-empty">No assignments match these filters yet.</div>}
+                </div>
+              </section>
+
+              <aside className="card learning-assign-card">
+                <span className="learning-kicker">Assign work</span>
+                <h2>{selectedAssignment?.title ?? 'Choose an assignment'}</h2>
+                {selectedAssignment ? <>
+                  <p>{selectedAssignment.instructions || 'No additional instructions.'}</p>
+                  <div className="learning-selected-meta"><span>{subjectLabels[selectedAssignment.subject]}</span><span>{selectedAssignment.delivery_format}</span><span>{selectedAssignment.estimated_minutes ? selectedAssignment.estimated_minutes + ' min' : 'No time estimate'}</span></div>
+                  <div className="learning-toggle">
+                    <button type="button" className={assignMode === 'child' ? 'active' : ''} onClick={() => setAssignMode('child')}>One student</button>
+                    <button type="button" className={assignMode === 'grade' ? 'active' : ''} onClick={() => setAssignMode('grade')}>Whole grade</button>
+                  </div>
+                  {assignMode === 'child'
+                    ? <label className="field"><span>Student</span><select value={assignChildId ?? ''} onChange={(event) => setAssignChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{registrationByChild.get(child.id)?.grade ? ' — Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}</select></label>
+                    : <label className="field"><span>Grade</span><select value={assignGrade} onChange={(event) => setAssignGrade(event.target.value)}>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>}
+                  <label className="field"><span>Week</span><input type="date" value={weekStart} onChange={(event) => event.target.value && setWeekStart(mondayFor(event.target.value))} /></label>
+                  <label className="field"><span>Due date <small>(optional)</small></span><input type="date" value={assignDueDate} onChange={(event) => setAssignDueDate(event.target.value)} /></label>
+                  <button className="primary" type="button" disabled={saving} onClick={() => void assignWork()}>{saving ? 'Assigning…' : assignMode === 'grade' ? 'Assign to grade' : 'Assign to student'}</button>
+                </> : <div className="learning-inline-empty">Select an assignment from the library to assign it for {weekLabel(weekStart)}.</div>}
+              </aside>
+            </div>
+          </section>
+        )}
+
+        {tab === 'reading' && (
+          <section className="learning-section">
+            <div className="learning-heading"><div><span className="learning-kicker">Reading practice</span><h2>Reading Log</h2><p>Track minutes and books without requiring a full assignment.</p></div></div>
+            <div className="learning-two-column">
+              <section className="card">
+                <h2>Record reading</h2>
+                <label className="field"><span>Student</span><select value={readingChildId ?? ''} onChange={(event) => setReadingChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}</option>)}</select></label>
+                <div className="learning-form-grid">
+                  <label className="field"><span>Date</span><input type="date" value={readingDate} onChange={(event) => setReadingDate(event.target.value)} /></label>
+                  <label className="field"><span>Minutes</span><input type="number" min="1" max="600" value={readingMinutes} onChange={(event) => setReadingMinutes(event.target.value)} /></label>
+                  <label className="field wide"><span>Book / text</span><input value={readingTitle} onChange={(event) => setReadingTitle(event.target.value)} placeholder="Optional title" /></label>
+                  <label className="field"><span>Pages</span><input value={readingPages} onChange={(event) => setReadingPages(event.target.value)} placeholder="12–24" /></label>
+                  <label className="field wide"><span>Note</span><textarea rows={3} value={readingNote} onChange={(event) => setReadingNote(event.target.value)} placeholder="Optional reading note" /></label>
+                </div>
+                <button className="primary" type="button" disabled={saving || !readingChildId} onClick={() => void addReadingLog()}>{saving ? 'Saving…' : 'Record reading'}</button>
+              </section>
+
+              <section className="card">
+                <div className="section-heading"><div><h2>{weekLabel(weekStart)}</h2><p className="subtle">{metrics.readingMinutes} total minutes recorded.</p></div></div>
+                <div className="learning-log-list">
+                  {readingLogs.map((row) => {
+                    const child = childById.get(row.child_id)
+                    return <article key={row.id}><span className="learning-avatar small">{child?.first_name[0]?.toUpperCase() ?? '?'}</span><span><strong>{child ? childName(child) : 'Student'} • {row.minutes} min</strong><small>{dateLabel(row.read_on)}{row.title ? ' • ' + row.title : ''}{row.pages ? ' • pages ' + row.pages : ''}</small>{row.note && <p>{row.note}</p>}</span></article>
+                  })}
+                  {readingLogs.length === 0 && <div className="learning-inline-empty">No reading has been recorded for this week yet.</div>}
+                </div>
+              </section>
+            </div>
+          </section>
+        )}
+
+        {tab === 'notes' && (
+          <section className="learning-section">
+            <div className="learning-heading"><div><span className="learning-kicker">Staff observations</span><h2>Learning Notes</h2><p>Keep short academic observations separate from behavior notes and medical information.</p></div></div>
+            <div className="learning-two-column">
+              <section className="card">
+                <h2>Add note</h2>
+                <label className="field"><span>Student</span><select value={noteChildId ?? ''} onChange={(event) => setNoteChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}</option>)}</select></label>
+                <label className="field"><span>Date</span><input type="date" value={noteDate} onChange={(event) => setNoteDate(event.target.value)} /></label>
+                <label className="field"><span>Observation</span><textarea rows={5} value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder="Example: Needed less help finding the main idea today." /></label>
+                <button className="primary" type="button" disabled={saving || !noteChildId || !noteText.trim()} onClick={() => void addNote()}>{saving ? 'Saving…' : 'Save learning note'}</button>
+              </section>
+
+              <section className="card">
+                <div className="section-heading"><div><h2>Recent notes</h2><p className="subtle">Latest academic observations across active students.</p></div><span className="badge">{notes.length}</span></div>
+                <div className="learning-log-list">
+                  {notes.map((row) => {
+                    const child = childById.get(row.child_id)
+                    return <article key={row.id}><span className="learning-avatar small">{child?.first_name[0]?.toUpperCase() ?? '?'}</span><span><strong>{child ? childName(child) : 'Student'}</strong><small>{dateLabel(row.note_date)}</small><p>{row.note}</p></span></article>
+                  })}
+                  {notes.length === 0 && <div className="learning-inline-empty">No learning notes have been added yet.</div>}
+                </div>
+              </section>
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
+  )
+}
