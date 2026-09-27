@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import AssignmentCompletionDialog from '@/components/AssignmentCompletionDialog'
+import AssignmentPreviewDialog from '@/components/AssignmentPreviewDialog'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
@@ -225,6 +226,7 @@ export default function LearningPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
   const [starterAdding, setStarterAdding] = useState(false)
+  const [previewAssignment, setPreviewAssignment] = useState<LearningAssignment | null>(null)
 
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState<Subject>('reading')
@@ -827,6 +829,7 @@ export default function LearningPage() {
                                   </button>
                                   {profile.role === 'admin' && (
                                     <div className="learning-library-item-actions">
+                                      <button className="ghost" type="button" onClick={() => setPreviewAssignment(assignment)}>Preview</button>
                                       <button className="ghost" type="button" disabled={saving} onClick={() => beginEditAssignment(assignment)}>Edit</button>
                                       <button className="ghost" type="button" disabled={saving} onClick={() => void duplicateAssignment(assignment)}>Duplicate</button>
                                       <button className="ghost" type="button" disabled={saving} onClick={() => void toggleAssignmentArchive(assignment)}>{assignment.active ? 'Archive' : 'Reactivate'}</button>
@@ -858,6 +861,8 @@ export default function LearningPage() {
                     <span>{selectedAssignment.grade_levels.length ? 'Grades ' + selectedAssignment.grade_levels.join(', ') : 'All grades'}</span>
                   </div>
                   {selectedAssignment.resource_url && <a className="learning-resource-link" href={selectedAssignment.resource_url} target="_blank" rel="noreferrer">Open resource ↗</a>}
+
+                  <button className="learning-preview-button primary" type="button" onClick={() => setPreviewAssignment(selectedAssignment)}>👁 Preview assignment</button>
 
                   {profile.role === 'admin' && (
                     <div className="learning-selected-admin-actions">
@@ -961,6 +966,11 @@ export default function LearningPage() {
         userId={session.user.id}
         onClose={() => setCompletionTarget(null)}
         onSaved={loadData}
+      />
+
+      <AssignmentPreviewDialog
+        assignment={previewAssignment}
+        onClose={() => setPreviewAssignment(null)}
       />
     </div>
   )
