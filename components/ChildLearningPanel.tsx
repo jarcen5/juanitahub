@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import AssignmentCompletionDialog from '@/components/AssignmentCompletionDialog'
 
 type Assignment = {
   id: number
@@ -21,6 +22,10 @@ type StudentAssignment = {
   due_date: string | null
   status: 'assigned' | 'in_progress' | 'completed' | 'skipped'
   completed_at: string | null
+  score: number | null
+  max_score: number | null
+  minutes_spent: number | null
+  staff_note: string | null
 }
 
 type ReadingLog = {
@@ -108,6 +113,7 @@ export default function ChildLearningPanel({ childId, childName, grade, userId }
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [completionTarget, setCompletionTarget] = useState<StudentAssignment | null>(null)
 
   useEffect(() => {
     void loadLearning()
@@ -124,7 +130,7 @@ export default function ChildLearningPanel({ childId, childName, grade, userId }
         .order('subject')
         .order('title'),
       supabase.from('learning_student_assignments')
-        .select('id, assignment_id, week_start, due_date, status, completed_at')
+        .select('id, assignment_id, week_start, due_date, status, completed_at, score, max_score, minutes_spent, staff_note')
         .eq('child_id', childId)
         .gte('week_start', fourWeekStart)
         .lte('week_start', currentWeek)
@@ -273,8 +279,15 @@ export default function ChildLearningPanel({ childId, childName, grade, userId }
               return (
                 <article key={row.id}>
                   <span className="child-learning-subject">{subjectIcons[assignment.subject]}</span>
-                  <span><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small></span>
-                  <em className={'child-learning-status ' + row.status}>{statusLabel(row.status)}</em>
+                  <span className="child-learning-current-copy">
+                    <strong>{assignment.title}</strong>
+                    <small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small>
+                    {row.status === 'completed' && (row.score != null || row.minutes_spent != null || row.staff_note) && <span className="child-learning-completion-meta">{row.score != null && row.max_score != null ? `Score ${row.score}/${row.max_score} • ${Math.round((row.score / row.max_score) * 100)}%` : ''}{row.score != null && row.max_score != null && row.minutes_spent != null ? ' • ' : ''}{row.minutes_spent != null ? row.minutes_spent + ' min' : ''}{(row.score != null || row.minutes_spent != null) && row.staff_note ? ' • ' : ''}{row.staff_note || ''}</span>}
+                  </span>
+                  <span className="child-learning-row-end">
+                    <em className={'child-learning-status ' + row.status}>{statusLabel(row.status)}</em>
+                    <button className={row.status === 'completed' ? 'ghost' : 'primary'} type="button" onClick={() => setCompletionTarget(row)}>{row.status === 'completed' ? 'Edit' : 'Complete'}</button>
+                  </span>
                 </article>
               )
             })}
@@ -331,6 +344,15 @@ export default function ChildLearningPanel({ childId, childName, grade, userId }
           </div>
         </div>
       </div>
+
+      <AssignmentCompletionDialog
+        row={completionTarget}
+        assignmentTitle={completionTarget ? assignmentById.get(completionTarget.assignment_id)?.title ?? 'Assignment' : ''}
+        studentName={childName}
+        userId={userId}
+        onClose={() => setCompletionTarget(null)}
+        onSaved={loadLearning}
+      />
     </section>
   )
 }
