@@ -1226,10 +1226,66 @@ export default function LearningPage() {
                       </div>
                     </section>
                   )}
+                  {newType === 'quiz' && (
+                    <section className="learning-quiz-editor wide">
+                      <div className="learning-quiz-editor-heading">
+                        <span>🧠</span>
+                        <div><strong>Quiz Builder</strong><small>Build grammar, vocabulary, spelling, or short reading-comprehension practice.</small></div>
+                      </div>
+
+                      <div className="learning-quiz-settings">
+                        <label className="field"><span>Goal / passing score %</span><input type="number" min="0" max="100" step="1" value={quizPassingScore} onChange={(event) => setQuizPassingScore(event.target.value)} /></label>
+                        <label className="learning-check-row"><input type="checkbox" checked={quizShowExplanations} onChange={(event) => setQuizShowExplanations(event.target.checked)} /><span>Show explanations after answers</span></label>
+                      </div>
+
+                      <div className="learning-quiz-question-list">
+                        {quizQuestions.map((question, questionIndex) => (
+                          <article className="learning-quiz-question-editor" key={question.id}>
+                            <header>
+                              <span><strong>Question {questionIndex + 1}</strong><small>{quizQuestionTypeLabels[question.type]}</small></span>
+                              <span className="learning-quiz-question-actions">
+                                <button className="ghost" type="button" disabled={questionIndex === 0} onClick={() => moveQuizQuestion(questionIndex, -1)}>↑</button>
+                                <button className="ghost" type="button" disabled={questionIndex === quizQuestions.length - 1} onClick={() => moveQuizQuestion(questionIndex, 1)}>↓</button>
+                                <button className="ghost" type="button" onClick={() => setQuizQuestions((questions) => questions.filter((item) => item.id !== question.id))}>Remove</button>
+                              </span>
+                            </header>
+
+                            <div className="learning-quiz-question-grid">
+                              <label className="field"><span>Question type</span><select value={question.type} onChange={(event) => changeQuizQuestionType(question.id, event.target.value as QuizQuestionType)}>{Object.entries(quizQuestionTypeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+                              {question.type === 'reading_comprehension' && <label className="field wide"><span>Reading passage</span><textarea rows={5} value={question.passage ?? ''} onChange={(event) => updateQuizQuestion(question.id, { passage: event.target.value })} placeholder="Add the short passage the student should read…" /></label>}
+                              <label className="field wide"><span>Question / prompt</span><textarea rows={2} value={question.prompt} onChange={(event) => updateQuizQuestion(question.id, { prompt: event.target.value })} placeholder={question.type === 'fill_blank' ? 'Example: We visit our family every ___.' : 'Type the question the student will answer…'} /></label>
+
+                              {isQuizChoiceType(question.type) ? (
+                                <div className="learning-quiz-choices wide">
+                                  <span>Answer choices</span>
+                                  {(question.choices ?? ['', '', '', '']).map((choice, choiceIndex) => (
+                                    <label key={choiceIndex}>
+                                      <input type="radio" name={'correct-' + question.id} checked={Boolean(choice.trim()) && normalizeQuizText(choice) === normalizeQuizText(question.correct_answer)} onChange={() => updateQuizQuestion(question.id, { correct_answer: choice })} />
+                                      <input value={choice} onChange={(event) => updateQuizChoice(question.id, choiceIndex, event.target.value)} placeholder={'Choice ' + (choiceIndex + 1)} />
+                                    </label>
+                                  ))}
+                                  <small>Select the radio button beside the correct choice.</small>
+                                </div>
+                              ) : (
+                                <label className="field wide"><span>Correct answer</span><input value={question.correct_answer} onChange={(event) => updateQuizQuestion(question.id, { correct_answer: event.target.value })} placeholder={question.type === 'spelling' ? 'Correct word' : 'Answer'} /></label>
+                              )}
+
+                              <label className="field wide"><span>Explanation <small>(optional)</small></span><textarea rows={2} value={question.explanation ?? ''} onChange={(event) => updateQuizQuestion(question.id, { explanation: event.target.value })} placeholder="Explain why the answer is correct…" /></label>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+
+                      <div className="learning-quiz-add-row">
+                        <button className="primary" type="button" onClick={() => setQuizQuestions((questions) => [...questions, makeQuestion()])}>＋ Add question</button>
+                        <span>{quizQuestions.length} question{quizQuestions.length === 1 ? '' : 's'}</span>
+                      </div>
+                    </section>
+                  )}
                 </div>
                 <div className="learning-editor-actions">
                   <button className="ghost" type="button" disabled={saving} onClick={() => { resetAssignmentEditor(); setEditorOpen(false) }}>Cancel</button>
-                  <button className="primary" type="button" disabled={saving || !newTitle.trim() || (newType === 'typing' && ((typingMode === 'passage' && !typingPassage.trim()) || (typingMode !== 'passage' && !typingFocusKeys.trim())))} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
+                  <button className="primary" type="button" disabled={saving || !newTitle.trim() || (newType === 'typing' && ((typingMode === 'passage' && !typingPassage.trim()) || (typingMode !== 'passage' && !typingFocusKeys.trim()))) || (newType === 'quiz' && quizQuestions.length === 0)} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
                 </div>
               </section>
             )}
