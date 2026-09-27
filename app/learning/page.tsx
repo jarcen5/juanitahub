@@ -1504,6 +1504,78 @@ export default function LearningPage() {
           </section>
         )}
 
+        {tab === 'quizzes' && (
+          <section className="learning-section">
+            <div className="learning-heading">
+              <div>
+                <span className="learning-kicker">Interactive practice</span>
+                <h2>Quiz Lab</h2>
+                <p>Run grammar, vocabulary, spelling, and reading-comprehension quizzes with automatic scoring and saved attempt history.</p>
+              </div>
+            </div>
+
+            <div className="learning-metrics">
+              <article><strong>{quizSummary.assigned}</strong><span>Quiz assignments</span><small>{quizSummary.completed} completed this week</small></article>
+              <article><strong>{quizSummary.attempts}</strong><span>Attempts</span><small>Saved for this week’s quizzes</small></article>
+              <article><strong>{quizSummary.attempts ? quizSummary.averagePercent.toFixed(1) + '%' : '—'}</strong><span>Average score</span><small>Across saved attempts</small></article>
+              <article><strong>{quizSummary.assigned ? Math.round((quizSummary.completed / quizSummary.assigned) * 100) + '%' : '0%'}</strong><span>Completion</span><small>Assigned quizzes completed</small></article>
+            </div>
+
+            {weeklyQuizAssignments.length === 0 ? (
+              <section className="card learning-empty">
+                <span>🧠</span>
+                <h2>No quizzes assigned this week</h2>
+                <p>Create or choose a Quiz assignment in Assignment Library, then assign it to a student or grade.</p>
+                <button className="primary" type="button" onClick={() => { window.location.hash = 'library'; setTab('library'); setSubjectFilter('grammar') }}>Open quiz assignments</button>
+              </section>
+            ) : (
+              <div className="quiz-lab-grid">
+                <section className="card quiz-lab-assignments">
+                  <div className="section-heading"><div><h2>{weekLabel(weekStart)}</h2><p className="subtle">Assigned quizzes</p></div></div>
+                  <div className="quiz-lab-list">
+                    {weeklyQuizAssignments.map((row) => {
+                      const assignment = assignmentById.get(row.assignment_id)
+                      const child = childById.get(row.child_id)
+                      if (!assignment || !child) return null
+                      const attempts = weeklyQuizAttempts.filter((attempt) => attempt.student_assignment_id === row.id)
+                      const latest = attempts[0]
+                      return (
+                        <article key={row.id}>
+                          <span className="learning-avatar">{child.first_name[0]?.toUpperCase()}</span>
+                          <span className="quiz-lab-row-copy">
+                            <strong>{childName(child)}</strong>
+                            <small>{assignment.title} • {assignment.activity_config?.questions?.length ?? 0} questions{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</small>
+                            {latest && <em>Latest: {latest.correct_count}/{latest.question_count} • {Number(latest.percent).toFixed(1)}%</em>}
+                          </span>
+                          <span className={'learning-status ' + row.status}>{statusLabel(row.status)}</span>
+                          <button className="primary" type="button" onClick={() => setQuizTarget({ row, child, assignment })}>{attempts.length ? 'Try again' : 'Launch'}</button>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </section>
+
+                <section className="card quiz-attempt-history">
+                  <div className="section-heading"><div><h2>Recent results</h2><p className="subtle">Quiz attempts for the selected week.</p></div><span className="badge">{weeklyQuizAttempts.length}</span></div>
+                  <div className="quiz-history-list">
+                    {weeklyQuizAttempts.slice(0, 12).map((attempt) => {
+                      const child = childById.get(attempt.child_id)
+                      const assignment = assignmentById.get(attempt.assignment_id)
+                      return (
+                        <article key={attempt.id}>
+                          <span><strong>{child ? childName(child) : 'Student'}</strong><small>{assignment?.title ?? 'Quiz'} • {new Date(attempt.created_at).toLocaleDateString()}</small></span>
+                          <span><strong>{attempt.correct_count}/{attempt.question_count}</strong><small>{Number(attempt.percent).toFixed(1)}% • {Math.max(1, Math.ceil(attempt.duration_seconds / 60))} min</small></span>
+                        </article>
+                      )
+                    })}
+                    {weeklyQuizAttempts.length === 0 && <div className="learning-inline-empty">No quiz attempts have been completed for this week yet.</div>}
+                  </div>
+                </section>
+              </div>
+            )}
+          </section>
+        )}
+
         {tab === 'reading' && (
           <section className="learning-section">
             <div className="learning-heading"><div><span className="learning-kicker">Reading practice</span><h2>Reading Log</h2><p>Track minutes and books without requiring a full assignment.</p></div></div>
@@ -1591,6 +1663,20 @@ export default function LearningPage() {
           activityConfig={typingTarget.assignment.activity_config}
           userId={session.user.id}
           onClose={() => setTypingTarget(null)}
+          onSaved={loadData}
+        />
+      )}
+
+      {quizTarget && (
+        <QuizActivityRunner
+          studentAssignmentId={quizTarget.row.id}
+          childId={quizTarget.child.id}
+          assignmentId={quizTarget.assignment.id}
+          assignmentTitle={quizTarget.assignment.title}
+          studentName={childName(quizTarget.child)}
+          activityConfig={quizTarget.assignment.activity_config}
+          userId={session.user.id}
+          onClose={() => setQuizTarget(null)}
           onSaved={loadData}
         />
       )}
