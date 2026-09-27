@@ -437,6 +437,30 @@ export default function SiteNavigation() {
               const active = itemTab
                 ? pathname === itemBase && currentTab === itemTab
                 : pathname === item.href || pathname.startsWith(item.href + '/')
+
+              if (itemTab) {
+                return (
+                  <a
+                    className={`jh-workspace-link ${active ? 'active' : ''}`}
+                    href={item.href}
+                    key={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={(event) => {
+                      if (pathname !== itemBase) return
+                      event.preventDefault()
+                      if (window.location.hash.replace('#', '') !== itemTab) {
+                        window.location.hash = itemTab
+                      } else {
+                        window.dispatchEvent(new HashChangeEvent('hashchange'))
+                      }
+                      setLocationHash(itemTab)
+                    }}
+                  >
+                    {item.label}
+                  </a>
+                )
+              }
+
               return <Link className={`jh-workspace-link ${active ? 'active' : ''}`} href={item.href} key={item.href} aria-current={active ? 'page' : undefined}>{item.label}</Link>
             })}
           </div>
