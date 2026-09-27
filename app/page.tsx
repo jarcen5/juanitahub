@@ -269,10 +269,99 @@ export default function StaffHomePage() {
           <div className="field"><label>Password</label><input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} /></div>
           {authMode === 'signin' && <Link className="forgot-password-link" href="/forgot-password">Forgot password?</Link>}
           {message && <div className="notice">{message}</div>}
-          <button className="primary" type="button" onClick={handleAuth}>{authMode === 'signin' ? 'Sign in' : 'Create account'}</button>
-          <button className="link-button" type="button" onClick={() => setAuthMode((mode) => mode === 'signin' ? 'signup' : 'signin')}>
-            {authMode === 'signin' ? 'Need an account?' : 'Already have an account?'}
-          </button>
+
+        <section className="card home-find-card home-fast-card">
+          <div className="home-section-heading compact">
+            <div><span className="home-section-kicker">Find it fast</span><h2>Daily shortcuts</h2></div>
+            <p className="subtle">The four tools staff use most often.</p>
+          </div>
+          <div className="home-quick-grid" aria-label="Quick actions">
+            <Link className="home-quick-action blue" href="/attendance"><span className="home-quick-icon">✓</span><span><strong>Attendance</strong><small>{childSignIns} children • {communitySignIns} community sign-ins today</small></span></Link>
+            <Link className="home-quick-action green" href="/card-tracking"><span className="home-quick-icon">◆</span><span><strong>Card Tracking</strong><small>{missingCards === 0 ? 'All active children have a record today' : `${missingCards} children still need a card/status`}</small></span></Link>
+            <Link className="home-quick-action yellow" href="/rewards"><span className="home-quick-icon">★</span><span><strong>Reward Center</strong><small>Monthly spins and prize inventory</small></span></Link>
+            <Link replace className="home-quick-action purple" href="/kiosk"><span className="home-quick-icon">☺</span><span><strong>Launch Sign-In Kiosk</strong><small>Welcome board plus child and visitor sign-in</small></span></Link>
+          </div>
+        </section>
+
+        <details className="card home-today-overview">
+          <summary>
+            <span className="home-overview-summary-copy"><span className="home-section-kicker">Today at a glance</span><strong>Snapshot, assigned work & attention items</strong></span>
+            <span className="home-overview-summary-stats">
+              <span><strong>{presentNow}</strong><small>here now</small></span>
+              <span><strong>{childSignIns}</strong><small>children signed in</small></span>
+              <span><strong>{missingCards}</strong><small>cards remaining</small></span>
+            </span>
+            <span className="home-overview-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div className="home-overview-body">
+            <section className="home-overview-panel home-snapshot-card">
+              <div className="home-section-heading compact"><div><span className="home-section-kicker">Snapshot</span><h2>Today</h2></div></div>
+              <div className="home-snapshot-grid">
+                <div><strong>{presentNow}</strong><span>Here now</span><small>{childSignIns} children + {communityPresent} community</small></div>
+                <div><strong>{childSignIns}</strong><span>Children signed in</span><small>of {children.length} active</small></div>
+                <div><strong>{completedCards}</strong><span>Cards/statuses entered</span><small>{missingCards} still missing</small></div>
+                <div><strong>{communitySignIns}</strong><span>Community sign-ins</span><small>Today's total visits</small></div>
+              </div>
+            </section>
+
+            <DashboardTaskCard compact />
+
+            <section className="home-overview-panel home-attention-card">
+              <div className="home-section-heading compact"><div><span className="home-section-kicker">Needs attention</span><h2>Today</h2></div></div>
+              <div className="home-attention-list">
+                {childrenNotSignedIn > 0 ? <Link href="/attendance"><strong>{childrenNotSignedIn} child {childrenNotSignedIn === 1 ? 'has' : 'have'} not signed in</strong><small>Open Attendance →</small></Link> : <div className="home-all-clear"><strong>✓ All active children are signed in</strong><small>Attendance roster is complete for today.</small></div>}
+                {missingCards > 0 ? <Link href="/card-tracking"><strong>{missingCards} card/status {missingCards === 1 ? 'entry is' : 'entries are'} still missing</strong><small>Open Card Tracking →</small></Link> : <div className="home-all-clear"><strong>✓ Card tracking is complete</strong><small>All active children have an entry today.</small></div>}
+                <RewardFulfillmentTask />
+                <RegistrationReviewTask />
+                <InventoryLowStockTask />
+                <PurchasingAttentionTask />
+              </div>
+            </section>
+          </div>
+        </details>
+
+        <section className="home-content-grid">
+          <section className="card home-schedule-card">
+            <div className="home-section-heading"><div><span className="home-section-kicker">What’s happening</span><h2>Today’s Schedule</h2></div><Link className="ghost" href="/calendar">Open calendar →</Link></div>
+            <div className="home-schedule-list">
+              {calendarEvents.length === 0 && <div className="home-empty-state">No calendar events are planned for today yet.</div>}
+              {calendarEvents.map((event) => (
+                <div className="home-schedule-row" key={event.id}>
+                  <time>{calendarTimeLabel(event)}</time>
+                  <span>
+                    <strong>{calendarIcon(event.event_type)} {event.status === 'canceled' ? `Canceled: ${event.title}` : event.title}</strong>
+                    <small>{[event.location, event.visibility === 'staff' ? 'Staff only' : null].filter(Boolean).join(' • ') || 'Center calendar'}</small>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="card home-board-card">
+            <div className="home-section-heading compact"><div><span className="home-section-kicker">Staff board</span><h2>Announcements & Birthdays</h2></div></div>
+            <div className="home-board-section">
+              <div className="home-board-subheading"><span>📌</span><strong>Announcements</strong><span className="home-preview-pill">Coming soon</span></div>
+              <div className="home-announcements">
+                <article className="home-announcement"><span className="home-announcement-icon">📌</span><div><strong>No staff announcements posted</strong><p>This space is reserved for real center reminders once the announcement editor is added.</p></div></article>
+              </div>
+            </div>
+            <div className="home-board-divider" />
+            <div className="home-board-section">
+              <div className="home-board-subheading"><span>🎂</span><strong>Birthdays</strong></div>
+              {upcomingBirthdays.length === 0 ? (
+                <div className="home-empty-state">No birthdays in the next 7 days.</div>
+              ) : (
+                <div className="home-attention-list">
+                  {upcomingBirthdays.map(({ registration, child, days }) => child && (
+                    <Link href="/children" key={registration.child_id}>
+                      <strong>{days === 0 ? '🎉 Today: ' : '🎂 '}{child.first_name}{child.last_name ? ` ${child.last_name}` : ''}</strong>
+                      <small>{days === 0 ? 'Birthday today!' : `${birthdayDateLabel(registration.birth_date)} • ${days} day${days === 1 ? '' : 's'} away`}</small>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
         </section>
       </main>
     )
