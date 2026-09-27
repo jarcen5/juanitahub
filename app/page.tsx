@@ -269,6 +269,41 @@ export default function StaffHomePage() {
           <div className="field"><label>Password</label><input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} /></div>
           {authMode === 'signin' && <Link className="forgot-password-link" href="/forgot-password">Forgot password?</Link>}
           {message && <div className="notice">{message}</div>}
+          <button className="primary" type="button" onClick={handleAuth}>{authMode === 'signin' ? 'Sign in' : 'Create account'}</button>
+          <button className="link-button" type="button" onClick={() => setAuthMode((mode) => mode === 'signin' ? 'signup' : 'signin')}>
+            {authMode === 'signin' ? 'Need an account?' : 'Already have an account?'}
+          </button>
+        </section>
+      </main>
+    )
+  }
+
+  if (!profile?.active) {
+    return (
+      <main className="login-wrap">
+        <section className="card login-card">
+          <h1>Juanita Hub</h1>
+          <div className="notice">Your staff account is waiting for administrator approval.</div>
+          <button className="ghost" type="button" onClick={signOut}>Sign out</button>
+        </section>
+      </main>
+    )
+  }
+
+  return (
+    <div className="shell">
+      <header className="topbar">
+        <div className="brand">Juanita Hub<small>Staff home</small></div>
+        <div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span><button className="ghost" type="button" onClick={signOut}>Sign out</button></div>
+      </header>
+
+      <main className="main home-dashboard">
+        <section className="home-welcome">
+          <div><span className="home-eyebrow">Today at Juanita</span><h1>{formatToday()}</h1><p>Everything staff need for today, in one place.</p></div>
+          <div className="home-center-status"><span className="home-status-dot" aria-hidden="true" /><span><strong>Center status</strong><small>{centerStatus}</small></span></div>
+        </section>
+
+        {message && <div className="notice">{message}</div>}
 
         <section className="card home-find-card home-fast-card">
           <div className="home-section-heading compact">
@@ -362,123 +397,6 @@ export default function StaffHomePage() {
               )}
             </div>
           </section>
-        </section>
-      </main>
-    )
-  }
-
-  if (!profile?.active) {
-    return (
-      <main className="login-wrap">
-        <section className="card login-card">
-          <h1>Juanita Hub</h1>
-          <div className="notice">Your staff account is waiting for administrator approval.</div>
-          <button className="ghost" type="button" onClick={signOut}>Sign out</button>
-        </section>
-      </main>
-    )
-  }
-
-  return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="brand">Juanita Hub<small>Staff home</small></div>
-        <div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span><button className="ghost" type="button" onClick={signOut}>Sign out</button></div>
-      </header>
-
-      <main className="main home-dashboard">
-        <section className="home-welcome">
-          <div><span className="home-eyebrow">Today at Juanita</span><h1>{formatToday()}</h1><p>Everything staff need for today, in one place.</p></div>
-          <div className="home-center-status"><span className="home-status-dot" aria-hidden="true" /><span><strong>Center status</strong><small>{centerStatus}</small></span></div>
-        </section>
-
-        {message && <div className="notice">{message}</div>}
-
-        <section className="home-quick-grid" aria-label="Quick actions">
-          <Link className="home-quick-action blue" href="/attendance"><span className="home-quick-icon">✓</span><span><strong>Attendance</strong><small>{childSignIns} children • {communitySignIns} community sign-ins today</small></span></Link>
-          <Link className="home-quick-action green" href="/card-tracking"><span className="home-quick-icon">◆</span><span><strong>Card Tracking</strong><small>{missingCards === 0 ? 'All active children have a record today' : `${missingCards} children still need a card/status`}</small></span></Link>
-          <Link className="home-quick-action yellow" href="/rewards"><span className="home-quick-icon">★</span><span><strong>Reward Center</strong><small>Monthly spins and prize inventory</small></span></Link>
-          <Link replace className="home-quick-action purple" href="/kiosk"><span className="home-quick-icon">☺</span><span><strong>Launch Sign-In Kiosk</strong><small>Welcome board plus child and visitor sign-in</small></span></Link>
-        </section>
-
-        <section className="home-layout">
-          <div className="home-main-column">
-            <section className="card home-schedule-card">
-              <div className="home-section-heading"><div><span className="home-section-kicker">What’s happening</span><h2>Today’s Schedule</h2></div><Link className="ghost" href="/calendar">Open calendar →</Link></div>
-              <div className="home-schedule-list">
-                {calendarEvents.length === 0 && <div className="home-empty-state">No calendar events are planned for today yet.</div>}
-                {calendarEvents.map((event) => (
-                  <div className="home-schedule-row" key={event.id}>
-                    <time>{calendarTimeLabel(event)}</time>
-                    <span>
-                      <strong>{calendarIcon(event.event_type)} {event.status === 'canceled' ? `Canceled: ${event.title}` : event.title}</strong>
-                      <small>{[event.location, event.visibility === 'staff' ? 'Staff only' : null].filter(Boolean).join(' • ') || 'Center calendar'}</small>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="card home-board-card">
-              <div className="home-section-heading"><div><span className="home-section-kicker">Staff board</span><h2>Announcements</h2></div><span className="home-preview-pill">Coming soon</span></div>
-              <div className="home-announcements">
-                <article className="home-announcement"><span className="home-announcement-icon">📌</span><div><strong>No staff announcements posted</strong><p>This space is reserved for real center reminders and announcements once the announcement editor is added.</p></div></article>
-              </div>
-            </section>
-
-          </div>
-
-          <aside className="home-side-column">
-            <section className="card home-snapshot-card">
-              <span className="home-section-kicker">Today’s snapshot</span><h2>Operations</h2>
-              <div className="home-snapshot-grid">
-                <div><strong>{presentNow}</strong><span>Here now</span><small>{childSignIns} children + {communityPresent} community</small></div>
-                <div><strong>{childSignIns}</strong><span>Children signed in</span><small>of {children.length} active</small></div>
-                <div><strong>{completedCards}</strong><span>Cards/statuses entered</span><small>{missingCards} still missing</small></div>
-                <div><strong>{communitySignIns}</strong><span>Community sign-ins</span><small>Today's total visits</small></div>
-              </div>
-            </section>
-
-            <section className="card home-birthday-card">
-              <div className="home-section-heading compact"><div><span className="home-section-kicker">Celebrate</span><h2>Birthdays</h2></div><span aria-hidden="true" className="home-birthday-emoji">🎂</span></div>
-              {upcomingBirthdays.length === 0 ? (
-                <><p className="subtle">Birthdays from current child registrations will appear here automatically.</p><div className="home-empty-state">No birthdays in the next 7 days.</div></>
-              ) : (
-                <div className="home-attention-list">
-                  {upcomingBirthdays.map(({ registration, child, days }) => child && (
-                    <Link href="/children" key={registration.child_id}>
-                      <strong>{days === 0 ? '🎉 Today: ' : '🎂 '}{child.first_name}{child.last_name ? ` ${child.last_name}` : ''}</strong>
-                      <small>{days === 0 ? 'Birthday today!' : `${birthdayDateLabel(registration.birth_date)} • ${days} day${days === 1 ? '' : 's'} away`}</small>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <DashboardTaskCard />
-
-            <section className="card home-attention-card">
-              <span className="home-section-kicker">Needs attention</span><h2>Today</h2>
-              <div className="home-attention-list">
-                {childrenNotSignedIn > 0 ? <Link href="/attendance"><strong>{childrenNotSignedIn} child {childrenNotSignedIn === 1 ? 'has' : 'have'} not signed in</strong><small>Open Attendance →</small></Link> : <div className="home-all-clear"><strong>✓ All active children are signed in</strong><small>Attendance roster is complete for today.</small></div>}
-                {missingCards > 0 ? <Link href="/card-tracking"><strong>{missingCards} card/status {missingCards === 1 ? 'entry is' : 'entries are'} still missing</strong><small>Open Card Tracking →</small></Link> : <div className="home-all-clear"><strong>✓ Card tracking is complete</strong><small>All active children have an entry today.</small></div>}
-                <RewardFulfillmentTask />
-                <RegistrationReviewTask />
-                <InventoryLowStockTask />
-                <PurchasingAttentionTask />
-              </div>
-            </section>
-          </aside>
-        </section>
-
-        <section className="card home-find-card">
-          <div className="home-section-heading"><div><span className="home-section-kicker">Find it fast</span><h2>Where should I go?</h2></div><p className="subtle">Juanita Hub is grouped by the job you are trying to do.</p></div>
-          <div className="home-find-grid">
-            <Link href="/children"><span className="home-find-icon">👥</span><span><strong>Students</strong><small>Profiles, attendance, behavior, families, and eventually learning progress.</small></span></Link>
-            <Link href="/programs"><span className="home-find-icon">🗓️</span><span><strong>Programs</strong><small>Programs, enrollment, registrations, activities, and the center calendar.</small></span></Link>
-            <Link href="/tasks"><span className="home-find-icon">🛠️</span><span><strong>Operations</strong><small>Tasks, inventory, purchasing, approvals, and day-to-day center work.</small></span></Link>
-            <Link href="/reports/attendance"><span className="home-find-icon">📊</span><span><strong>Reports</strong><small>Attendance reporting now, with student progress reporting planned next.</small></span></Link>
-          </div>
         </section>
       </main>
     </div>
