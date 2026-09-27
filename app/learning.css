@@ -1157,3 +1157,303 @@
   .typing-results-grid{grid-template-columns:1fr}
   .typing-results-actions{display:grid;grid-template-columns:1fr}
 }
+
+
+/* Beginner typing modes */
+.learning-typing-mode-note{
+  display:grid;
+  gap:3px;
+  padding:10px 11px;
+  border:1px solid #dbe8ef;
+  border-radius:11px;
+  background:white;
+}
+.learning-typing-mode-note strong{
+  color:#315a73;
+  font-size:10.5px;
+}
+.learning-typing-mode-note span{
+  color:#718796;
+  font-size:9.5px;
+  line-height:1.45;
+}
+.learning-typing-presets{
+  display:grid;
+  gap:7px;
+  padding:10px;
+  border:1px dashed #d3e1e9;
+  border-radius:11px;
+  background:#fbfdfe;
+}
+.learning-typing-presets>small{
+  color:#6d8391;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.learning-typing-presets>div{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.learning-typing-presets button{
+  min-height:31px;
+  padding:5px 8px;
+  font-size:8.5px;
+}
+.learning-typing-presets em{
+  color:#8a98a1;
+  font-size:8.5px;
+  font-style:normal;
+}
+.learning-preview-focus-keys{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin:3px 0;
+}
+.learning-preview-focus-keys span{
+  min-width:34px;
+  display:grid;
+  place-items:center;
+  padding:7px 8px;
+  border:1px solid #d4e4ec;
+  border-radius:9px;
+  background:white;
+  color:#315f7a;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-size:11px;
+  font-weight:900;
+}
+.typing-focus-keys{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:12px 0 2px;
+}
+.typing-focus-keys>span{
+  min-width:52px;
+  display:grid;
+  gap:2px;
+  place-items:center;
+  padding:9px;
+  border:1px solid #d6e4ec;
+  border-radius:11px;
+  background:white;
+  color:#275d7d;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-size:15px;
+  font-weight:900;
+}
+.typing-focus-keys small{
+  color:#87959e;
+  font-family:inherit;
+  font-size:7.5px;
+  font-weight:700;
+}
+.typing-guided-workspace{
+  display:grid;
+  gap:16px;
+  outline:none;
+}
+.typing-guided-workspace:focus .typing-keyboard{
+  box-shadow:0 0 0 4px rgba(77,158,208,.08);
+}
+.typing-hand-home{
+  display:grid;
+  gap:8px;
+  padding:14px;
+  border:1px solid #d5e6ee;
+  border-radius:14px;
+  background:white;
+  text-align:center;
+}
+.typing-hand-home>strong{
+  color:#355e76;
+  font-size:11px;
+}
+.typing-hand-home>div{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(38px,1fr)) minmax(20px,.5fr) repeat(4,minmax(38px,1fr));
+  gap:6px;
+  max-width:620px;
+  width:100%;
+  margin:0 auto;
+}
+.typing-hand-home>div span{
+  display:grid;
+  place-items:center;
+  min-height:42px;
+  border:1px solid #d9e5eb;
+  border-radius:10px;
+  background:#f8fbfc;
+  color:#426a82;
+  font-weight:900;
+}
+.typing-hand-home>div span.anchor{
+  border-color:#9bcbe1;
+  background:#eaf7fd;
+  box-shadow:inset 0 -3px 0 #6fb5d5;
+}
+.typing-hand-home small{
+  color:#7e909b;
+  font-size:9px;
+}
+.typing-key-prompt{
+  display:grid;
+  justify-items:center;
+  gap:4px;
+  max-width:340px;
+  width:100%;
+  margin:0 auto;
+  padding:18px;
+  border:2px solid #d2e2ea;
+  border-radius:18px;
+  background:white;
+  transition:.12s ease;
+}
+.typing-key-prompt>span{
+  color:#778d9c;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.typing-key-prompt>strong{
+  color:#1f638d;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-size:44px;
+  line-height:1;
+}
+.typing-key-prompt>small{
+  color:#57768a;
+  font-size:10px;
+  font-weight:800;
+}
+.typing-key-prompt.correct{
+  border-color:#8fd0ad;
+  background:#edf9f2;
+}
+.typing-key-prompt.incorrect{
+  border-color:#e8a3a8;
+  background:#fff1f2;
+}
+.typing-keyboard{
+  display:grid;
+  gap:7px;
+  padding:16px;
+  border:1px solid #d4e1e8;
+  border-radius:16px;
+  background:#eaf1f5;
+  transition:box-shadow .15s ease;
+}
+.typing-keyboard-row{
+  display:flex;
+  justify-content:center;
+  gap:6px;
+}
+.typing-keyboard-row:nth-child(2){
+  padding-left:24px;
+}
+.typing-keyboard-row:nth-child(3){
+  padding-left:52px;
+}
+.typing-keyboard-row>span{
+  width:64px;
+  min-height:54px;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:2px;
+  border:1px solid #cbd9e1;
+  border-bottom-width:3px;
+  border-radius:9px;
+  background:white;
+  color:#365d75;
+  transition:.1s ease;
+}
+.typing-keyboard-row>span b{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-size:14px;
+}
+.typing-keyboard-row>span small{
+  color:#8a98a1;
+  font-size:6.8px;
+}
+.typing-keyboard-row>span.home-anchor{
+  box-shadow:inset 0 -3px 0 #9ccfe4;
+}
+.typing-keyboard-row>span.target{
+  transform:translateY(-2px);
+  border-color:#4f9fca;
+  background:#dff2fc;
+  color:#155e88;
+  box-shadow:0 5px 12px rgba(40,111,151,.14),inset 0 -3px 0 #4f9fca;
+}
+.typing-keyboard-row.space-row{
+  padding:0;
+}
+.typing-keyboard-row>span.space-key{
+  width:min(360px,56%);
+  min-height:46px;
+}
+.typing-guided-hint{
+  color:#7b8f9b;
+  font-size:9px;
+  text-align:center;
+}
+.typing-results-keys{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:6px;
+  max-width:650px;
+  margin:0 auto 16px;
+}
+.typing-results-keys strong{
+  color:#617a89;
+  font-size:9px;
+  text-transform:uppercase;
+}
+.typing-results-keys span{
+  min-width:28px;
+  padding:5px 7px;
+  border-radius:8px;
+  background:#eef5f8;
+  color:#376a87;
+  font-size:9px;
+  font-weight:900;
+}
+@media(max-width:760px){
+  .typing-keyboard{
+    overflow-x:auto;
+    justify-content:start;
+  }
+  .typing-keyboard-row{
+    width:max-content;
+  }
+  .typing-keyboard-row>span{
+    width:52px;
+    min-height:48px;
+  }
+  .typing-keyboard-row:nth-child(2),.typing-keyboard-row:nth-child(3){
+    padding-left:0;
+  }
+  .typing-keyboard-row>span.space-key{
+    width:280px;
+  }
+  .typing-hand-home>div{
+    grid-template-columns:repeat(4,minmax(30px,1fr)) minmax(10px,.3fr) repeat(4,minmax(30px,1fr));
+  }
+}
+@media(max-width:520px){
+  .typing-hand-home>div span{
+    min-height:36px;
+    font-size:10px;
+  }
+  .typing-key-prompt>strong{
+    font-size:38px;
+  }
+}
