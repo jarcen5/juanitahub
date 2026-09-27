@@ -945,11 +945,45 @@ export default function LearningPage() {
                     <section className="learning-typing-editor wide">
                       <div className="learning-typing-editor-heading">
                         <span>⌨️</span>
-                        <div><strong>Typing activity setup</strong><small>This passage is what the child will type in Juanita Hub.</small></div>
+                        <div><strong>Typing activity setup</strong><small>Choose how the child should practice, then customize the content and goal.</small></div>
                       </div>
-                      <label className="field"><span>Typing passage</span><textarea rows={7} value={typingPassage} onChange={(event) => setTypingPassage(event.target.value)} placeholder="Enter the exact passage the student should type…" /></label>
+
+                      <label className="field"><span>Practice mode</span>
+                        <select value={typingMode} onChange={(event) => {
+                          const nextMode = event.target.value as TypingMode
+                          setTypingMode(nextMode)
+                          if (nextMode !== 'passage' && !typingFocusKeys.trim()) setTypingFocusKeys(nextMode === 'hand_placement' ? 'a s d f g h j k l ;' : 'f j')
+                        }}>
+                          <option value="passage">Passage Practice — sentences & paragraphs</option>
+                          <option value="letter_drill">Letter Practice — repeat selected keys</option>
+                          <option value="guided_keys">Guided Keys — one highlighted key at a time</option>
+                          <option value="hand_placement">Hand Placement — guided keys + finger guide</option>
+                        </select>
+                      </label>
+
+                      <div className="learning-typing-mode-note">
+                        {typingMode === 'passage' && <><strong>Passage Practice</strong><span>Best for students who already know the keyboard and are building speed and accuracy.</span></>}
+                        {typingMode === 'letter_drill' && <><strong>Letter Practice</strong><span>Creates a drill using only the keys you choose, such as F and J or the full home row.</span></>}
+                        {typingMode === 'guided_keys' && <><strong>Guided Keys</strong><span>Shows one target key at a time on an on-screen keyboard and advances only after the correct key is pressed.</span></>}
+                        {typingMode === 'hand_placement' && <><strong>Hand Placement</strong><span>Shows the target key, the finger to use, home-row anchors, and an on-screen keyboard.</span></>}
+                      </div>
+
+                      {typingMode === 'passage' ? (
+                        <label className="field"><span>Typing passage</span><textarea rows={7} value={typingPassage} onChange={(event) => setTypingPassage(event.target.value)} placeholder="Enter the exact passage the student should type…" /></label>
+                      ) : (
+                        <>
+                          <label className="field"><span>Practice keys</span><input value={typingFocusKeys} onChange={(event) => setTypingFocusKeys(event.target.value)} placeholder="Example: f j   or   a s d f j k l ;" /></label>
+                          <div className="learning-typing-presets">
+                            <small>Quick key sets</small>
+                            <div>{typingKeyPresets.map((preset) => <button className="ghost" type="button" key={preset.label} onClick={() => setTypingFocusKeys(preset.value)}>{preset.label}</button>)}</div>
+                            <em>Separate keys with spaces. Type <strong>space</strong> to include the space bar.</em>
+                          </div>
+                          <label className="field"><span>Correct-key goal</span><input type="number" min="5" max="500" step="1" value={typingTargetKeystrokes} onChange={(event) => setTypingTargetKeystrokes(event.target.value)} placeholder="30" /></label>
+                        </>
+                      )}
+
                       <div className="learning-typing-goal-grid">
-                        <label className="field"><span>WPM goal <small>(optional)</small></span><input type="number" min="1" step="1" value={typingTargetWpm} onChange={(event) => setTypingTargetWpm(event.target.value)} placeholder="15" /></label>
+                        {(typingMode === 'passage' || typingMode === 'letter_drill') && <label className="field"><span>WPM goal <small>(optional)</small></span><input type="number" min="1" step="1" value={typingTargetWpm} onChange={(event) => setTypingTargetWpm(event.target.value)} placeholder="15" /></label>}
                         <label className="field"><span>Accuracy goal % <small>(optional)</small></span><input type="number" min="0" max="100" step="1" value={typingTargetAccuracy} onChange={(event) => setTypingTargetAccuracy(event.target.value)} placeholder="90" /></label>
                       </div>
                     </section>
@@ -957,7 +991,7 @@ export default function LearningPage() {
                 </div>
                 <div className="learning-editor-actions">
                   <button className="ghost" type="button" disabled={saving} onClick={() => { resetAssignmentEditor(); setEditorOpen(false) }}>Cancel</button>
-                  <button className="primary" type="button" disabled={saving || !newTitle.trim() || (newType === 'typing' && !typingPassage.trim())} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
+                  <button className="primary" type="button" disabled={saving || !newTitle.trim() || (newType === 'typing' && ((typingMode === 'passage' && !typingPassage.trim()) || (typingMode !== 'passage' && !typingFocusKeys.trim())))} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
                 </div>
               </section>
             )}
@@ -1036,8 +1070,13 @@ export default function LearningPage() {
                   </div>
                   {selectedAssignment.assignment_type === 'typing' && (
                     <div className="learning-typing-details">
-                      <span>⌨️ Typing Lab ready</span>
-                      <strong>{selectedAssignment.activity_config?.passage?.length ?? 0} characters</strong>
+                      <span>⌨️ {typingModeLabels[selectedAssignment.activity_config?.mode ?? 'passage']}</span>
+                      {(selectedAssignment.activity_config?.mode ?? 'passage') === 'passage'
+                        ? <strong>{selectedAssignment.activity_config?.passage?.length ?? 0} characters</strong>
+                        : <>
+                            <strong>{selectedAssignment.activity_config?.target_keystrokes ?? 30} correct keys</strong>
+                            <small>{(selectedAssignment.activity_config?.focus_keys ?? []).map((key) => key === ' ' ? 'Space' : key.toUpperCase()).join(', ') || 'No keys selected'}</small>
+                          </>}
                       {typeof selectedAssignment.activity_config?.target_wpm === 'number' && <small>{selectedAssignment.activity_config.target_wpm} WPM goal</small>}
                       {typeof selectedAssignment.activity_config?.target_accuracy === 'number' && <small>{selectedAssignment.activity_config.target_accuracy}% accuracy goal</small>}
                     </div>
@@ -1096,7 +1135,7 @@ export default function LearningPage() {
             <div className="learning-metrics">
               <article><strong>{typingSummary.assigned}</strong><span>Typing assignments</span><small>{typingSummary.completed} completed this week</small></article>
               <article><strong>{typingSummary.attempts}</strong><span>Attempts</span><small>Saved for this week’s typing work</small></article>
-              <article><strong>{typingSummary.attempts ? typingSummary.averageWpm.toFixed(1) : '—'}</strong><span>Average WPM</span><small>Correct-character WPM</small></article>
+              <article><strong>{typingSummary.speedAttempts ? typingSummary.averageWpm.toFixed(1) : '—'}</strong><span>Average WPM</span><small>{typingSummary.speedAttempts} passage/letter attempts</small></article>
               <article><strong>{typingSummary.attempts ? typingSummary.averageAccuracy.toFixed(1) + '%' : '—'}</strong><span>Average accuracy</span><small>Across saved attempts</small></article>
             </div>
 
@@ -1123,8 +1162,8 @@ export default function LearningPage() {
                           <span className="learning-avatar">{child.first_name[0]?.toUpperCase()}</span>
                           <span className="typing-lab-row-copy">
                             <strong>{childName(child)}</strong>
-                            <small>{assignment.title}{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</small>
-                            {latest && <em>Latest: {Number(latest.wpm).toFixed(1)} WPM • {Number(latest.accuracy).toFixed(1)}% accuracy</em>}
+                            <small>{assignment.title} • {typingModeLabels[assignment.activity_config?.mode ?? 'passage']}{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</small>
+                            {latest && <em>Latest: {(latest.activity_mode === 'passage' || latest.activity_mode === 'letter_drill') ? Number(latest.wpm).toFixed(1) + ' WPM • ' : latest.correct_characters + ' correct • '}{Number(latest.accuracy).toFixed(1)}% accuracy</em>}
                           </span>
                           <span className={'learning-status ' + row.status}>{statusLabel(row.status)}</span>
                           <button className="primary" type="button" onClick={() => setTypingTarget({ row, child, assignment })}>{attempts.length ? 'Try again' : 'Launch'}</button>
@@ -1142,8 +1181,11 @@ export default function LearningPage() {
                       const assignment = assignmentById.get(attempt.assignment_id)
                       return (
                         <article key={attempt.id}>
-                          <span><strong>{child ? childName(child) : 'Student'}</strong><small>{assignment?.title ?? 'Typing activity'} • {new Date(attempt.created_at).toLocaleDateString()}</small></span>
-                          <span><strong>{Number(attempt.wpm).toFixed(1)} WPM</strong><small>{Number(attempt.accuracy).toFixed(1)}% • {Math.max(1, Math.ceil(attempt.duration_seconds / 60))} min</small></span>
+                          <span><strong>{child ? childName(child) : 'Student'}</strong><small>{assignment?.title ?? 'Typing activity'} • {typingModeLabels[attempt.activity_mode ?? 'passage']} • {new Date(attempt.created_at).toLocaleDateString()}</small></span>
+                          <span>
+                            <strong>{(attempt.activity_mode === 'passage' || attempt.activity_mode === 'letter_drill') ? Number(attempt.wpm).toFixed(1) + ' WPM' : attempt.correct_characters + ' correct keys'}</strong>
+                            <small>{Number(attempt.accuracy).toFixed(1)}% • {Math.max(1, Math.ceil(attempt.duration_seconds / 60))} min • {Object.values(attempt.mistake_counts ?? {}).reduce((sum, count) => sum + Number(count), 0)} mistakes</small>
+                          </span>
                         </article>
                       )
                     })}
