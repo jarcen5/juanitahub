@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import PersonnelCostWorkflow from '@/components/PersonnelCostWorkflow'
 
 type Props = {
   budgets: Array<{ id: number; name: string; program_id: number | null; allocated_amount: number; active: boolean }>
@@ -300,6 +301,15 @@ export default function PersonnelCostsPanel({ budgets, programs, onChanged }: Pr
           {(!selected || selected.status === 'planned') && <button className="primary" disabled={saving || !budgetId || !workerName.trim()} onClick={() => void savePlannedCost()}>{saving ? 'Saving…' : selected ? 'Save personnel cost' : 'Create planned personnel cost'}</button>}
           {selected && selected.status !== 'planned' && <div className="purchasing-empty small"><strong>Pay plan locked</strong><span>Once submitted for approval, planned pay details are protected from accidental changes.</span></div>}
         </div>
+
+        {selected && <PersonnelCostWorkflow
+          cost={selected}
+          onChanged={async () => {
+            await loadPersonnel()
+            onChanged()
+          }}
+          onDeleted={() => resetForm()}
+        />}
       </section>
     </section>
   )
