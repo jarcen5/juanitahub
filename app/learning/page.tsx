@@ -789,8 +789,9 @@ export default function LearningPage() {
                               <span className="learning-assignment-copy"><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small>{row.status === 'completed' && (row.score != null || row.minutes_spent != null || row.staff_note) && <span className="learning-completion-meta">{row.score != null && row.max_score != null ? `Score ${row.score}/${row.max_score} • ${Math.round((row.score / row.max_score) * 100)}%` : ''}{row.score != null && row.max_score != null && row.minutes_spent != null ? ' • ' : ''}{row.minutes_spent != null ? row.minutes_spent + ' min' : ''}{(row.score != null || row.minutes_spent != null) && row.staff_note ? ' • ' : ''}{row.staff_note || ''}</span>}</span>
                               <span className={'learning-status ' + row.status}>{statusLabel(row.status)}</span>
                               <span className="learning-row-actions">
-                                {row.status === 'assigned' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'in_progress')}>Start</button>}
-                                {row.status !== 'completed' && <button className="primary" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Complete</button>}
+                                {assignment.assignment_type === 'typing' && <button className="primary" type="button" disabled={saving} onClick={() => setTypingTarget({ row, child, assignment })}>{row.status === 'completed' ? 'Retry typing' : 'Launch typing'}</button>}
+                                {row.status === 'assigned' && assignment.assignment_type !== 'typing' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'in_progress')}>Start</button>}
+                                {row.status !== 'completed' && assignment.assignment_type !== 'typing' && <button className="primary" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Complete</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Edit details</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'assigned')}>Reopen</button>}
                               </span>
@@ -843,10 +844,23 @@ export default function LearningPage() {
                   <label className="field"><span>Est. minutes</span><input type="number" min="1" max="240" value={newMinutes} onChange={(event) => setNewMinutes(event.target.value)} placeholder="20" /></label>
                   <label className="field wide"><span>Instructions</span><textarea rows={3} value={newInstructions} onChange={(event) => setNewInstructions(event.target.value)} placeholder="What should the student do?" /></label>
                   <label className="field wide"><span>Resource link <small>(optional)</small></span><input type="url" value={newResourceUrl} onChange={(event) => setNewResourceUrl(event.target.value)} placeholder="https://…" /></label>
+                  {newType === 'typing' && (
+                    <section className="learning-typing-editor wide">
+                      <div className="learning-typing-editor-heading">
+                        <span>⌨️</span>
+                        <div><strong>Typing activity setup</strong><small>This passage is what the child will type in Juanita Hub.</small></div>
+                      </div>
+                      <label className="field"><span>Typing passage</span><textarea rows={7} value={typingPassage} onChange={(event) => setTypingPassage(event.target.value)} placeholder="Enter the exact passage the student should type…" /></label>
+                      <div className="learning-typing-goal-grid">
+                        <label className="field"><span>WPM goal <small>(optional)</small></span><input type="number" min="1" step="1" value={typingTargetWpm} onChange={(event) => setTypingTargetWpm(event.target.value)} placeholder="15" /></label>
+                        <label className="field"><span>Accuracy goal % <small>(optional)</small></span><input type="number" min="0" max="100" step="1" value={typingTargetAccuracy} onChange={(event) => setTypingTargetAccuracy(event.target.value)} placeholder="90" /></label>
+                      </div>
+                    </section>
+                  )}
                 </div>
                 <div className="learning-editor-actions">
                   <button className="ghost" type="button" disabled={saving} onClick={() => { resetAssignmentEditor(); setEditorOpen(false) }}>Cancel</button>
-                  <button className="primary" type="button" disabled={saving || !newTitle.trim()} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
+                  <button className="primary" type="button" disabled={saving || !newTitle.trim() || (newType === 'typing' && !typingPassage.trim())} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
                 </div>
               </section>
             )}
@@ -923,6 +937,14 @@ export default function LearningPage() {
                     <span>{selectedAssignment.estimated_minutes ? selectedAssignment.estimated_minutes + ' min' : 'No time estimate'}</span>
                     <span>{selectedAssignment.grade_levels.length ? 'Grades ' + selectedAssignment.grade_levels.join(', ') : 'All grades'}</span>
                   </div>
+                  {selectedAssignment.assignment_type === 'typing' && (
+                    <div className="learning-typing-details">
+                      <span>⌨️ Typing Lab ready</span>
+                      <strong>{selectedAssignment.activity_config?.passage?.length ?? 0} characters</strong>
+                      {typeof selectedAssignment.activity_config?.target_wpm === 'number' && <small>{selectedAssignment.activity_config.target_wpm} WPM goal</small>}
+                      {typeof selectedAssignment.activity_config?.target_accuracy === 'number' && <small>{selectedAssignment.activity_config.target_accuracy}% accuracy goal</small>}
+                    </div>
+                  )}
                   {selectedAssignment.resource_url && <a className="learning-resource-link" href={selectedAssignment.resource_url} target="_blank" rel="noreferrer">Open resource ↗</a>}
 
                   <button className="learning-preview-button primary" type="button" onClick={() => setPreviewAssignment(selectedAssignment)}>👁 Preview assignment</button>
@@ -961,6 +983,78 @@ export default function LearningPage() {
                 </> : <div className="learning-inline-empty">Select an assignment from the library to view details and assign it for {weekLabel(weekStart)}.</div>}
               </aside>
             </div>
+          </section>
+        )}
+
+        {tab === 'typing' && (
+          <section className="learning-section">
+            <div className="learning-heading">
+              <div>
+                <span className="learning-kicker">Interactive practice</span>
+                <h2>Typing Lab</h2>
+                <p>Launch assigned typing activities and automatically save WPM, accuracy, time, and completion results.</p>
+              </div>
+            </div>
+
+            <div className="learning-metrics">
+              <article><strong>{typingSummary.assigned}</strong><span>Typing assignments</span><small>{typingSummary.completed} completed this week</small></article>
+              <article><strong>{typingSummary.attempts}</strong><span>Attempts</span><small>Saved for this week’s typing work</small></article>
+              <article><strong>{typingSummary.attempts ? typingSummary.averageWpm.toFixed(1) : '—'}</strong><span>Average WPM</span><small>Correct-character WPM</small></article>
+              <article><strong>{typingSummary.attempts ? typingSummary.averageAccuracy.toFixed(1) + '%' : '—'}</strong><span>Average accuracy</span><small>Across saved attempts</small></article>
+            </div>
+
+            {weeklyTypingAssignments.length === 0 ? (
+              <section className="card learning-empty">
+                <span>⌨️</span>
+                <h2>No typing assignments this week</h2>
+                <p>Assign a typing activity from Assignment Library, then it will appear here ready to launch.</p>
+                <button className="primary" type="button" onClick={() => { window.location.hash = 'library'; setTab('library'); setSubjectFilter('typing') }}>Open typing assignments</button>
+              </section>
+            ) : (
+              <div className="typing-lab-grid">
+                <section className="card typing-lab-assignments">
+                  <div className="section-heading"><div><h2>{weekLabel(weekStart)}</h2><p className="subtle">Assigned typing activities</p></div></div>
+                  <div className="typing-lab-list">
+                    {weeklyTypingAssignments.map((row) => {
+                      const assignment = assignmentById.get(row.assignment_id)
+                      const child = childById.get(row.child_id)
+                      if (!assignment || !child) return null
+                      const attempts = weeklyTypingAttempts.filter((attempt) => attempt.student_assignment_id === row.id)
+                      const latest = attempts[0]
+                      return (
+                        <article key={row.id}>
+                          <span className="learning-avatar">{child.first_name[0]?.toUpperCase()}</span>
+                          <span className="typing-lab-row-copy">
+                            <strong>{childName(child)}</strong>
+                            <small>{assignment.title}{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</small>
+                            {latest && <em>Latest: {Number(latest.wpm).toFixed(1)} WPM • {Number(latest.accuracy).toFixed(1)}% accuracy</em>}
+                          </span>
+                          <span className={'learning-status ' + row.status}>{statusLabel(row.status)}</span>
+                          <button className="primary" type="button" onClick={() => setTypingTarget({ row, child, assignment })}>{attempts.length ? 'Try again' : 'Launch'}</button>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </section>
+
+                <section className="card typing-attempt-history">
+                  <div className="section-heading"><div><h2>Recent results</h2><p className="subtle">Typing attempts for the selected week.</p></div><span className="badge">{weeklyTypingAttempts.length}</span></div>
+                  <div className="typing-history-list">
+                    {weeklyTypingAttempts.slice(0, 12).map((attempt) => {
+                      const child = childById.get(attempt.child_id)
+                      const assignment = assignmentById.get(attempt.assignment_id)
+                      return (
+                        <article key={attempt.id}>
+                          <span><strong>{child ? childName(child) : 'Student'}</strong><small>{assignment?.title ?? 'Typing activity'} • {new Date(attempt.created_at).toLocaleDateString()}</small></span>
+                          <span><strong>{Number(attempt.wpm).toFixed(1)} WPM</strong><small>{Number(attempt.accuracy).toFixed(1)}% • {Math.max(1, Math.ceil(attempt.duration_seconds / 60))} min</small></span>
+                        </article>
+                      )
+                    })}
+                    {weeklyTypingAttempts.length === 0 && <div className="learning-inline-empty">No typing attempts have been completed for this week yet.</div>}
+                  </div>
+                </section>
+              </div>
+            )}
           </section>
         )}
 
@@ -1035,6 +1129,20 @@ export default function LearningPage() {
         assignment={previewAssignment}
         onClose={() => setPreviewAssignment(null)}
       />
+
+      {typingTarget && (
+        <TypingActivityRunner
+          studentAssignmentId={typingTarget.row.id}
+          childId={typingTarget.child.id}
+          assignmentId={typingTarget.assignment.id}
+          assignmentTitle={typingTarget.assignment.title}
+          studentName={childName(typingTarget.child)}
+          activityConfig={typingTarget.assignment.activity_config}
+          userId={session.user.id}
+          onClose={() => setTypingTarget(null)}
+          onSaved={loadData}
+        />
+      )}
     </div>
   )
 }
