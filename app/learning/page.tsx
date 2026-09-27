@@ -5,10 +5,12 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import AssignmentCompletionDialog from '@/components/AssignmentCompletionDialog'
 import AssignmentPreviewDialog from '@/components/AssignmentPreviewDialog'
+import TypingActivityRunner from '@/components/TypingActivityRunner'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
 type Registration = { child_id: number; grade: string | null; school: string | null }
+type TypingConfig = { passage?: string; target_wpm?: number; target_accuracy?: number }
 type LearningAssignment = {
   id: number
   title: string
@@ -22,6 +24,7 @@ type LearningAssignment = {
   estimated_minutes: number | null
   resource_url: string | null
   active: boolean
+  activity_config: TypingConfig
 }
 type StudentAssignment = {
   id: number
@@ -53,7 +56,17 @@ type LearningNote = {
   note: string
   created_at: string
 }
-type LearningTab = 'week' | 'library' | 'reading' | 'notes'
+type TypingAttempt = {
+  id: number
+  student_assignment_id: number
+  child_id: number
+  assignment_id: number
+  wpm: number
+  accuracy: number
+  duration_seconds: number
+  created_at: string
+}
+type LearningTab = 'week' | 'library' | 'typing' | 'reading' | 'notes'
 type Subject = LearningAssignment['subject']
 type AssignmentType = LearningAssignment['assignment_type']
 type Difficulty = LearningAssignment['difficulty']
@@ -76,7 +89,7 @@ const subjectIcons: Record<Subject, string> = {
   general: '📘',
 }
 
-const starterAssignments: Omit<LearningAssignment, 'id' | 'active'>[] = [
+const starterAssignments: Omit<LearningAssignment, 'id' | 'active' | 'activity_config'>[] = [
   {
     title: 'Reading Reflection',
     subject: 'reading',
@@ -209,6 +222,7 @@ export default function LearningPage() {
   const [weeklyAssignments, setWeeklyAssignments] = useState<StudentAssignment[]>([])
   const [readingLogs, setReadingLogs] = useState<ReadingLog[]>([])
   const [notes, setNotes] = useState<LearningNote[]>([])
+  const [typingAttempts, setTypingAttempts] = useState<TypingAttempt[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -227,6 +241,7 @@ export default function LearningPage() {
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
   const [starterAdding, setStarterAdding] = useState(false)
   const [previewAssignment, setPreviewAssignment] = useState<LearningAssignment | null>(null)
+  const [typingTarget, setTypingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
 
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState<Subject>('reading')
@@ -238,6 +253,9 @@ export default function LearningPage() {
   const [newMinutes, setNewMinutes] = useState('')
   const [newInstructions, setNewInstructions] = useState('')
   const [newResourceUrl, setNewResourceUrl] = useState('')
+  const [typingPassage, setTypingPassage] = useState('')
+  const [typingTargetWpm, setTypingTargetWpm] = useState('15')
+  const [typingTargetAccuracy, setTypingTargetAccuracy] = useState('90')
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null)
   const [assignMode, setAssignMode] = useState<'child' | 'grade'>('child')
@@ -276,7 +294,7 @@ export default function LearningPage() {
   useEffect(() => {
     function syncTab() {
       const requested = window.location.hash.replace('#', '') as LearningTab
-      setTab(['week', 'library', 'reading', 'notes'].includes(requested) ? requested : 'week')
+      setTab(['week', 'library', 'typing', 'reading', 'notes'].includes(requested) ? requested : 'week')
     }
     syncTab()
     window.addEventListener('hashchange', syncTab)
@@ -297,15 +315,16 @@ export default function LearningPage() {
     setMessage('')
     const weekEnd = addDays(weekStart, 6)
 
-    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult] = await Promise.all([
+    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
-      supabase.from('learning_assignments').select('id, title, subject, assignment_type, skill, grade_levels, difficulty, delivery_format, instructions, estimated_minutes, resource_url, active').order('subject').order('title'),
+      supabase.from('learning_assignments').select('id, title, subject, assignment_type, skill, grade_levels, difficulty, delivery_format, instructions, estimated_minutes, resource_url, active, activity_config').order('subject').order('title'),
       supabase.from('learning_student_assignments').select('id, child_id, assignment_id, week_start, due_date, status, completed_at, score, max_score, minutes_spent, staff_note').eq('week_start', weekStart).order('child_id').order('id'),
       supabase.from('learning_reading_logs').select('id, child_id, read_on, title, minutes, pages, note, created_at').gte('read_on', weekStart).lte('read_on', weekEnd).order('read_on', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
       supabase.from('learning_student_assignments').select('assignment_id, status'),
+      supabase.from('learning_typing_attempts').select('id, student_assignment_id, child_id, assignment_id, wpm, accuracy, duration_seconds, created_at').order('created_at', { ascending: false }).limit(80),
     ])
 
     const error = profileResult.error
@@ -316,6 +335,7 @@ export default function LearningPage() {
       ?? readingResult.error
       ?? notesResult.error
       ?? usageResult.error
+      ?? typingResult.error
 
     const nextChildren = (childResult.data ?? []) as Child[]
     setProfile(profileResult.data as Profile | null)
@@ -326,6 +346,7 @@ export default function LearningPage() {
     setReadingLogs((readingResult.data ?? []) as ReadingLog[])
     setNotes((notesResult.data ?? []) as LearningNote[])
     setAssignmentUsageRows((usageResult.data ?? []) as { assignment_id: number; status: StudentAssignment['status'] }[])
+    setTypingAttempts((typingResult.data ?? []) as TypingAttempt[])
     setAssignChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setReadingChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setNoteChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
@@ -453,6 +474,22 @@ export default function LearningPage() {
     children: new Set([...weeklyAssignments.map((row) => row.child_id), ...readingLogs.map((row) => row.child_id)]).size,
   }), [weeklyAssignments, readingLogs])
 
+  const weeklyTypingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'typing'), [weeklyAssignments, assignmentById])
+  const weeklyTypingIds = useMemo(() => new Set(weeklyTypingAssignments.map((row) => row.id)), [weeklyTypingAssignments])
+  const weeklyTypingAttempts = useMemo(() => typingAttempts.filter((attempt) => weeklyTypingIds.has(attempt.student_assignment_id)), [typingAttempts, weeklyTypingIds])
+  const typingSummary = useMemo(() => {
+    const attempts = weeklyTypingAttempts.length
+    const averageWpm = attempts ? weeklyTypingAttempts.reduce((sum, attempt) => sum + Number(attempt.wpm), 0) / attempts : 0
+    const averageAccuracy = attempts ? weeklyTypingAttempts.reduce((sum, attempt) => sum + Number(attempt.accuracy), 0) / attempts : 0
+    return {
+      assigned: weeklyTypingAssignments.length,
+      completed: weeklyTypingAssignments.filter((row) => row.status === 'completed').length,
+      attempts,
+      averageWpm,
+      averageAccuracy,
+    }
+  }, [weeklyTypingAssignments, weeklyTypingAttempts])
+
   function showMessage(text: string) {
     setMessage(text)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -470,6 +507,9 @@ export default function LearningPage() {
     setNewMinutes('')
     setNewInstructions('')
     setNewResourceUrl('')
+    setTypingPassage('')
+    setTypingTargetWpm('15')
+    setTypingTargetAccuracy('90')
   }
 
   function beginAddAssignment() {
@@ -489,11 +529,19 @@ export default function LearningPage() {
     setNewMinutes(assignment.estimated_minutes == null ? '' : String(assignment.estimated_minutes))
     setNewInstructions(assignment.instructions ?? '')
     setNewResourceUrl(assignment.resource_url ?? '')
+    setTypingPassage(typeof assignment.activity_config?.passage === 'string' ? assignment.activity_config.passage : '')
+    setTypingTargetWpm(typeof assignment.activity_config?.target_wpm === 'number' ? String(assignment.activity_config.target_wpm) : '15')
+    setTypingTargetAccuracy(typeof assignment.activity_config?.target_accuracy === 'number' ? String(assignment.activity_config.target_accuracy) : '90')
     setEditorOpen(true)
   }
 
   async function saveAssignment() {
     if (!session || profile?.role !== 'admin' || saving || !newTitle.trim()) return
+    if (newType === 'typing' && !typingPassage.trim()) return showMessage('Add a typing passage before saving a typing activity.')
+    const parsedTargetWpm = typingTargetWpm.trim() ? Number(typingTargetWpm) : null
+    const parsedTargetAccuracy = typingTargetAccuracy.trim() ? Number(typingTargetAccuracy) : null
+    if (newType === 'typing' && parsedTargetWpm != null && (!Number.isFinite(parsedTargetWpm) || parsedTargetWpm <= 0)) return showMessage('Typing WPM goal must be greater than 0.')
+    if (newType === 'typing' && parsedTargetAccuracy != null && (!Number.isFinite(parsedTargetAccuracy) || parsedTargetAccuracy < 0 || parsedTargetAccuracy > 100)) return showMessage('Typing accuracy goal must be between 0 and 100.')
     const grades = [...new Set(newGrades.split(',').map((grade) => grade.trim()).filter(Boolean))]
     const values = {
       title: newTitle.trim(),
@@ -506,6 +554,11 @@ export default function LearningPage() {
       instructions: newInstructions.trim() || null,
       estimated_minutes: newMinutes ? Math.max(1, Number(newMinutes)) : null,
       resource_url: newResourceUrl.trim() || null,
+      activity_config: newType === 'typing' ? {
+        passage: typingPassage.trim(),
+        ...(parsedTargetWpm == null ? {} : { target_wpm: parsedTargetWpm }),
+        ...(parsedTargetAccuracy == null ? {} : { target_accuracy: parsedTargetAccuracy }),
+      } : {},
       updated_at: new Date().toISOString(),
     }
 
@@ -552,6 +605,7 @@ export default function LearningPage() {
       instructions: assignment.instructions,
       estimated_minutes: assignment.estimated_minutes,
       resource_url: assignment.resource_url,
+      activity_config: assignment.activity_config ?? {},
       active: true,
       created_by: session.user.id,
     }).select('id').single()
@@ -576,7 +630,16 @@ export default function LearningPage() {
     }
     setStarterAdding(true)
     const { error } = await supabase.from('learning_assignments').insert(
-      missing.map((assignment) => ({ ...assignment, active: true, created_by: session.user.id })),
+      missing.map((assignment) => ({
+        ...assignment,
+        active: true,
+        created_by: session.user.id,
+        activity_config: assignment.assignment_type === 'typing' ? {
+          passage: 'Learning new skills takes practice. Good typists focus on accuracy, keep their hands relaxed, and build speed one word at a time. Small improvements add up when you practice regularly.',
+          target_wpm: 15,
+          target_accuracy: 90,
+        } : {},
+      })),
     )
     setStarterAdding(false)
     if (error) return showMessage(error.message)
