@@ -383,9 +383,14 @@ export default function StaffHomePage() {
           </aside>
         </section>
 
-        <section className="card home-roadmap">
-          <div><span className="home-section-kicker">Juanita Hub operations</span><h2>Calendar, attendance, and child profiles now feed the daily home page</h2><p>Center plans, saved sign-ins, and current school-year profiles can be managed once and reflected throughout Juanita Hub. Inventory, purchasing, and staff/intern scheduling now feed the same operational foundation.</p></div>
-          <div className="home-roadmap-tags" aria-label="Juanita Hub areas"><span>Attendance ✓</span><span>Calendar ✓</span><span>Children ✓</span><span>Reports ✓</span><span>Tasks ✓</span><span>Inventory ✓</span><span>Purchasing ✓</span><span>Staff Scheduling ✓</span></div>
+        <section className="card home-find-card">
+          <div className="home-section-heading"><div><span className="home-section-kicker">Find it fast</span><h2>Where should I go?</h2></div><p className="subtle">Juanita Hub is grouped by the job you are trying to do.</p></div>
+          <div className="home-find-grid">
+            <Link href="/children"><span className="home-find-icon">👥</span><span><strong>Students</strong><small>Profiles, attendance, behavior, families, and eventually learning progress.</small></span></Link>
+            <Link href="/programs"><span className="home-find-icon">🗓️</span><span><strong>Programs</strong><small>Programs, enrollment, registrations, activities, and the center calendar.</small></span></Link>
+            <Link href="/tasks"><span className="home-find-icon">🛠️</span><span><strong>Operations</strong><small>Tasks, inventory, purchasing, approvals, and day-to-day center work.</small></span></Link>
+            <Link href="/reports/attendance"><span className="home-find-icon">📊</span><span><strong>Reports</strong><small>Attendance reporting now, with student progress reporting planned next.</small></span></Link>
+          </div>
         </section>
       </main>
     </div>
