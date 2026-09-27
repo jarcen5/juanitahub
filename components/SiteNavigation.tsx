@@ -51,7 +51,18 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
       { href: '/card-tracking', label: 'Behavior' },
       { href: '/missed-cards', label: 'Missed Cards' },
       { href: '/households', label: 'Households' },
-      { label: 'Learning', comingSoon: true },
+      { href: '/learning', label: 'Learning' },
+    ],
+  },
+  {
+    label: 'Learning',
+    icon: '📘',
+    routes: ['/learning'],
+    links: [
+      { href: '/learning#week', label: 'This Week' },
+      { href: '/learning#library', label: 'Assignment Library' },
+      { href: '/learning#reading', label: 'Reading' },
+      { href: '/learning#notes', label: 'Notes' },
     ],
   },
   {
@@ -124,7 +135,7 @@ const navGroups: NavGroup[] = [
     icon: '📘',
     description: 'Weekly assignments and academic progress',
     items: [
-      { label: 'Learning Hub', description: 'Assignments, typing, reading, writing, grammar, and printable work.', comingSoon: true },
+      { href: '/learning', label: 'Learning Hub', description: 'Weekly assignments, reading, staff notes, and the growing academic toolkit.' },
     ],
   },
   {
@@ -417,10 +428,14 @@ export default function SiteNavigation() {
           <div className="jh-workspace-links">
             {workspaceLinks.map((item) => {
               if (!item.href || item.comingSoon) return <span className="jh-workspace-link disabled" key={item.label}>{item.label}<small>Soon</small></span>
-              const itemTab = item.href.startsWith('/rewards#') ? item.href.split('#')[1] : null
-              const rewardTab = locationHash || 'monthly'
+              const hashIndex = item.href.indexOf('#')
+              const itemBase = hashIndex >= 0 ? item.href.slice(0, hashIndex) : item.href
+              const itemTab = hashIndex >= 0 ? item.href.slice(hashIndex + 1) : null
+              const firstHashLink = workspaceLinks.find((link) => link.href?.includes('#'))?.href
+              const defaultTab = firstHashLink?.split('#')[1] ?? ''
+              const currentTab = locationHash || defaultTab
               const active = itemTab
-                ? pathname === '/rewards' && rewardTab === itemTab
+                ? pathname === itemBase && currentTab === itemTab
                 : pathname === item.href || pathname.startsWith(item.href + '/')
               return <Link className={`jh-workspace-link ${active ? 'active' : ''}`} href={item.href} key={item.href} aria-current={active ? 'page' : undefined}>{item.label}</Link>
             })}
