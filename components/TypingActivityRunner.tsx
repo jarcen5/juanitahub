@@ -15,15 +15,16 @@ type TypingConfig = {
 }
 
 type Props = {
-  studentAssignmentId: number
-  childId: number
-  assignmentId: number
+  studentAssignmentId?: number
+  childId?: number
+  assignmentId?: number
   assignmentTitle: string
-  studentName: string
+  studentName?: string
   activityConfig: TypingConfig | null
-  userId: string
+  userId?: string
+  testMode?: boolean
   onClose: () => void
-  onSaved: () => Promise<void> | void
+  onSaved?: () => Promise<void> | void
 }
 
 const keyboardRows = [
@@ -105,6 +106,7 @@ export default function TypingActivityRunner({
   studentName,
   activityConfig,
   userId,
+  testMode = false,
   onClose,
   onSaved,
 }: Props) {
@@ -231,6 +233,18 @@ export default function TypingActivityRunner({
     if (mode === 'hand_placement') completionNote = 'Hand Placement: ' + roundedAccuracy.toFixed(1) + '% accuracy • ' + finalStats.correctCharacters + ' correct keys • ' + errors + ' mistakes' + keyLabel
     if (mode === 'letter_drill') completionNote = 'Letter Practice: ' + roundedWpm.toFixed(1) + ' WPM • ' + roundedAccuracy.toFixed(1) + '% accuracy' + keyLabel
 
+    if (testMode) {
+      setElapsedSeconds(finalSeconds)
+      setFinished(true)
+      setSaveWarning('')
+      return
+    }
+
+    if (!studentAssignmentId || !childId || !assignmentId || !userId) {
+      setSaveWarning('This activity is missing the assignment information needed to save a result.')
+      return
+    }
+
     setSaving(true)
     setSaveWarning('')
 
@@ -274,7 +288,7 @@ export default function TypingActivityRunner({
     setFinished(true)
     setSaving(false)
     if (attemptError) setSaveWarning('The assignment was completed, but the typing-attempt history could not be saved: ' + attemptError.message)
-    await onSaved()
+    if (onSaved) await onSaved()
   }
 
   const targetWpmMet = targetWpm == null || liveStats.wpm >= targetWpm
@@ -283,13 +297,14 @@ export default function TypingActivityRunner({
 
   return (
     <div className="typing-runner-backdrop">
-      <main className="typing-runner-shell">
+      <main className={'typing-runner-shell' + (testMode ? ' test-mode' : '')}>
+        {testMode && <div className="typing-test-banner"><strong>TEST MODE</strong><span>Use the activity exactly like a student. No assignments, scores, attempts, or progress will be saved.</span></div>}
         <header className="typing-runner-topbar">
           <div>
             <span className="learning-kicker">Juanita Hub Typing Lab • {modeLabels[mode]}</span>
-            <strong>{studentName}</strong>
+            <strong>{testMode ? 'TEST MODE — results will not be saved' : studentName}</strong>
           </div>
-          <button className="ghost" type="button" disabled={saving} onClick={onClose}>Exit activity</button>
+          <button className="ghost" type="button" disabled={saving} onClick={onClose}>{testMode ? 'Exit test' : 'Exit activity'}</button>
         </header>
 
         {needsSetup ? (
@@ -304,7 +319,7 @@ export default function TypingActivityRunner({
             <span className="typing-results-icon">🎉</span>
             <span className="learning-kicker">{modeLabels[mode]} complete</span>
             <h1>{assignmentTitle}</h1>
-            <p>{studentName}’s result was saved automatically to this week’s assignment.</p>
+            <p>{testMode ? 'Test complete. Nothing was assigned, recorded, or added to student history.' : studentName + '’s result was saved automatically to this week’s assignment.'}</p>
 
             <div className="typing-results-grid">
               {showWpm ? (
