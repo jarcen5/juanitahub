@@ -20,7 +20,7 @@ function dateLabel(value: string | null) {
   return new Date(year, month - 1, day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-export default function DashboardTaskCard() {
+export default function DashboardTaskCard({ compact = false }: { compact?: boolean }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loaded, setLoaded] = useState(false)
 
@@ -56,7 +56,7 @@ export default function DashboardTaskCard() {
   }), [tasks])
 
   return (
-    <section className="card home-task-card">
+    <section className={compact ? "home-overview-panel home-task-card" : "card home-task-card"}>
       <div className="home-section-heading compact">
         <div><span className="home-section-kicker">Assigned work</span><h2>My Tasks</h2></div>
         <Link className="ghost" href="/tasks">Task Center →</Link>
