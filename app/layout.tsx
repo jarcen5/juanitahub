@@ -21,6 +21,7 @@ import './task-center.css'
 import './team.css'
 import './inventory.css'
 import './purchasing.css'
+import './organization-shell.css'
 
 export const metadata: Metadata = {
   title: 'Juanita Hub',
