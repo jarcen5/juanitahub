@@ -60,6 +60,7 @@ const navGroups: NavGroup[] = [
     label: 'Admin',
     items: [
       { href: '/registrations', label: 'Registration Center', description: 'Publish forms, create renewal links, and review family submissions.', adminOnly: true },
+      { href: '/purchasing', label: 'Budgets & Purchasing', description: 'Budgets, approvals, orders, receiving, and spending history.', adminOnly: true },
       { href: '/staff', label: 'Account Access', description: 'Approve Juanita Hub accounts and manage staff login access.', adminOnly: true },
     ],
   },
