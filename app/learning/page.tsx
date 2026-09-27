@@ -10,7 +10,15 @@ import TypingActivityRunner from '@/components/TypingActivityRunner'
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
 type Registration = { child_id: number; grade: string | null; school: string | null }
-type TypingConfig = { passage?: string; target_wpm?: number; target_accuracy?: number }
+type TypingMode = 'passage' | 'letter_drill' | 'guided_keys' | 'hand_placement'
+type TypingConfig = {
+  mode?: TypingMode
+  passage?: string
+  focus_keys?: string[]
+  target_keystrokes?: number
+  target_wpm?: number
+  target_accuracy?: number
+}
 type LearningAssignment = {
   id: number
   title: string
@@ -64,6 +72,11 @@ type TypingAttempt = {
   wpm: number
   accuracy: number
   duration_seconds: number
+  correct_characters: number
+  typed_characters: number
+  activity_mode: TypingMode
+  focus_keys: string[]
+  mistake_counts: Record<string, number>
   created_at: string
 }
 type LearningTab = 'week' | 'library' | 'typing' | 'reading' | 'notes'
@@ -89,7 +102,25 @@ const subjectIcons: Record<Subject, string> = {
   general: '📘',
 }
 
-const starterAssignments: Omit<LearningAssignment, 'id' | 'active' | 'activity_config'>[] = [
+const typingModeLabels: Record<TypingMode, string> = {
+  passage: 'Passage Practice',
+  letter_drill: 'Letter Practice',
+  guided_keys: 'Guided Keys',
+  hand_placement: 'Hand Placement',
+}
+
+const typingKeyPresets = [
+  { label: 'F & J', value: 'f j' },
+  { label: 'Home Row', value: 'a s d f g h j k l ;' },
+  { label: 'Left Hand', value: 'q w e r t a s d f g z x c v b' },
+  { label: 'Right Hand', value: 'y u i o p h j k l ; n m , . /' },
+  { label: 'Top Row', value: 'q w e r t y u i o p' },
+  { label: 'Bottom Row', value: 'z x c v b n m , . /' },
+]
+
+type StarterAssignment = Omit<LearningAssignment, 'id' | 'active' | 'activity_config'> & { starter_config?: TypingConfig }
+
+const starterAssignments: StarterAssignment[] = [
   {
     title: 'Reading Reflection',
     subject: 'reading',
@@ -125,6 +156,48 @@ const starterAssignments: Omit<LearningAssignment, 'id' | 'active' | 'activity_c
     instructions: 'Complete a short focused typing practice. Prioritize accuracy before speed and record the result when finished.',
     estimated_minutes: 15,
     resource_url: null,
+    starter_config: {
+      mode: 'passage',
+      passage: 'Learning new skills takes practice. Good typists focus on accuracy, keep their hands relaxed, and build speed one word at a time. Small improvements add up when you practice regularly.',
+      target_wpm: 15,
+      target_accuracy: 90,
+    },
+  },
+  {
+    title: 'F & J Guided Keys',
+    subject: 'typing',
+    assignment_type: 'typing',
+    skill: 'Home keys & index fingers',
+    grade_levels: [],
+    difficulty: 'support',
+    delivery_format: 'digital',
+    instructions: 'Practice finding F and J with the correct index fingers. Keep both hands resting on the home row between key presses.',
+    estimated_minutes: 10,
+    resource_url: null,
+    starter_config: {
+      mode: 'guided_keys',
+      focus_keys: ['f', 'j'],
+      target_keystrokes: 30,
+      target_accuracy: 90,
+    },
+  },
+  {
+    title: 'Home Row Hand Placement',
+    subject: 'typing',
+    assignment_type: 'typing',
+    skill: 'Home row hand placement',
+    grade_levels: [],
+    difficulty: 'support',
+    delivery_format: 'digital',
+    instructions: 'Practice keeping your fingers on the home row and pressing each highlighted key with the finger shown on screen.',
+    estimated_minutes: 10,
+    resource_url: null,
+    starter_config: {
+      mode: 'hand_placement',
+      focus_keys: ['a','s','d','f','g','h','j','k','l',';'],
+      target_keystrokes: 40,
+      target_accuracy: 90,
+    },
   },
   {
     title: 'Quick Write Journal',
@@ -253,7 +326,10 @@ export default function LearningPage() {
   const [newMinutes, setNewMinutes] = useState('')
   const [newInstructions, setNewInstructions] = useState('')
   const [newResourceUrl, setNewResourceUrl] = useState('')
+  const [typingMode, setTypingMode] = useState<TypingMode>('passage')
   const [typingPassage, setTypingPassage] = useState('')
+  const [typingFocusKeys, setTypingFocusKeys] = useState('')
+  const [typingTargetKeystrokes, setTypingTargetKeystrokes] = useState('30')
   const [typingTargetWpm, setTypingTargetWpm] = useState('15')
   const [typingTargetAccuracy, setTypingTargetAccuracy] = useState('90')
 
@@ -324,7 +400,7 @@ export default function LearningPage() {
       supabase.from('learning_reading_logs').select('id, child_id, read_on, title, minutes, pages, note, created_at').gte('read_on', weekStart).lte('read_on', weekEnd).order('read_on', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
       supabase.from('learning_student_assignments').select('assignment_id, status'),
-      supabase.from('learning_typing_attempts').select('id, student_assignment_id, child_id, assignment_id, wpm, accuracy, duration_seconds, created_at').order('created_at', { ascending: false }).limit(80),
+      supabase.from('learning_typing_attempts').select('id, student_assignment_id, child_id, assignment_id, wpm, accuracy, duration_seconds, correct_characters, typed_characters, activity_mode, focus_keys, mistake_counts, created_at').order('created_at', { ascending: false }).limit(80),
     ])
 
     const error = profileResult.error
@@ -479,12 +555,14 @@ export default function LearningPage() {
   const weeklyTypingAttempts = useMemo(() => typingAttempts.filter((attempt) => weeklyTypingIds.has(attempt.student_assignment_id)), [typingAttempts, weeklyTypingIds])
   const typingSummary = useMemo(() => {
     const attempts = weeklyTypingAttempts.length
-    const averageWpm = attempts ? weeklyTypingAttempts.reduce((sum, attempt) => sum + Number(attempt.wpm), 0) / attempts : 0
+    const speedAttempts = weeklyTypingAttempts.filter((attempt) => attempt.activity_mode === 'passage' || attempt.activity_mode === 'letter_drill')
+    const averageWpm = speedAttempts.length ? speedAttempts.reduce((sum, attempt) => sum + Number(attempt.wpm), 0) / speedAttempts.length : 0
     const averageAccuracy = attempts ? weeklyTypingAttempts.reduce((sum, attempt) => sum + Number(attempt.accuracy), 0) / attempts : 0
     return {
       assigned: weeklyTypingAssignments.length,
       completed: weeklyTypingAssignments.filter((row) => row.status === 'completed').length,
       attempts,
+      speedAttempts: speedAttempts.length,
       averageWpm,
       averageAccuracy,
     }
@@ -507,7 +585,10 @@ export default function LearningPage() {
     setNewMinutes('')
     setNewInstructions('')
     setNewResourceUrl('')
+    setTypingMode('passage')
     setTypingPassage('')
+    setTypingFocusKeys('')
+    setTypingTargetKeystrokes('30')
     setTypingTargetWpm('15')
     setTypingTargetAccuracy('90')
   }
@@ -529,7 +610,10 @@ export default function LearningPage() {
     setNewMinutes(assignment.estimated_minutes == null ? '' : String(assignment.estimated_minutes))
     setNewInstructions(assignment.instructions ?? '')
     setNewResourceUrl(assignment.resource_url ?? '')
+    setTypingMode(assignment.activity_config?.mode ?? 'passage')
     setTypingPassage(typeof assignment.activity_config?.passage === 'string' ? assignment.activity_config.passage : '')
+    setTypingFocusKeys(Array.isArray(assignment.activity_config?.focus_keys) ? assignment.activity_config.focus_keys.map((key) => key === ' ' ? 'space' : key).join(' ') : '')
+    setTypingTargetKeystrokes(typeof assignment.activity_config?.target_keystrokes === 'number' ? String(assignment.activity_config.target_keystrokes) : '30')
     setTypingTargetWpm(typeof assignment.activity_config?.target_wpm === 'number' ? String(assignment.activity_config.target_wpm) : '15')
     setTypingTargetAccuracy(typeof assignment.activity_config?.target_accuracy === 'number' ? String(assignment.activity_config.target_accuracy) : '90')
     setEditorOpen(true)
@@ -537,12 +621,33 @@ export default function LearningPage() {
 
   async function saveAssignment() {
     if (!session || profile?.role !== 'admin' || saving || !newTitle.trim()) return
-    if (newType === 'typing' && !typingPassage.trim()) return showMessage('Add a typing passage before saving a typing activity.')
+    const focusKeys = [...new Set(typingFocusKeys
+      .split(/[\s,]+/)
+      .map((key) => key.trim().toLowerCase())
+      .filter(Boolean)
+      .map((key) => key === 'space' ? ' ' : key)
+      .filter((key) => key.length === 1))]
+    const parsedTargetKeystrokes = typingTargetKeystrokes.trim() ? Number(typingTargetKeystrokes) : 30
     const parsedTargetWpm = typingTargetWpm.trim() ? Number(typingTargetWpm) : null
     const parsedTargetAccuracy = typingTargetAccuracy.trim() ? Number(typingTargetAccuracy) : null
-    if (newType === 'typing' && parsedTargetWpm != null && (!Number.isFinite(parsedTargetWpm) || parsedTargetWpm <= 0)) return showMessage('Typing WPM goal must be greater than 0.')
+    const speedMode = typingMode === 'passage' || typingMode === 'letter_drill'
+
+    if (newType === 'typing' && typingMode === 'passage' && !typingPassage.trim()) return showMessage('Add a typing passage before saving Passage Practice.')
+    if (newType === 'typing' && typingMode !== 'passage' && !focusKeys.length) return showMessage('Choose at least one practice key for this typing mode.')
+    if (newType === 'typing' && typingMode !== 'passage' && (!Number.isFinite(parsedTargetKeystrokes) || parsedTargetKeystrokes < 5 || parsedTargetKeystrokes > 500)) return showMessage('Correct-key goal must be between 5 and 500.')
+    if (newType === 'typing' && speedMode && parsedTargetWpm != null && (!Number.isFinite(parsedTargetWpm) || parsedTargetWpm <= 0)) return showMessage('Typing WPM goal must be greater than 0.')
     if (newType === 'typing' && parsedTargetAccuracy != null && (!Number.isFinite(parsedTargetAccuracy) || parsedTargetAccuracy < 0 || parsedTargetAccuracy > 100)) return showMessage('Typing accuracy goal must be between 0 and 100.')
+
     const grades = [...new Set(newGrades.split(',').map((grade) => grade.trim()).filter(Boolean))]
+    const activityConfig: TypingConfig = newType === 'typing'
+      ? {
+          mode: typingMode,
+          ...(typingMode === 'passage' ? { passage: typingPassage.trim() } : { focus_keys: focusKeys, target_keystrokes: Math.round(parsedTargetKeystrokes) }),
+          ...(speedMode && parsedTargetWpm != null ? { target_wpm: parsedTargetWpm } : {}),
+          ...(parsedTargetAccuracy == null ? {} : { target_accuracy: parsedTargetAccuracy }),
+        }
+      : {}
+
     const values = {
       title: newTitle.trim(),
       subject: newSubject,
@@ -554,11 +659,7 @@ export default function LearningPage() {
       instructions: newInstructions.trim() || null,
       estimated_minutes: newMinutes ? Math.max(1, Number(newMinutes)) : null,
       resource_url: newResourceUrl.trim() || null,
-      activity_config: newType === 'typing' ? {
-        passage: typingPassage.trim(),
-        ...(parsedTargetWpm == null ? {} : { target_wpm: parsedTargetWpm }),
-        ...(parsedTargetAccuracy == null ? {} : { target_accuracy: parsedTargetAccuracy }),
-      } : {},
+      activity_config: activityConfig,
       updated_at: new Date().toISOString(),
     }
 
@@ -630,15 +731,11 @@ export default function LearningPage() {
     }
     setStarterAdding(true)
     const { error } = await supabase.from('learning_assignments').insert(
-      missing.map((assignment) => ({
+      missing.map(({ starter_config, ...assignment }) => ({
         ...assignment,
         active: true,
         created_by: session.user.id,
-        activity_config: assignment.assignment_type === 'typing' ? {
-          passage: 'Learning new skills takes practice. Good typists focus on accuracy, keep their hands relaxed, and build speed one word at a time. Small improvements add up when you practice regularly.',
-          target_wpm: 15,
-          target_accuracy: 90,
-        } : {},
+        activity_config: starter_config ?? {},
       })),
     )
     setStarterAdding(false)
