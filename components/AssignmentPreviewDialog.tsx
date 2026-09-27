@@ -18,6 +18,17 @@ type PreviewAssignment = {
     target_keystrokes?: number
     target_wpm?: number
     target_accuracy?: number
+    questions?: Array<{
+      id: string
+      type: 'multiple_choice' | 'correct_sentence' | 'fill_blank' | 'spelling' | 'reading_comprehension'
+      prompt: string
+      choices?: string[]
+      correct_answer: string
+      explanation?: string
+      passage?: string
+    }>
+    passing_score?: number
+    show_explanations?: boolean
   }
 }
 
@@ -121,6 +132,28 @@ export default function AssignmentPreviewDialog({ assignment, onClose }: Props) 
                 <div className="learning-preview-typing-goals">
                   {typeof assignment.activity_config?.target_wpm === 'number' && <span>⌨️ Goal: {assignment.activity_config.target_wpm} WPM</span>}
                   {typeof assignment.activity_config?.target_accuracy === 'number' && <span>🎯 Goal: {assignment.activity_config.target_accuracy}% accuracy</span>}
+                </div>
+              </div>
+            )}
+
+            {assignment.assignment_type === 'quiz' && (
+              <div className="learning-preview-quiz">
+                <div className="learning-preview-quiz-heading">
+                  <strong>Quiz setup</strong>
+                  <span>{assignment.activity_config?.questions?.length ?? 0} questions • Goal {assignment.activity_config?.passing_score ?? 80}%</span>
+                </div>
+                <div className="learning-preview-quiz-list">
+                  {(assignment.activity_config?.questions ?? []).map((question, index) => (
+                    <article key={question.id}>
+                      <span>Question {index + 1}</span>
+                      {question.passage && <p className="reading">{question.passage}</p>}
+                      <strong>{question.prompt}</strong>
+                      {question.choices && question.choices.length > 0 && <div>{question.choices.map((choice) => <small key={choice} className={choice.trim().toLowerCase() === question.correct_answer.trim().toLowerCase() ? 'correct' : ''}>{choice}</small>)}</div>}
+                      {(!question.choices || question.choices.length === 0) && <small className="correct">Answer: {question.correct_answer}</small>}
+                      {question.explanation && <p>{question.explanation}</p>}
+                    </article>
+                  ))}
+                  {(assignment.activity_config?.questions?.length ?? 0) === 0 && <p>No quiz questions have been added yet.</p>}
                 </div>
               </div>
             )}
