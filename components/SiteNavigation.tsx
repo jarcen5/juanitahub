@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import DailyCardNotes from '@/components/DailyCardNotes'
 
@@ -62,6 +62,18 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
       { href: '/programs', label: 'Programs' },
       { href: '/calendar', label: 'Calendar' },
       { href: '/registrations', label: 'Registration', adminOnly: true },
+    ],
+  },
+  {
+    label: 'Rewards',
+    icon: '🎁',
+    routes: ['/rewards'],
+    links: [
+      { href: '/rewards?tab=monthly', label: 'Monthly Spins' },
+      { href: '/rewards?tab=free', label: 'Free Spin' },
+      { href: '/rewards?tab=test', label: 'Test Wheel' },
+      { href: '/rewards?tab=setup', label: 'Prize Setup', adminOnly: true },
+      { href: '/rewards?tab=fulfillment', label: 'Fulfillment' },
     ],
   },
   {
@@ -165,6 +177,7 @@ const navGroups: NavGroup[] = [
 
 export default function SiteNavigation() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const navRef = useRef<HTMLElement | null>(null)
   const [access, setAccess] = useState<AccessState>({ active: false, role: null })
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -397,7 +410,11 @@ export default function SiteNavigation() {
           <div className="jh-workspace-links">
             {workspaceLinks.map((item) => {
               if (!item.href || item.comingSoon) return <span className="jh-workspace-link disabled" key={item.label}>{item.label}<small>Soon</small></span>
-              const active = pathname === item.href || pathname.startsWith(item.href + '/')
+              const rewardTab = searchParams.get('tab') ?? 'monthly'
+              const itemTab = item.href.startsWith('/rewards?tab=') ? item.href.split('=')[1] : null
+              const active = itemTab
+                ? pathname === '/rewards' && rewardTab === itemTab
+                : pathname === item.href || pathname.startsWith(item.href + '/')
               return <Link className={`jh-workspace-link ${active ? 'active' : ''}`} href={item.href} key={item.href} aria-current={active ? 'page' : undefined}>{item.label}</Link>
             })}
           </div>
