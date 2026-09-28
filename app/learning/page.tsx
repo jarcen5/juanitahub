@@ -25,7 +25,11 @@ type TypingConfig = {
   target_wpm?: number
   target_accuracy?: number
 }
-type ActivityConfig = TypingConfig & QuizConfig & WritingConfig & ReadingConfig
+type ActivityConfig = TypingConfig & WritingConfig & {
+  questions?: Array<QuizQuestion | ReadingQuestion>
+  passing_score?: number
+  show_explanations?: boolean
+}
 type LearningAssignment = {
   id: number
   title: string
@@ -1042,7 +1046,7 @@ export default function LearningPage() {
     setTypingTargetKeystrokes(typeof assignment.activity_config?.target_keystrokes === 'number' ? String(assignment.activity_config.target_keystrokes) : '30')
     setTypingTargetWpm(typeof assignment.activity_config?.target_wpm === 'number' ? String(assignment.activity_config.target_wpm) : '15')
     setTypingTargetAccuracy(typeof assignment.activity_config?.target_accuracy === 'number' ? String(assignment.activity_config.target_accuracy) : '90')
-    setQuizQuestions(Array.isArray(assignment.activity_config?.questions) ? assignment.activity_config.questions : [])
+    setQuizQuestions(assignment.assignment_type === 'quiz' && Array.isArray(assignment.activity_config?.questions) ? assignment.activity_config.questions as QuizQuestion[] : [])
     setQuizPassingScore(typeof assignment.activity_config?.passing_score === 'number' ? String(assignment.activity_config.passing_score) : '80')
     setQuizShowExplanations(assignment.activity_config?.show_explanations !== false)
     setWritingMode(assignment.activity_config?.writing_mode ?? 'journal')
@@ -1052,7 +1056,7 @@ export default function LearningPage() {
     setWritingTargetWords(typeof assignment.activity_config?.target_words === 'number' ? String(assignment.activity_config.target_words) : '')
     setWritingRubric(Array.isArray(assignment.activity_config?.rubric_criteria) ? assignment.activity_config.rubric_criteria.join('\n') : 'Ideas\nOrganization\nGrammar & conventions')
     setReadingPassageText(typeof assignment.activity_config?.passage === 'string' && assignment.assignment_type === 'reading' ? assignment.activity_config.passage : '')
-    setReadingQuestions(assignment.assignment_type === 'reading' && Array.isArray(assignment.activity_config?.questions) ? assignment.activity_config.questions : [])
+    setReadingQuestions(assignment.assignment_type === 'reading' && Array.isArray(assignment.activity_config?.questions) ? assignment.activity_config.questions as ReadingQuestion[] : [])
     setReadingPassingScore(assignment.assignment_type === 'reading' && typeof assignment.activity_config?.passing_score === 'number' ? String(assignment.activity_config.passing_score) : '80')
     setReadingShowExplanations(assignment.assignment_type === 'reading' ? assignment.activity_config?.show_explanations !== false : true)
     setEditorOpen(true)
