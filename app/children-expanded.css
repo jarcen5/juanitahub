@@ -1,3 +1,173 @@
 .children-form-grid select,.children-pickup-row input{width:100%;border:1px solid rgba(22,50,79,.18);border-radius:13px;padding:11px 12px;background:#fff;color:#16324f;font:inherit;min-height:44px}.children-wide{grid-column:1/-1}.children-weekdays{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:8px 0 4px}.children-weekdays label{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border:1px solid rgba(35,118,201,.18);border-radius:13px;background:#fff;color:#16324f;font-weight:800;cursor:pointer}.children-weekdays input{width:18px;height:18px}.children-toggle-line{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:13px;background:rgba(35,118,201,.06);border:1px solid rgba(35,118,201,.14);font-weight:700;color:#16324f}.children-toggle-line input{width:20px;height:20px}.children-pickup-editor{display:grid;gap:10px}.children-pickup-row{display:grid;grid-template-columns:1.25fr 1fr 1fr 1.4fr auto;gap:8px;align-items:center;padding:10px;border-radius:14px;background:#fff;border:1px solid rgba(22,50,79,.08)}.children-pickup-row .ghost{min-height:44px}.children-add-pickup{justify-self:start}.children-support-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.children-support-grid>div,.children-agreement-grid>div{padding:13px 14px;border-radius:14px;background:#fff;border:1px solid rgba(22,50,79,.08);display:flex;flex-direction:column;gap:5px}.children-support-grid small,.children-agreement-grid small{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;font-weight:800;color:#728395}.children-support-grid strong,.children-agreement-grid strong{color:#16324f;white-space:pre-wrap;overflow-wrap:anywhere}.children-care-notes.important{border-color:rgba(241,109,120,.35);background:rgba(241,109,120,.07)}.children-agreement-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.children-empty-inline{padding:12px 14px;border-radius:14px;background:#fff;border:1px dashed rgba(22,50,79,.18);color:#6c7f92}.children-form-note{margin:0 0 8px}.children-contact-grid article span{overflow-wrap:anywhere}
 @media(max-width:1100px){.children-pickup-row{grid-template-columns:repeat(2,minmax(0,1fr))}.children-pickup-row .ghost{grid-column:1/-1;justify-self:start}.children-agreement-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.children-weekdays{grid-template-columns:repeat(3,minmax(0,1fr))}.children-support-grid,.children-agreement-grid{grid-template-columns:1fr}.children-pickup-row{grid-template-columns:1fr}.children-pickup-row .ghost{grid-column:auto;width:100%}.children-wide{grid-column:auto}}
+
+
+/* Student Learning access + quick student creation */
+.children-hero-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.children-learning-access-modal{
+  width:min(980px,100%);
+  max-height:calc(100vh - 36px);
+  overflow:auto;
+  position:relative;
+}
+.children-learning-access-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding-right:34px;
+  margin-bottom:14px;
+}
+.children-learning-access-heading h2{
+  margin:4px 0;
+}
+.children-learning-access-list{
+  display:grid;
+  gap:7px;
+}
+.children-learning-access-list article{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto auto auto;
+  gap:9px;
+  align-items:center;
+  padding:10px;
+  border:1px solid #dfe8ed;
+  border-radius:12px;
+  background:#fbfdfe;
+}
+.children-learning-access-copy{
+  display:grid;
+  gap:2px;
+}
+.children-learning-access-copy strong{
+  color:#405b6e;
+  font-size:10.5px;
+}
+.children-learning-access-copy small{
+  color:#8b979f;
+  font-size:8.5px;
+}
+.children-learning-pin{
+  min-width:68px;
+  display:grid;
+  justify-items:center;
+  gap:1px;
+  padding:7px 9px;
+  border:1px solid #dce7ed;
+  border-radius:10px;
+  background:white;
+}
+.children-learning-pin small{
+  color:#929da4;
+  font-size:7px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.children-learning-pin strong{
+  color:#385e77;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-size:12px;
+  letter-spacing:.08em;
+}
+.children-learning-access-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid #e3e9ed;
+}
+.children-learning-access-footer>span{
+  max-width:650px;
+  color:#84929b;
+  font-size:8.5px;
+  line-height:1.45;
+}
+.children-learning-access-footer>a{
+  text-decoration:none;
+  white-space:nowrap;
+}
+.children-add-student-modal{
+  width:min(760px,100%);
+  max-height:calc(100vh - 36px);
+  overflow:auto;
+  position:relative;
+}
+.children-add-student-modal h2{
+  margin:4px 0;
+}
+.children-add-student-modal .field>small{
+  display:block;
+  margin-top:4px;
+  color:#7d8d96;
+  font-size:8.5px;
+}
+.children-new-student-summary{
+  display:grid;
+  gap:3px;
+  margin-top:12px;
+  padding:11px;
+  border:1px solid #cae5d6;
+  border-radius:11px;
+  background:#f2fbf6;
+}
+.children-new-student-summary strong{
+  color:#397254;
+  font-size:10px;
+}
+.children-new-student-summary span{
+  color:#71867a;
+  font-size:8.5px;
+}
+.children-learning-profile-access{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+.children-learning-profile-access>div{
+  display:grid;
+  gap:3px;
+  padding:10px;
+  border:1px solid #dde8e1;
+  border-radius:11px;
+  background:#f9fcfa;
+}
+.children-learning-profile-access small{
+  color:#8b9891;
+  font-size:8px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.children-learning-profile-access strong{
+  color:#466756;
+  font-size:10px;
+}
+.children-learning-profile-actions{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+}
+.children-learning-profile-actions>a{
+  text-decoration:none;
+}
+@media(max-width:780px){
+  .children-hero-actions{justify-content:flex-start}
+  .children-learning-access-list article{grid-template-columns:auto minmax(0,1fr) auto}
+  .children-learning-access-list article>.child-registration-status,
+  .children-learning-access-list article>button{grid-column:2/-1;justify-self:start}
+  .children-learning-profile-access{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .children-learning-access-heading{flex-direction:column}
+  .children-learning-access-footer{align-items:stretch;flex-direction:column}
+  .children-learning-access-footer>a{width:100%;text-align:center}
+  .children-learning-profile-actions{display:grid;grid-template-columns:1fr}
+}
