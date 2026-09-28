@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { studentLearningRequest, type StudentAccessContext } from '@/lib/studentLearning'
 
 type TypingMode = 'passage' | 'letter_drill' | 'guided_keys' | 'hand_placement'
 
@@ -22,6 +23,7 @@ type Props = {
   studentName?: string
   activityConfig: TypingConfig | null
   userId?: string
+  studentAccess?: StudentAccessContext
   testMode?: boolean
   onClose: () => void
   onSaved?: () => Promise<void> | void
@@ -106,6 +108,7 @@ export default function TypingActivityRunner({
   studentName,
   activityConfig,
   userId,
+  studentAccess,
   testMode = false,
   onClose,
   onSaved,
@@ -240,13 +243,43 @@ export default function TypingActivityRunner({
       return
     }
 
-    if (!studentAssignmentId || !childId || !assignmentId || !userId) {
+    if (!studentAssignmentId || !childId || !assignmentId || (!userId && !studentAccess)) {
       setSaveWarning('This activity is missing the assignment information needed to save a result.')
       return
     }
 
     setSaving(true)
     setSaveWarning('')
+
+    if (studentAccess) {
+      try {
+        await studentLearningRequest('save_typing', {
+          device_token: studentAccess.deviceToken,
+          student_token: studentAccess.studentToken,
+          student_assignment_id: studentAssignmentId,
+          result: {
+            passage_text: targetText,
+            typed_characters: finalStats.typedCharacters,
+            correct_characters: finalStats.correctCharacters,
+            wpm: roundedWpm,
+            accuracy: roundedAccuracy,
+            duration_seconds: finalSeconds,
+            activity_mode: mode,
+            focus_keys: focusKeys,
+            mistake_counts: finalStats.mistakes,
+            staff_note: completionNote,
+          },
+        })
+        setElapsedSeconds(finalSeconds)
+        setFinished(true)
+        setSaving(false)
+        if (onSaved) await onSaved()
+      } catch (error) {
+        setSaving(false)
+        setSaveWarning(error instanceof Error ? error.message : 'Typing result could not be saved.')
+      }
+      return
+    }
 
     const { error: assignmentError } = await supabase
       .from('learning_student_assignments')
@@ -257,7 +290,7 @@ export default function TypingActivityRunner({
         max_score: 100,
         minutes_spent: Math.max(1, Math.ceil(finalSeconds / 60)),
         staff_note: completionNote,
-        updated_by: userId,
+        updated_by: userId!,
         updated_at: new Date().toISOString(),
       })
       .eq('id', studentAssignmentId)
@@ -278,7 +311,7 @@ export default function TypingActivityRunner({
       wpm: roundedWpm,
       accuracy: roundedAccuracy,
       duration_seconds: finalSeconds,
-      completed_by: userId,
+      completed_by: userId!,
       activity_mode: mode,
       focus_keys: focusKeys,
       mistake_counts: finalStats.mistakes,
