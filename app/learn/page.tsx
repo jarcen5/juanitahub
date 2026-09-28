@@ -200,7 +200,8 @@ export default function StudentLearningPage() {
       setStaffSessionAvailable(false)
       await loadStudents(data.device_token)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'This computer could not be activated.')
+      const detail = error instanceof Error ? error.message : 'This computer could not be activated.'
+      setMessage('Activation failed: ' + detail)
     }
     setWorking(false)
   }
