@@ -2277,6 +2277,30 @@ export default function LearningPage() {
         onClose={() => setWritingReviewTarget(null)}
         onSaved={loadData}
       />
+
+      {readingTarget && (
+        <ReadingActivityRunner
+          studentAssignmentId={readingTarget.row.id}
+          childId={readingTarget.child.id}
+          assignmentId={readingTarget.assignment.id}
+          assignmentTitle={readingTarget.assignment.title}
+          studentName={childName(readingTarget.child)}
+          activityConfig={readingTarget.assignment.activity_config as ReadingConfig}
+          userId={session.user.id}
+          onClose={() => setReadingTarget(null)}
+          onSaved={loadData}
+        />
+      )}
+
+      <ReadingReviewDialog
+        attempt={readingReviewTarget?.attempt ?? null}
+        assignmentTitle={readingReviewTarget?.assignment.title ?? ''}
+        studentName={readingReviewTarget ? childName(readingReviewTarget.child) : ''}
+        activityConfig={readingReviewTarget?.assignment.activity_config as ReadingConfig ?? null}
+        userId={session.user.id}
+        onClose={() => setReadingReviewTarget(null)}
+        onSaved={loadData}
+      />
     </div>
   )
 }
