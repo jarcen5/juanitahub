@@ -2246,7 +2246,7 @@ export default function LearningPage() {
           assignmentId={quizTarget.assignment.id}
           assignmentTitle={quizTarget.assignment.title}
           studentName={childName(quizTarget.child)}
-          activityConfig={quizTarget.assignment.activity_config}
+          activityConfig={quizTarget.assignment.activity_config as QuizConfig}
           userId={session.user.id}
           onClose={() => setQuizTarget(null)}
           onSaved={loadData}
@@ -2261,7 +2261,7 @@ export default function LearningPage() {
           assignmentId={writingTarget.assignment.id}
           assignmentTitle={writingTarget.assignment.title}
           studentName={childName(writingTarget.child)}
-          activityConfig={writingTarget.assignment.activity_config}
+          activityConfig={writingTarget.assignment.activity_config as WritingConfig}
           userId={session.user.id}
           onClose={() => setWritingTarget(null)}
           onSaved={loadData}
@@ -2296,7 +2296,7 @@ export default function LearningPage() {
         attempt={readingReviewTarget?.attempt ?? null}
         assignmentTitle={readingReviewTarget?.assignment.title ?? ''}
         studentName={readingReviewTarget ? childName(readingReviewTarget.child) : ''}
-        activityConfig={readingReviewTarget?.assignment.activity_config as ReadingConfig ?? null}
+        activityConfig={readingReviewTarget ? readingReviewTarget.assignment.activity_config as ReadingConfig : null}
         userId={session.user.id}
         onClose={() => setReadingReviewTarget(null)}
         onSaved={loadData}
