@@ -14,23 +14,7 @@ type TestAssignment = {
   skill: string | null
   instructions: string | null
   resource_url: string | null
-  activity_config: {
-    mode?: 'passage' | 'letter_drill' | 'guided_keys' | 'hand_placement'
-    passage?: string
-    focus_keys?: string[]
-    target_keystrokes?: number
-    target_wpm?: number
-    target_accuracy?: number
-    questions?: Array<Record<string, unknown>>
-    passing_score?: number
-    show_explanations?: boolean
-    writing_mode?: WritingConfig['writing_mode']
-    prompt?: string
-    sentence_starters?: string[]
-    min_words?: number
-    target_words?: number
-    rubric_criteria?: string[]
-  }
+  activity_config: unknown
 }
 
 type Props = {
@@ -57,7 +41,14 @@ export default function AssignmentTestRunner({ assignment, onClose }: Props) {
       <TypingActivityRunner
         assignmentTitle={assignment.title}
         studentName="Staff Test"
-        activityConfig={assignment.activity_config}
+        activityConfig={assignment.activity_config as {
+          mode?: 'passage' | 'letter_drill' | 'guided_keys' | 'hand_placement'
+          passage?: string
+          focus_keys?: string[]
+          target_keystrokes?: number
+          target_wpm?: number
+          target_accuracy?: number
+        }}
         testMode
         onClose={onClose}
       />
