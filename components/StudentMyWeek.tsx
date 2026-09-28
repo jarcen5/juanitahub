@@ -25,6 +25,7 @@ type Props = {
   items: MyWeekItem[]
   onLaunch: (item: MyWeekItem) => void
   onExit: () => void
+  exitLabel?: string
 }
 
 const subjectIcons: Record<MyWeekItem['subject'], string> = {
@@ -76,7 +77,7 @@ function actionLabel(item: MyWeekItem) {
   return 'Start'
 }
 
-export default function StudentMyWeek({ studentName, grade, weekLabel, items, onLaunch, onExit }: Props) {
+export default function StudentMyWeek({ studentName, grade, weekLabel, items, onLaunch, onExit, exitLabel = 'Back to staff view' }: Props) {
   const completed = items.filter((item) => ['completed', 'skipped'].includes(item.status) || item.writingStatus === 'submitted' || item.writingStatus === 'reviewed' || item.readingReviewStatus === 'pending' || item.readingReviewStatus === 'reviewed').length
   const inProgress = items.filter((item) => statusFor(item).key === 'in_progress').length
   const todo = Math.max(0, items.length - completed - inProgress)
@@ -101,7 +102,7 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
             <span>Juanita Hub</span>
             <strong>My Week</strong>
           </div>
-          <button className="ghost" type="button" onClick={onExit}>Exit student view</button>
+          <button className="ghost" type="button" onClick={onExit}>{exitLabel}</button>
         </header>
 
         <section className="my-week-hero">
@@ -159,7 +160,7 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
 
         <footer className="my-week-footer">
           <span>Need help? Ask a staff member anytime.</span>
-          <button className="ghost" type="button" onClick={onExit}>Back to staff view</button>
+          <button className="ghost" type="button" onClick={onExit}>{exitLabel}</button>
         </footer>
       </main>
     </div>
