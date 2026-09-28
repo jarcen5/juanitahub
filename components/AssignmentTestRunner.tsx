@@ -21,7 +21,16 @@ type TestAssignment = {
     target_keystrokes?: number
     target_wpm?: number
     target_accuracy?: number
-  } & QuizConfig & WritingConfig & ReadingConfig
+    questions?: Array<Record<string, unknown>>
+    passing_score?: number
+    show_explanations?: boolean
+    writing_mode?: WritingConfig['writing_mode']
+    prompt?: string
+    sentence_starters?: string[]
+    min_words?: number
+    target_words?: number
+    rubric_criteria?: string[]
+  }
 }
 
 type Props = {
@@ -60,7 +69,7 @@ export default function AssignmentTestRunner({ assignment, onClose }: Props) {
       <QuizActivityRunner
         assignmentTitle={assignment.title}
         studentName="Staff Test"
-        activityConfig={assignment.activity_config}
+        activityConfig={assignment.activity_config as QuizConfig}
         testMode
         onClose={onClose}
       />
@@ -72,7 +81,7 @@ export default function AssignmentTestRunner({ assignment, onClose }: Props) {
       <WritingActivityRunner
         assignmentTitle={assignment.title}
         studentName="Staff Test"
-        activityConfig={assignment.activity_config}
+        activityConfig={assignment.activity_config as WritingConfig}
         testMode
         onClose={onClose}
       />
@@ -84,7 +93,7 @@ export default function AssignmentTestRunner({ assignment, onClose }: Props) {
       <ReadingActivityRunner
         assignmentTitle={assignment.title}
         studentName="Staff Test"
-        activityConfig={assignment.activity_config}
+        activityConfig={assignment.activity_config as ReadingConfig}
         testMode
         onClose={onClose}
       />
