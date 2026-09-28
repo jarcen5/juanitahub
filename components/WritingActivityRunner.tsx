@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { studentLearningRequest, type StudentAccessContext } from '@/lib/studentLearning'
 
 export type WritingMode = 'journal' | 'short_response' | 'paragraph' | 'creative' | 'reading_response'
 
@@ -23,6 +24,7 @@ type Props = {
   studentName?: string
   activityConfig: WritingConfig | null
   userId?: string
+  studentAccess?: StudentAccessContext
   testMode?: boolean
   onClose: () => void
   onSaved?: () => Promise<void> | void
@@ -56,6 +58,7 @@ export default function WritingActivityRunner({
   studentName,
   activityConfig,
   userId,
+  studentAccess,
   testMode = false,
   onClose,
   onSaved,
@@ -89,6 +92,30 @@ export default function WritingActivityRunner({
       return
     }
     let mounted = true
+
+    if (studentAccess) {
+      void studentLearningRequest<{ submission: { id: number; content: string; status: 'draft' | 'submitted' | 'reviewed'; active_seconds: number } | null }>('load_writing', {
+        device_token: studentAccess.deviceToken,
+        student_token: studentAccess.studentToken,
+        student_assignment_id: studentAssignmentId,
+      }).then(({ submission }) => {
+        if (!mounted) return
+        if (submission) {
+          setSubmissionId(submission.id)
+          setContent(submission.content ?? '')
+          setSubmissionStatus(submission.status)
+          setSavedActiveSeconds(Number(submission.active_seconds ?? 0))
+          if (submission.status !== 'draft') setFinished(true)
+        }
+        setLoadingDraft(false)
+      }).catch((error) => {
+        if (!mounted) return
+        setMessage(error instanceof Error ? error.message : 'Could not load this writing activity.')
+        setLoadingDraft(false)
+      })
+      return () => { mounted = false }
+    }
+
     supabase
       .from('learning_writing_submissions')
       .select('id, content, status, active_seconds')
@@ -108,7 +135,7 @@ export default function WritingActivityRunner({
         setLoadingDraft(false)
       })
     return () => { mounted = false }
-  }, [studentAssignmentId, testMode])
+  }, [studentAssignmentId, studentAccess, testMode])
 
   useEffect(() => {
     if (startedAt == null || finished) return
@@ -139,7 +166,7 @@ export default function WritingActivityRunner({
       return
     }
 
-    if (!studentAssignmentId || !childId || !assignmentId || !userId) {
+    if (!studentAssignmentId || !childId || !assignmentId || (!userId && !studentAccess)) {
       setMessage('This writing activity is missing the assignment information needed to save.')
       return
     }
@@ -149,6 +176,41 @@ export default function WritingActivityRunner({
     const now = new Date().toISOString()
     const sessionSeconds = startedAt == null ? 0 : Math.max(0, Math.round((Date.now() - startedAt) / 1000))
     const totalActiveSeconds = Math.min(864000, savedActiveSeconds + sessionSeconds)
+
+    if (studentAccess) {
+      try {
+        const result = await studentLearningRequest<{ submission: { id: number; content: string; word_count: number; status: 'draft' | 'submitted'; active_seconds: number } }>('save_writing', {
+          device_token: studentAccess.deviceToken,
+          student_token: studentAccess.studentToken,
+          student_assignment_id: studentAssignmentId,
+          status,
+          content,
+          active_seconds: totalActiveSeconds,
+          started_at: startedAt == null ? now : new Date(startedAt).toISOString(),
+        })
+        setSubmissionId(result.submission.id)
+        setContent(result.submission.content)
+        setSavedActiveSeconds(result.submission.active_seconds)
+        setSubmissionStatus(result.submission.status)
+        if (status === 'draft') {
+          setStartedAt(Date.now())
+          setElapsedSeconds(0)
+          setMessage('Draft saved.')
+        } else {
+          setStartedAt(null)
+          setElapsedSeconds(0)
+          setFinished(true)
+          setMessage('')
+        }
+        setSaving(false)
+        if (onSaved) await onSaved()
+      } catch (error) {
+        setSaving(false)
+        setMessage(error instanceof Error ? error.message : 'Writing could not be saved.')
+      }
+      return
+    }
+
     let currentSubmissionId = submissionId
 
     if (currentSubmissionId) {
@@ -161,7 +223,7 @@ export default function WritingActivityRunner({
           active_seconds: totalActiveSeconds,
           submitted_at: status === 'submitted' ? now : null,
           last_saved_at: now,
-          updated_by: userId,
+          updated_by: userId!,
           updated_at: now,
         })
         .eq('id', currentSubmissionId)
@@ -184,7 +246,7 @@ export default function WritingActivityRunner({
           started_at: startedAt == null ? now : new Date(startedAt).toISOString(),
           active_seconds: totalActiveSeconds,
           submitted_at: status === 'submitted' ? now : null,
-          updated_by: userId,
+          updated_by: userId!,
         })
         .select('id')
         .single()
@@ -202,7 +264,7 @@ export default function WritingActivityRunner({
       writing_submission_id: currentSubmissionId,
       content,
       word_count: wordCount,
-      saved_by: userId,
+      saved_by: userId!,
     })
 
     if (revisionError) setMessage('Writing saved, but the revision snapshot could not be recorded: ' + revisionError.message)
@@ -211,7 +273,7 @@ export default function WritingActivityRunner({
       if (studentAssignmentStatus === 'assigned') {
         await supabase
           .from('learning_student_assignments')
-          .update({ status: 'in_progress', updated_by: userId, updated_at: now })
+          .update({ status: 'in_progress', updated_by: userId!, updated_at: now })
           .eq('id', studentAssignmentId)
       }
       setSavedActiveSeconds(totalActiveSeconds)
@@ -234,7 +296,7 @@ export default function WritingActivityRunner({
         max_score: null,
         minutes_spent: Math.max(1, Math.ceil(seconds / 60)),
         staff_note: 'Writing submitted • ' + wordCount + ' words',
-        updated_by: userId,
+        updated_by: userId!,
         updated_at: now,
       })
       .eq('id', studentAssignmentId)
