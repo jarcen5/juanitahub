@@ -879,6 +879,10 @@ export default function LearningPage() {
     setWritingMinWords('')
     setWritingTargetWords('')
     setWritingRubric('Ideas\nOrganization\nGrammar & conventions')
+    setReadingPassageText('')
+    setReadingQuestions([])
+    setReadingPassingScore('80')
+    setReadingShowExplanations(true)
   }
 
   function beginAddAssignment() {
@@ -928,6 +932,47 @@ export default function LearningPage() {
     })
   }
 
+  function updateReadingQuestion(id: string, patch: Partial<ReadingQuestion>) {
+    setReadingQuestions((questions) => questions.map((question) => question.id === id ? { ...question, ...patch } : question))
+  }
+
+  function changeReadingQuestionType(id: string, type: ReadingQuestionType) {
+    setReadingQuestions((questions) => questions.map((question) => {
+      if (question.id !== id) return question
+      return {
+        ...question,
+        type,
+        choices: isReadingChoiceType(type) ? (question.choices?.length ? question.choices : ['', '', '', '']) : [],
+        correct_answer: '',
+      }
+    }))
+  }
+
+  function updateReadingChoice(questionId: string, index: number, value: string) {
+    setReadingQuestions((questions) => questions.map((question) => {
+      if (question.id !== questionId) return question
+      const choices = [...(question.choices ?? ['', '', '', ''])]
+      const oldValue = choices[index] ?? ''
+      choices[index] = value
+      return {
+        ...question,
+        choices,
+        correct_answer: normalizeQuizText(question.correct_answer ?? '') === normalizeQuizText(oldValue) ? value : question.correct_answer,
+      }
+    }))
+  }
+
+  function moveReadingQuestion(index: number, direction: -1 | 1) {
+    setReadingQuestions((questions) => {
+      const nextIndex = index + direction
+      if (nextIndex < 0 || nextIndex >= questions.length) return questions
+      const next = [...questions]
+      const [item] = next.splice(index, 1)
+      next.splice(nextIndex, 0, item)
+      return next
+    })
+  }
+
   function beginEditAssignment(assignment: LearningAssignment) {
     setEditingAssignmentId(assignment.id)
     setNewTitle(assignment.title)
@@ -955,6 +1000,10 @@ export default function LearningPage() {
     setWritingMinWords(typeof assignment.activity_config?.min_words === 'number' ? String(assignment.activity_config.min_words) : '')
     setWritingTargetWords(typeof assignment.activity_config?.target_words === 'number' ? String(assignment.activity_config.target_words) : '')
     setWritingRubric(Array.isArray(assignment.activity_config?.rubric_criteria) ? assignment.activity_config.rubric_criteria.join('\n') : 'Ideas\nOrganization\nGrammar & conventions')
+    setReadingPassageText(typeof assignment.activity_config?.passage === 'string' && assignment.assignment_type === 'reading' ? assignment.activity_config.passage : '')
+    setReadingQuestions(assignment.assignment_type === 'reading' && Array.isArray(assignment.activity_config?.questions) ? assignment.activity_config.questions : [])
+    setReadingPassingScore(assignment.assignment_type === 'reading' && typeof assignment.activity_config?.passing_score === 'number' ? String(assignment.activity_config.passing_score) : '80')
+    setReadingShowExplanations(assignment.assignment_type === 'reading' ? assignment.activity_config?.show_explanations !== false : true)
     setEditorOpen(true)
   }
 
@@ -1026,6 +1075,34 @@ export default function LearningPage() {
         ...(parsedMinWords == null ? {} : { min_words: Math.round(parsedMinWords) }),
         ...(parsedTargetWords == null ? {} : { target_words: Math.round(parsedTargetWords) }),
         rubric_criteria: writingRubric.split('\n').map((item) => item.trim()).filter(Boolean),
+      }
+    } else if (newType === 'reading') {
+      const parsedReadingScore = readingPassingScore.trim() ? Number(readingPassingScore) : 80
+      if (!readingPassageText.trim()) return showMessage('Add a reading passage before saving a Reading Lab activity.')
+      if (!readingQuestions.length) return showMessage('Add at least one Reading Lab question before saving.')
+      if (!Number.isFinite(parsedReadingScore) || parsedReadingScore < 0 || parsedReadingScore > 100) return showMessage('Reading goal must be between 0 and 100%.')
+      for (let index = 0; index < readingQuestions.length; index += 1) {
+        const question = readingQuestions[index]
+        if (!question.prompt.trim()) return showMessage('Reading question ' + (index + 1) + ' needs a prompt.')
+        if (question.type === 'short_answer') {
+          if (!question.correct_answer?.trim()) return showMessage('Reading question ' + (index + 1) + ' needs staff answer guidance.')
+        } else {
+          if (!question.correct_answer?.trim()) return showMessage('Reading question ' + (index + 1) + ' needs a correct answer.')
+          if ((question.choices ?? []).filter((choice) => choice.trim()).length < 2) return showMessage('Reading question ' + (index + 1) + ' needs at least two answer choices.')
+          if (!(question.choices ?? []).some((choice) => normalizeQuizText(choice) === normalizeQuizText(question.correct_answer ?? ''))) return showMessage('Reading question ' + (index + 1) + ' correct answer must match one of its choices.')
+        }
+      }
+      activityConfig = {
+        passage: readingPassageText.trim(),
+        questions: readingQuestions.map((question) => ({
+          ...question,
+          prompt: question.prompt.trim(),
+          choices: (question.choices ?? []).map((choice) => choice.trim()).filter(Boolean),
+          correct_answer: question.correct_answer?.trim() || '',
+          explanation: question.explanation?.trim() || '',
+        })),
+        passing_score: parsedReadingScore,
+        show_explanations: readingShowExplanations,
       }
     }
 
