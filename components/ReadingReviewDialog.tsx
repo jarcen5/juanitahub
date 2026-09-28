@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { ReadingAnswer, ReadingConfig, ReadingQuestion } from '@/components/ReadingActivityRunner'
+import type { ReadingAnswer, ReadingConfig } from '@/components/ReadingActivityRunner'
 
 export type ReadingAttempt = {
   id: number
@@ -43,7 +43,6 @@ export default function ReadingReviewDialog({
   onSaved,
 }: Props) {
   const questions = activityConfig?.questions ?? []
-  const questionById = useMemo(() => new Map(questions.map((question) => [question.id, question])), [questions])
   const writtenQuestions = useMemo(() => questions.filter((question) => question.type === 'short_answer'), [questions])
 
   const [scores, setScores] = useState<Record<string, number>>({})
