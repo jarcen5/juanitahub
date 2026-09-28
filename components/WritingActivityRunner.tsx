@@ -135,7 +135,7 @@ export default function WritingActivityRunner({
         setLoadingDraft(false)
       })
     return () => { mounted = false }
-  }, [studentAssignmentId, studentAccess, testMode])
+  }, [studentAssignmentId, studentAccess?.deviceToken, studentAccess?.studentToken, testMode])
 
   useEffect(() => {
     if (startedAt == null || finished) return
