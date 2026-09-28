@@ -30,6 +30,9 @@ type Agreement = {
 }
 type ConsentValue = '' | 'yes' | 'no'
 type PickupDraft = { name: string; relationship: string; phone: string; notes: string }
+type LearningAccess = { child_id: number; enabled: boolean; failed_attempts: number; locked_until: string | null; last_login_at: string | null }
+type NewStudentForm = { first_name: string; last_name: string; birth_date: string; school: string; grade: string; school_year: string }
+
 type ProfileForm = {
   school_year: string; birth_date: string; school: string; grade: string; show_birthday_publicly: boolean;
   attendance_days: string[]; attends_other_program: boolean; other_program_arrival_notes: string; dismissal_plan: string; dismissal_notes: string;
@@ -55,6 +58,7 @@ function childName(child: Child) { return `${child.first_name}${child.last_name 
 function currentSchoolYear() { const now = new Date(); const y = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1; return `${y}-${y + 1}` }
 function calculateAge(date: string | null) { if (!date) return null; const b = new Date(`${date}T12:00:00`); const n = new Date(); let a = n.getFullYear() - b.getFullYear(); if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a -= 1; return a }
 function formatBirthday(date: string | null) { return date ? new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) : 'Not added' }
+function birthdayPin(date: string | null) { if (!date) return null; const parts = date.split('-'); return parts.length === 3 ? parts[1] + parts[2] : null }
 function consentToForm(value: boolean | null | undefined): ConsentValue { return value == null ? '' : value ? 'yes' : 'no' }
 function formToConsent(value: ConsentValue) { return value === '' ? null : value === 'yes' }
 function dismissalLabel(value: string | null) { return dismissalOptions.find(([key]) => key === (value ?? ''))?.[1] ?? value ?? 'Not recorded' }
@@ -88,6 +92,11 @@ export default function ChildrenPage() {
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<ProfileForm>(blankForm())
+  const [learningAccess, setLearningAccess] = useState<LearningAccess[]>([])
+  const [accessOpen, setAccessOpen] = useState(false)
+  const [showPins, setShowPins] = useState(false)
+  const [addingStudent, setAddingStudent] = useState(false)
+  const [newStudent, setNewStudent] = useState<NewStudentForm>({ first_name: '', last_name: '', birth_date: '', school: '', grade: '', school_year: currentSchoolYear() })
 
   useEffect(() => {
     let mounted = true
@@ -124,6 +133,13 @@ export default function ChildrenPage() {
       if (detailError) setMessage(detailError.message)
     }
     setGuardians(nextGuardians); setHealthInfo(nextHealth); setPickups(nextPickups); setAgreements(nextAgreements)
+    let nextAccess: LearningAccess[] = []
+    if (nextProfile?.role === 'admin') {
+      const { data: accessRows, error: accessError } = await supabase.from('learning_student_access').select('child_id, enabled, failed_attempts, locked_until, last_login_at').order('child_id')
+      nextAccess = (accessRows ?? []) as LearningAccess[]
+      if (accessError) setMessage((current) => current || accessError.message)
+    }
+    setLearningAccess(nextAccess)
     setMessage((current) => current || profileResult.error?.message || childrenResult.error?.message || registrationsResult.error?.message || '')
     setLoading(false)
   }
@@ -174,6 +190,40 @@ export default function ChildrenPage() {
       signature_name: agreement?.signature_name ?? '', signature_date: agreement?.signature_date ?? '', terms_version: agreement?.terms_version ?? (r?.school_year ?? currentSchoolYear()),
     })
     setSelectedChild(child); setEditing(true); setMessage('')
+  }
+
+  async function toggleLearningAccess(childId: number, enabled: boolean) {
+    if (!session || profile?.role !== 'admin' || saving) return
+    setSaving(true); setMessage('')
+    const { error } = await supabase.from('learning_student_access').upsert({ child_id: childId, enabled, updated_by: session.user.id, updated_at: new Date().toISOString() }, { onConflict: 'child_id' })
+    setSaving(false)
+    if (error) { setMessage(error.message); return }
+    await loadData()
+  }
+
+  async function createStudent() {
+    if (!session || profile?.role !== 'admin' || saving) return
+    if (!newStudent.first_name.trim()) { setMessage('Enter the student’s first name.'); return }
+    if (!newStudent.birth_date) { setMessage('Enter the student’s birthday so their MMDD Learning PIN can be created.'); return }
+    if (!newStudent.school_year.trim()) { setMessage('Enter the school year.'); return }
+    setSaving(true); setMessage('')
+    const { data, error } = await supabase.rpc('create_student_profile', {
+      p_first_name: newStudent.first_name.trim(),
+      p_last_name: newStudent.last_name.trim(),
+      p_birth_date: newStudent.birth_date,
+      p_school: newStudent.school.trim(),
+      p_grade: newStudent.grade.trim(),
+      p_school_year: newStudent.school_year.trim(),
+    })
+    setSaving(false)
+    if (error) { setMessage(error.message); return }
+    const childId = Number(data)
+    setNewStudent({ first_name: '', last_name: '', birth_date: '', school: '', grade: '', school_year: currentSchoolYear() })
+    setAddingStudent(false)
+    await loadData()
+    const created = children.find((child) => child.id === childId)
+    setMessage('Student profile created. Learning access is enabled and the student can be assigned work immediately.')
+    if (created) setSelectedChild(created)
   }
 
   function toggleDay(day: string) { setForm((current) => ({ ...current, attendance_days: current.attendance_days.includes(day) ? current.attendance_days.filter((d) => d !== day) : [...current.attendance_days, day] })) }
@@ -262,7 +312,7 @@ export default function ChildrenPage() {
   return <div className="shell">
     <header className="topbar"><div className="brand">Juanita Hub<small>Student Directory</small></div><div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span></div></header>
     <main className="main children-page">
-      <section className="hero children-hero"><div><span className="children-eyebrow">Students</span><h1>Student Directory</h1><p className="subtle">Find a child once, then open their school-year profile, routine, registration details, and connected Juanita Hub tools.</p></div><div className="children-security-pill">🔒 Sensitive details restricted</div></section>
+      <section className="hero children-hero"><div><span className="children-eyebrow">Students</span><h1>Student Directory</h1><p className="subtle">Find a child once, then open their school-year profile, routine, registration details, and connected Juanita Hub tools.</p></div><div className="children-hero-actions">{profile.role === 'admin' && <><button className="ghost" type="button" onClick={() => setAccessOpen(true)}>🎓 Learning Access</button><button className="primary" type="button" onClick={() => setAddingStudent(true)}>＋ Add Student</button></>}<div className="children-security-pill">🔒 Sensitive details restricted</div></div></section>
       {message && <div className="notice">{message}</div>}
       <section className="card children-directory-toolbar"><div className="children-directory-controls"><label className="children-search"><span>Search students</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, school, or grade…" /></label><label className="children-filter"><span>Grade</span><select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>{grade}</option>)}</select></label><label className="children-filter"><span>Registration</span><select value={registrationFilter} onChange={(e) => setRegistrationFilter(e.target.value as typeof registrationFilter)}><option value="all">All students</option><option value="current">Current registration</option><option value="missing">Needs registration</option></select></label></div><div className="children-directory-count"><strong>{visibleChildren.length}</strong><span>of {children.length} active students</span></div></section>
       <section className="children-grid">{visibleChildren.map((child) => { const r = registrationByChild.get(child.id); const age = calculateAge(r?.birth_date ?? null); return <button type="button" className="card child-profile-card" key={child.id} onClick={() => setSelectedChild(child)}><span className="child-profile-avatar">{child.first_name[0]?.toUpperCase()}</span><span className="child-profile-card-copy"><strong>{childName(child)}</strong>{r ? <><small>{[r.grade ? `Grade ${r.grade}` : '', r.school ?? ''].filter(Boolean).join(' • ') || 'School details not added'}</small><span>{formatBirthday(r.birth_date)}{age != null ? ` • Age ${age}` : ''}</span></> : <><small>No current registration</small><span>Open profile to add school-year details</span></>}</span><span className={`child-registration-status ${r ? 'current' : 'missing'}`}>{r ? 'Current' : 'Needs registration'}</span></button> })}</section>
@@ -270,12 +320,26 @@ export default function ChildrenPage() {
       <section className="card children-retention-note"><strong>School-year privacy</strong><p>Annual registrations are separate from the permanent child roster so old family, health, schedule, dismissal, and consent information can later be expired and purged under the center’s retention policy.</p></section>
     </main>
 
+    {profile.role === 'admin' && accessOpen && <div className="children-modal-backdrop" role="presentation" onClick={() => setAccessOpen(false)}><section className="card children-learning-access-modal" role="dialog" aria-modal="true" aria-labelledby="learning-access-title" onClick={(e) => e.stopPropagation()}><button type="button" className="children-modal-close" onClick={() => setAccessOpen(false)}>×</button>
+      <div className="children-learning-access-heading"><div><span className="children-eyebrow">Admin only</span><h2 id="learning-access-title">Student Learning Access</h2><p className="subtle">PINs are automatically derived from each student’s birthday as MMDD.</p></div><button className="ghost" type="button" onClick={() => setShowPins((value) => !value)}>{showPins ? 'Hide PINs' : 'Show all PINs'}</button></div>
+      <div className="children-learning-access-list">{children.map((child) => { const r = registrationByChild.get(child.id); const access = learningAccess.find((item) => item.child_id === child.id); const pin = birthdayPin(r?.birth_date ?? null); const locked = access?.locked_until && new Date(access.locked_until).getTime() > Date.now(); return <article key={child.id}><span className="child-profile-avatar small">{child.first_name[0]?.toUpperCase()}</span><span className="children-learning-access-copy"><strong>{childName(child)}</strong><small>{r?.grade ? 'Grade ' + r.grade : 'Grade not recorded'} • {r?.birth_date ? formatBirthday(r.birth_date) : 'Birthday needed'}</small></span><span className="children-learning-pin"><small>PIN</small><strong>{pin ? (showPins ? pin : '••••') : '—'}</strong></span><span className={'child-registration-status ' + (access?.enabled && pin ? 'current' : 'missing')}>{locked ? 'Temporarily locked' : access?.enabled && pin ? 'Enabled' : pin ? 'Disabled' : 'Needs birthday'}</span><button className="ghost" type="button" disabled={saving || !pin} onClick={() => void toggleLearningAccess(child.id, !(access?.enabled ?? false))}>{access?.enabled ? 'Disable' : 'Enable'}</button></article> })}</div>
+      <div className="children-learning-access-footer"><span>Computer Lab Mode only shows a student’s learning work. Birthday PINs are not used to protect staff or family information.</span><a className="primary" href="/learn">Open Student Learning</a></div>
+    </section></div>}
+
+    {profile.role === 'admin' && addingStudent && <div className="children-modal-backdrop" role="presentation" onClick={() => !saving && setAddingStudent(false)}><section className="card children-add-student-modal" role="dialog" aria-modal="true" aria-labelledby="add-student-title" onClick={(e) => e.stopPropagation()}><button type="button" className="children-modal-close" onClick={() => !saving && setAddingStudent(false)}>×</button>
+      <span className="children-eyebrow">New student</span><h2 id="add-student-title">Create student profile</h2><p className="subtle">This creates the permanent student, their current school-year registration, and Student Learning access together.</p>
+      <div className="children-form-grid"><label className="field"><span>First name</span><input value={newStudent.first_name} onChange={(e) => setNewStudent((current) => ({ ...current, first_name: e.target.value }))} autoFocus /></label><label className="field"><span>Last name</span><input value={newStudent.last_name} onChange={(e) => setNewStudent((current) => ({ ...current, last_name: e.target.value }))} /></label><label className="field"><span>Birthday</span><input type="date" value={newStudent.birth_date} onChange={(e) => setNewStudent((current) => ({ ...current, birth_date: e.target.value }))} /><small>Learning PIN: {birthdayPin(newStudent.birth_date) ?? 'MMDD'}</small></label><label className="field"><span>Grade</span><input value={newStudent.grade} onChange={(e) => setNewStudent((current) => ({ ...current, grade: e.target.value }))} placeholder="Example: 4" /></label><label className="field"><span>School</span><input value={newStudent.school} onChange={(e) => setNewStudent((current) => ({ ...current, school: e.target.value }))} /></label><label className="field"><span>School year</span><input value={newStudent.school_year} onChange={(e) => setNewStudent((current) => ({ ...current, school_year: e.target.value }))} /></label></div>
+      <div className="children-new-student-summary"><strong>Learning access will be enabled automatically.</strong><span>After saving, this student immediately appears in Assignment Library and grade assignments.</span></div>
+      <div className="children-editor-actions"><button type="button" className="ghost" disabled={saving} onClick={() => setAddingStudent(false)}>Cancel</button><button type="button" className="primary" disabled={saving || !newStudent.first_name.trim() || !newStudent.birth_date} onClick={() => void createStudent()}>{saving ? 'Creating…' : 'Create student'}</button></div>
+    </section></div>}
+
     {selectedChild && !editing && <div className="children-modal-backdrop" role="presentation" onClick={closeProfile}><section className="card children-profile-modal" role="dialog" aria-modal="true" aria-labelledby="child-profile-title" onClick={(e) => e.stopPropagation()}><button type="button" className="children-modal-close" onClick={closeProfile}>×</button>
       <div className="children-profile-heading"><span className="child-profile-avatar large">{selectedChild.first_name[0]?.toUpperCase()}</span><div><span className="children-eyebrow">Child profile</span><h2 id="child-profile-title">{childName(selectedChild)}</h2><p>{selectedRegistration ? `${selectedRegistration.school_year} registration` : 'No current school-year registration yet'}</p></div>{profile.role === 'admin' && <button type="button" className="primary" onClick={() => openEditor(selectedChild)}>{selectedRegistration ? 'Edit registration' : 'Add registration'}</button>}</div>
       <nav className="children-profile-shortcuts" aria-label={`${childName(selectedChild)} profile shortcuts`}><Link href="/attendance"><span>✓</span><strong>Attendance</strong><small>Sign-ins & visits</small></Link><Link href="/card-tracking"><span>◆</span><strong>Behavior</strong><small>Cards & history</small></Link><Link href="/rewards"><span>★</span><strong>Rewards</strong><small>Spins & prizes</small></Link><a href="#child-learning-profile"><span>📘</span><strong>Learning</strong><small>Progress & weekly work</small></a></nav>
       <div className="children-profile-sections">
         <section className="children-profile-section"><div className="children-section-title"><span>🎓</span><div><small>Overview</small><h3>School-year registration</h3></div></div><div className="children-facts-grid"><div><small>Birthday</small><strong>{formatBirthday(selectedRegistration?.birth_date ?? null)}</strong></div><div><small>Age</small><strong>{calculateAge(selectedRegistration?.birth_date ?? null) ?? '—'}</strong></div><div><small>School</small><strong>{selectedRegistration?.school || 'Not added'}</strong></div><div><small>Grade</small><strong>{selectedRegistration?.grade || 'Not added'}</strong></div><div><small>School year</small><strong>{selectedRegistration?.school_year || 'Not added'}</strong></div><div><small>Expected days</small><strong>{selectedRegistration?.attendance_days?.length ? selectedRegistration.attendance_days.map((d) => d.slice(0,3)).join(', ') : 'Not recorded'}</strong></div></div></section>
         <section className="children-profile-section"><div className="children-section-title"><span>🗓️</span><div><small>Schedule & dismissal</small><h3>Daily plan</h3></div></div><div className="children-facts-grid"><div><small>Other after-school program</small><strong>{selectedRegistration ? (selectedRegistration.attends_other_program ? 'Yes' : 'No') : '—'}</strong></div><div><small>Arrival notes</small><strong>{selectedRegistration?.other_program_arrival_notes || 'None'}</strong></div><div><small>Dismissal plan</small><strong>{dismissalLabel(selectedRegistration?.dismissal_plan ?? null)}</strong></div></div>{selectedRegistration?.dismissal_notes && <div className="children-care-notes"><small>Dismissal notes</small><p>{selectedRegistration.dismissal_notes}</p></div>}</section>
+        {profile.role === 'admin' && <section className="children-profile-section"><div className="children-section-title"><span>🎓</span><div><small>Student Learning</small><h3>Computer Lab access</h3></div></div><div className="children-learning-profile-access"><div><small>Status</small><strong>{learningAccess.find((item) => item.child_id === selectedChild.id)?.enabled && birthdayPin(selectedRegistration?.birth_date ?? null) ? 'Enabled' : 'Not ready'}</strong></div><div><small>Birthday PIN</small><strong>{birthdayPin(selectedRegistration?.birth_date ?? null) ?? 'Birthday needed'}</strong></div><div><small>Last sign-in</small><strong>{learningAccess.find((item) => item.child_id === selectedChild.id)?.last_login_at ? new Date(learningAccess.find((item) => item.child_id === selectedChild.id)!.last_login_at!).toLocaleString() : 'Not yet'}</strong></div></div><div className="children-learning-profile-actions"><Link className="primary" href="/learning#library">Assign work</Link><button className="ghost" type="button" onClick={() => { setAccessOpen(true); setSelectedChild(null) }}>Manage Learning Access</button></div></section>}
         <ChildLearningPanel childId={selectedChild.id} childName={childName(selectedChild)} grade={selectedRegistration?.grade ?? null} userId={session.user.id} />
         {profile.role === 'admin' ? <>
           <section className="children-profile-section sensitive"><div className="children-section-title"><span>☎️</span><div><small>Restricted</small><h3>Family & emergency contacts</h3></div></div><div className="children-contact-grid"><article><small>Primary parent / guardian</small><strong>{selectedPrimary?.name || 'Not added'}</strong><span>{selectedPrimary?.relationship || ''}</span>{selectedPrimary?.phone && <a href={`tel:${selectedPrimary.phone}`}>{selectedPrimary.phone}</a>}{selectedPrimary?.secondary_phone && <span>{selectedPrimary.secondary_phone}</span>}{selectedPrimary?.email && <a href={`mailto:${selectedPrimary.email}`}>{selectedPrimary.email}</a>} {selectedPrimary?.preferred_contact && <span>Prefers {selectedPrimary.preferred_contact}</span>} {selectedPrimary?.address && <span>{selectedPrimary.address}</span>}</article><article><small>Emergency contact</small><strong>{selectedEmergency?.name || 'Not added'}</strong><span>{selectedEmergency?.relationship || ''}</span>{selectedEmergency?.phone && <a href={`tel:${selectedEmergency.phone}`}>{selectedEmergency.phone}</a>}</article></div></section>
