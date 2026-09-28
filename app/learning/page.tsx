@@ -1467,6 +1467,72 @@ export default function LearningPage() {
           </section>
         )}
 
+        {tab === 'my-week' && (
+          <section className="learning-section">
+            <div className="learning-heading">
+              <div>
+                <span className="learning-kicker">Student launch pad</span>
+                <h2>My Week</h2>
+                <p>Choose a student, check their weekly workload, then hand them the screen in a simplified student-only view.</p>
+              </div>
+            </div>
+
+            <div className="my-week-staff-grid">
+              <section className="card my-week-launch-card">
+                <div className="my-week-launch-heading">
+                  <span className="my-week-launch-icon">🌟</span>
+                  <div><strong>Launch student view</strong><small>Only the selected child’s learning assignments will be shown.</small></div>
+                </div>
+
+                <label className="field"><span>Student</span>
+                  <select value={myWeekChildId ?? ''} onChange={(event) => setMyWeekChildId(Number(event.target.value))}>
+                    {children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}
+                  </select>
+                </label>
+
+                {myWeekChild ? (
+                  <>
+                    <div className="my-week-launch-student">
+                      <span className="learning-avatar">{myWeekChild.first_name[0]?.toUpperCase()}</span>
+                      <span>
+                        <strong>{childName(myWeekChild)}</strong>
+                        <small>{registrationByChild.get(myWeekChild.id)?.grade ? 'Grade ' + registrationByChild.get(myWeekChild.id)?.grade : 'Grade not recorded'} • {weekLabel(weekStart)}</small>
+                      </span>
+                    </div>
+
+                    <div className="my-week-launch-metrics">
+                      <article><strong>{myWeekItems.length}</strong><span>Assigned</span></article>
+                      <article><strong>{myWeekItems.filter((item) => item.status === 'in_progress' || item.writingStatus === 'draft').length}</strong><span>In progress</span></article>
+                      <article><strong>{myWeekItems.filter((item) => item.status === 'completed' || item.status === 'skipped' || item.writingStatus === 'submitted' || item.writingStatus === 'reviewed' || item.readingReviewStatus === 'pending' || item.readingReviewStatus === 'reviewed').length}</strong><span>Finished</span></article>
+                    </div>
+
+                    <button className="primary my-week-launch-button" type="button" onClick={() => setMyWeekOpen(true)}>▶ Launch {myWeekChild.first_name}’s My Week</button>
+                    <p className="my-week-launch-note">The staff session stays signed in underneath. Use “Exit student view” when the child is finished.</p>
+                  </>
+                ) : <div className="learning-inline-empty">No active students are available.</div>}
+              </section>
+
+              <section className="card my-week-roster-card">
+                <div className="section-heading"><div><h2>Student workload</h2><p className="subtle">Select a child to preview how much is on their list.</p></div></div>
+                <div className="my-week-roster">
+                  {children.map((child) => {
+                    const rows = weeklyByChild.get(child.id) ?? []
+                    const done = rows.filter((row) => row.status === 'completed' || row.status === 'skipped').length
+                    const percent = rows.length ? Math.round((done / rows.length) * 100) : 0
+                    return (
+                      <button className={myWeekChildId === child.id ? 'active' : ''} type="button" key={child.id} onClick={() => setMyWeekChildId(child.id)}>
+                        <span className="learning-avatar small">{child.first_name[0]?.toUpperCase()}</span>
+                        <span><strong>{childName(child)}</strong><small>{rows.length ? done + '/' + rows.length + ' completed' : 'No assignments this week'}</small></span>
+                        <em>{percent}%</em>
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            </div>
+          </section>
+        )}
+
         {tab === 'library' && (
           <section className="learning-section">
             <div className="learning-heading">
@@ -2251,6 +2317,17 @@ export default function LearningPage() {
           </section>
         )}
       </main>
+
+      {myWeekOpen && myWeekChild && (
+        <StudentMyWeek
+          studentName={childName(myWeekChild)}
+          grade={registrationByChild.get(myWeekChild.id)?.grade ?? null}
+          weekLabel={weekLabel(weekStart)}
+          items={myWeekItems}
+          onLaunch={launchMyWeekItem}
+          onExit={() => setMyWeekOpen(false)}
+        />
+      )}
 
       <AssignmentCompletionDialog
         row={completionTarget?.row ?? null}
