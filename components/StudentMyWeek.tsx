@@ -1,5 +1,7 @@
 'use client'
 
+import type { CSSProperties } from 'react'
+
 export type MyWeekItem = {
   rowId: number
   assignmentId: number
@@ -109,7 +111,7 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
             <p>{grade ? 'Grade ' + grade + ' • ' : ''}Here’s what you’re working on this week.</p>
           </div>
           <div className="my-week-progress-card">
-            <div className="my-week-progress-ring" style={{ '--my-week-progress': progress + '%' } as React.CSSProperties}><strong>{progress}%</strong></div>
+            <div className="my-week-progress-ring" style={{ '--my-week-progress': progress + '%' } as CSSProperties}><strong>{progress}%</strong></div>
             <span>{completed} of {items.length} finished</span>
           </div>
         </section>
