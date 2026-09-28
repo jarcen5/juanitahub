@@ -20,7 +20,7 @@ type PreviewAssignment = {
     target_accuracy?: number
     questions?: Array<{
       id: string
-      type: 'multiple_choice' | 'correct_sentence' | 'fill_blank' | 'spelling' | 'reading_comprehension'
+      type: 'multiple_choice' | 'correct_sentence' | 'fill_blank' | 'spelling' | 'reading_comprehension' | 'main_idea' | 'detail' | 'vocabulary' | 'short_answer'
       prompt: string
       choices?: string[]
       correct_answer: string
@@ -179,6 +179,33 @@ export default function AssignmentPreviewDialog({ assignment, onClose }: Props) 
                   {typeof assignment.activity_config?.min_words === 'number' && <span>Minimum {assignment.activity_config.min_words} words</span>}
                   {typeof assignment.activity_config?.target_words === 'number' && <span>Target {assignment.activity_config.target_words} words</span>}
                   {(assignment.activity_config?.rubric_criteria?.length ?? 0) > 0 && <span>{assignment.activity_config?.rubric_criteria?.length} review areas</span>}
+                </div>
+              </div>
+            )}
+
+            {assignment.assignment_type === 'reading' && (
+              <div className="learning-preview-reading">
+                <div className="learning-preview-reading-heading">
+                  <strong>Reading Comprehension Lab</strong>
+                  <span>{assignment.activity_config?.questions?.length ?? 0} questions • Goal {assignment.activity_config?.passing_score ?? 80}%</span>
+                </div>
+                <section className="learning-preview-reading-passage">
+                  <span>Passage</span>
+                  <p>{assignment.activity_config?.passage || 'No passage has been added yet.'}</p>
+                </section>
+                <div className="learning-preview-reading-list">
+                  {(assignment.activity_config?.questions ?? []).map((question, index) => (
+                    <article key={question.id}>
+                      <span>Question {index + 1} • {question.type.replaceAll('_', ' ')}</span>
+                      <strong>{question.prompt}</strong>
+                      {question.type === 'short_answer'
+                        ? <small className="guidance">Staff guidance: {question.correct_answer}</small>
+                        : <>
+                            {question.choices && question.choices.length > 0 && <div>{question.choices.map((choice) => <small key={choice} className={choice.trim().toLowerCase() === question.correct_answer.trim().toLowerCase() ? 'correct' : ''}>{choice}</small>)}</div>}
+                            {question.explanation && <p>{question.explanation}</p>}
+                          </>}
+                    </article>
+                  ))}
                 </div>
               </div>
             )}
