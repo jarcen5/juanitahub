@@ -1398,8 +1398,9 @@ export default function LearningPage() {
                                 {assignment.assignment_type === 'typing' && <button className="primary" type="button" disabled={saving} onClick={() => setTypingTarget({ row, child, assignment })}>{row.status === 'completed' ? 'Retry typing' : 'Launch typing'}</button>}
                                 {assignment.assignment_type === 'quiz' && <button className="primary" type="button" disabled={saving} onClick={() => setQuizTarget({ row, child, assignment })}>{row.status === 'completed' ? 'Retry quiz' : 'Launch quiz'}</button>}
                                 {assignment.assignment_type === 'writing' && <button className="primary" type="button" disabled={saving} onClick={() => setWritingTarget({ row, child, assignment })}>{row.status === 'completed' ? 'Open writing' : row.status === 'in_progress' ? 'Continue writing' : 'Start writing'}</button>}
-                                {row.status === 'assigned' && assignment.assignment_type !== 'typing' && assignment.assignment_type !== 'quiz' && assignment.assignment_type !== 'writing' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'in_progress')}>Start</button>}
-                                {row.status !== 'completed' && assignment.assignment_type !== 'typing' && assignment.assignment_type !== 'quiz' && assignment.assignment_type !== 'writing' && <button className="primary" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Complete</button>}
+                                {assignment.assignment_type === 'reading' && <button className="primary" type="button" disabled={saving} onClick={() => setReadingTarget({ row, child, assignment })}>{row.status === 'completed' ? 'Retry reading' : 'Launch reading'}</button>}
+                                {row.status === 'assigned' && assignment.assignment_type !== 'typing' && assignment.assignment_type !== 'quiz' && assignment.assignment_type !== 'writing' && assignment.assignment_type !== 'reading' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'in_progress')}>Start</button>}
+                                {row.status !== 'completed' && assignment.assignment_type !== 'typing' && assignment.assignment_type !== 'quiz' && assignment.assignment_type !== 'writing' && assignment.assignment_type !== 'reading' && <button className="primary" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Complete</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Edit details</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'assigned')}>Reopen</button>}
                               </span>
@@ -1750,6 +1751,15 @@ export default function LearningPage() {
                       {typeof selectedAssignment.activity_config?.min_words === 'number' && <small>Minimum {selectedAssignment.activity_config.min_words} words</small>}
                       {typeof selectedAssignment.activity_config?.target_words === 'number' && <small>Target {selectedAssignment.activity_config.target_words} words</small>}
                       <small>{selectedAssignment.activity_config?.rubric_criteria?.length ?? 0} review areas</small>
+                    </div>
+                  )}
+                  {selectedAssignment.assignment_type === 'reading' && (
+                    <div className="learning-reading-details">
+                      <span>📖 Reading Lab ready</span>
+                      <strong>{selectedAssignment.activity_config?.questions?.length ?? 0} questions</strong>
+                      <small>{selectedAssignment.activity_config?.passage?.split(/\s+/).filter(Boolean).length ?? 0} passage words</small>
+                      <small>{(selectedAssignment.activity_config?.questions ?? []).filter((question) => question.type === 'short_answer').length} staff-reviewed</small>
+                      <small>Goal {selectedAssignment.activity_config?.passing_score ?? 80}%</small>
                     </div>
                   )}
                   {selectedAssignment.resource_url && <a className="learning-resource-link" href={selectedAssignment.resource_url} target="_blank" rel="noreferrer">Open resource ↗</a>}
