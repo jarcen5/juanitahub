@@ -1583,10 +1583,68 @@ export default function LearningPage() {
                       <label className="field"><span>Review rubric <small>(optional, one area per line)</small></span><textarea rows={4} value={writingRubric} onChange={(event) => setWritingRubric(event.target.value)} placeholder={'Ideas\nOrganization\nGrammar & conventions'} /></label>
                     </section>
                   )}
+
+                  {newType === 'reading' && (
+                    <section className="learning-reading-editor wide">
+                      <div className="learning-reading-editor-heading">
+                        <span>📖</span>
+                        <div><strong>Reading Comprehension Builder</strong><small>Add one passage, then mix auto-graded comprehension questions with staff-reviewed short responses.</small></div>
+                      </div>
+
+                      <label className="field"><span>Reading passage</span><textarea rows={12} value={readingPassageText} onChange={(event) => setReadingPassageText(event.target.value)} placeholder="Paste or write the passage the student should read…" /></label>
+
+                      <div className="learning-reading-settings">
+                        <label className="field"><span>Goal / passing score %</span><input type="number" min="0" max="100" step="1" value={readingPassingScore} onChange={(event) => setReadingPassingScore(event.target.value)} /></label>
+                        <label className="learning-check-row"><input type="checkbox" checked={readingShowExplanations} onChange={(event) => setReadingShowExplanations(event.target.checked)} /><span>Show answer explanations after submission</span></label>
+                      </div>
+
+                      <div className="learning-reading-question-list">
+                        {readingQuestions.map((question, questionIndex) => (
+                          <article className="learning-reading-question-editor" key={question.id}>
+                            <header>
+                              <span><strong>Question {questionIndex + 1}</strong><small>{readingQuestionTypeLabels[question.type]}</small></span>
+                              <span className="learning-reading-question-actions">
+                                <button className="ghost" type="button" disabled={questionIndex === 0} onClick={() => moveReadingQuestion(questionIndex, -1)}>↑</button>
+                                <button className="ghost" type="button" disabled={questionIndex === readingQuestions.length - 1} onClick={() => moveReadingQuestion(questionIndex, 1)}>↓</button>
+                                <button className="ghost" type="button" onClick={() => setReadingQuestions((questions) => questions.filter((item) => item.id !== question.id))}>Remove</button>
+                              </span>
+                            </header>
+
+                            <div className="learning-reading-question-grid">
+                              <label className="field"><span>Question type</span><select value={question.type} onChange={(event) => changeReadingQuestionType(question.id, event.target.value as ReadingQuestionType)}>{Object.entries(readingQuestionTypeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+                              <label className="field wide"><span>Question / prompt</span><textarea rows={2} value={question.prompt} onChange={(event) => updateReadingQuestion(question.id, { prompt: event.target.value })} placeholder="What should the student answer about the passage?" /></label>
+
+                              {isReadingChoiceType(question.type) ? (
+                                <div className="learning-reading-choices wide">
+                                  <span>Answer choices</span>
+                                  {(question.choices ?? ['', '', '', '']).map((choice, choiceIndex) => (
+                                    <label key={choiceIndex}>
+                                      <input type="radio" name={'reading-correct-' + question.id} checked={Boolean(choice.trim()) && normalizeQuizText(choice) === normalizeQuizText(question.correct_answer ?? '')} onChange={() => updateReadingQuestion(question.id, { correct_answer: choice })} />
+                                      <input value={choice} onChange={(event) => updateReadingChoice(question.id, choiceIndex, event.target.value)} placeholder={'Choice ' + (choiceIndex + 1)} />
+                                    </label>
+                                  ))}
+                                  <small>Select the correct choice. These question types are scored automatically.</small>
+                                </div>
+                              ) : (
+                                <label className="field wide"><span>Staff answer guidance</span><textarea rows={3} value={question.correct_answer ?? ''} onChange={(event) => updateReadingQuestion(question.id, { correct_answer: event.target.value })} placeholder="What should a strong response explain or include?" /></label>
+                              )}
+
+                              {question.type !== 'short_answer' && <label className="field wide"><span>Explanation <small>(optional)</small></span><textarea rows={2} value={question.explanation ?? ''} onChange={(event) => updateReadingQuestion(question.id, { explanation: event.target.value })} placeholder="Explain why this answer is supported by the passage…" /></label>}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+
+                      <div className="learning-reading-add-row">
+                        <button className="primary" type="button" onClick={() => setReadingQuestions((questions) => [...questions, makeReadingQuestion()])}>＋ Add question</button>
+                        <span>{readingQuestions.length} question{readingQuestions.length === 1 ? '' : 's'} • {readingQuestions.filter((question) => question.type === 'short_answer').length} staff-reviewed</span>
+                      </div>
+                    </section>
+                  )}
                 </div>
                 <div className="learning-editor-actions">
                   <button className="ghost" type="button" disabled={saving} onClick={() => { resetAssignmentEditor(); setEditorOpen(false) }}>Cancel</button>
-                  <button className="primary" type="button" disabled={saving || !newTitle.trim() || (newType === 'typing' && ((typingMode === 'passage' && !typingPassage.trim()) || (typingMode !== 'passage' && !typingFocusKeys.trim()))) || (newType === 'quiz' && quizQuestions.length === 0) || (newType === 'writing' && !writingPrompt.trim())} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
+                  <button className="primary" type="button" disabled={saving || !newTitle.trim() || (newType === 'typing' && ((typingMode === 'passage' && !typingPassage.trim()) || (typingMode !== 'passage' && !typingFocusKeys.trim()))) || (newType === 'quiz' && quizQuestions.length === 0) || (newType === 'writing' && !writingPrompt.trim()) || (newType === 'reading' && (!readingPassageText.trim() || readingQuestions.length === 0))} onClick={() => void saveAssignment()}>{saving ? 'Saving…' : editingAssignmentId ? 'Save changes' : 'Add to library'}</button>
                 </div>
               </section>
             )}
