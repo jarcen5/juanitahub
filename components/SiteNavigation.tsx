@@ -297,7 +297,7 @@ export default function SiteNavigation() {
 
   if (
     pathname.startsWith('/kiosk') ||
-    pathname.startsWith('/learn') ||
+    (pathname === '/learn' || pathname.startsWith('/learn/')) ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/forgot-password')
