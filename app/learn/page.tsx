@@ -61,6 +61,18 @@ const STUDENT_KEY = 'juanita-learning-student-session'
 const STUDENT_PROFILE_KEY = 'juanita-learning-student-profile'
 const INACTIVITY_MS = 30 * 60 * 1000
 
+function randomDeviceToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  let binary = ''
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 function localDate() {
   const now = new Date()
   return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
@@ -191,14 +203,24 @@ export default function StudentLearningPage() {
     setWorking(true)
     setMessage('')
     try {
-      const data = await studentLearningRequest<{ device_token: string }>('provision_device', {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const session = sessionData.session
+      if (!session?.user) throw new Error('Please sign in as an admin, then return to Student Learning.')
+
+      const rawToken = randomDeviceToken()
+      const tokenHash = await sha256Hex(rawToken)
+      const { error } = await supabase.from('learning_lab_devices').insert({
+        token_hash: tokenHash,
         label: 'Computer Lab • ' + new Date().toLocaleDateString(),
+        created_by: session.user.id,
       })
-      window.localStorage.setItem(DEVICE_KEY, data.device_token)
-      setDeviceToken(data.device_token)
+      if (error) throw error
+
+      window.localStorage.setItem(DEVICE_KEY, rawToken)
+      setDeviceToken(rawToken)
       await supabase.auth.signOut()
       setStaffSessionAvailable(false)
-      await loadStudents(data.device_token)
+      await loadStudents(rawToken)
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'This computer could not be activated.'
       setMessage('Activation failed: ' + detail)
