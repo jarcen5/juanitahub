@@ -616,7 +616,7 @@ export default function LearningPage() {
     setMessage('')
     const weekEnd = addDays(weekStart, 6)
 
-    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult, quizResult, writingResult] = await Promise.all([
+    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult, quizResult, writingResult, readingAttemptResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
@@ -628,6 +628,7 @@ export default function LearningPage() {
       supabase.from('learning_typing_attempts').select('id, student_assignment_id, child_id, assignment_id, wpm, accuracy, duration_seconds, correct_characters, typed_characters, activity_mode, focus_keys, mistake_counts, created_at').order('created_at', { ascending: false }).limit(80),
       supabase.from('learning_quiz_attempts').select('id, student_assignment_id, child_id, assignment_id, correct_count, question_count, percent, duration_seconds, created_at').order('created_at', { ascending: false }).limit(80),
       supabase.from('learning_writing_submissions').select('id, student_assignment_id, child_id, assignment_id, content, word_count, status, started_at, submitted_at, last_saved_at, active_seconds, staff_feedback, rubric_scores, reviewed_at, updated_at').order('updated_at', { ascending: false }).limit(120),
+      supabase.from('learning_reading_attempts').select('id, student_assignment_id, child_id, assignment_id, answers, objective_correct, objective_count, written_count, review_scores, review_status, staff_feedback, reading_seconds, duration_seconds, submitted_at, reviewed_at, created_at').order('created_at', { ascending: false }).limit(120),
     ])
 
     const error = profileResult.error
@@ -641,6 +642,7 @@ export default function LearningPage() {
       ?? typingResult.error
       ?? quizResult.error
       ?? writingResult.error
+      ?? readingAttemptResult.error
 
     const nextChildren = (childResult.data ?? []) as Child[]
     setProfile(profileResult.data as Profile | null)
@@ -654,6 +656,7 @@ export default function LearningPage() {
     setTypingAttempts((typingResult.data ?? []) as TypingAttempt[])
     setQuizAttempts((quizResult.data ?? []) as QuizAttempt[])
     setWritingSubmissions((writingResult.data ?? []) as WritingSubmission[])
+    setReadingAttempts((readingAttemptResult.data ?? []) as ReadingAttempt[])
     setAssignChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setReadingChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setNoteChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
@@ -823,6 +826,26 @@ export default function LearningPage() {
     drafts: weeklyWritingSubmissions.filter((submission) => submission.status === 'draft').length,
     words: weeklyWritingSubmissions.reduce((sum, submission) => sum + Number(submission.word_count), 0),
   }), [weeklyWritingAssignments, weeklyWritingSubmissions])
+
+  const weeklyReadingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'reading'), [weeklyAssignments, assignmentById])
+  const weeklyReadingIds = useMemo(() => new Set(weeklyReadingAssignments.map((row) => row.id)), [weeklyReadingAssignments])
+  const weeklyReadingAttempts = useMemo(() => readingAttempts.filter((attempt) => weeklyReadingIds.has(attempt.student_assignment_id)), [readingAttempts, weeklyReadingIds])
+  const readingLabSummary = useMemo(() => {
+    const pending = weeklyReadingAttempts.filter((attempt) => attempt.review_status === 'pending').length
+    const reviewed = weeklyReadingAttempts.filter((attempt) => attempt.review_status === 'reviewed').length
+    const autoAttempts = weeklyReadingAttempts.filter((attempt) => attempt.written_count === 0 && attempt.objective_count > 0)
+    const autoAverage = autoAttempts.length
+      ? autoAttempts.reduce((sum, attempt) => sum + (Number(attempt.objective_correct) / Number(attempt.objective_count)) * 100, 0) / autoAttempts.length
+      : 0
+    return {
+      assigned: weeklyReadingAssignments.length,
+      attempts: weeklyReadingAttempts.length,
+      pending,
+      reviewed,
+      autoAttempts: autoAttempts.length,
+      autoAverage,
+    }
+  }, [weeklyReadingAssignments, weeklyReadingAttempts])
 
   function showMessage(text: string) {
     setMessage(text)
