@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { studentLearningRequest, type StudentAccessContext } from '@/lib/studentLearning'
 
 export type ReadingQuestionType = 'multiple_choice' | 'main_idea' | 'detail' | 'vocabulary' | 'short_answer'
 
@@ -35,6 +36,7 @@ type Props = {
   studentName?: string
   activityConfig: ReadingConfig | null
   userId?: string
+  studentAccess?: StudentAccessContext
   testMode?: boolean
   onClose: () => void
   onSaved?: () => Promise<void> | void
@@ -66,6 +68,7 @@ export default function ReadingActivityRunner({
   studentName,
   activityConfig,
   userId,
+  studentAccess,
   testMode = false,
   onClose,
   onSaved,
@@ -152,13 +155,35 @@ export default function ReadingActivityRunner({
       return
     }
 
-    if (!studentAssignmentId || !childId || !assignmentId || !userId) {
+    if (!studentAssignmentId || !childId || !assignmentId || (!userId && !studentAccess)) {
       setMessage('This reading activity is missing the assignment information needed to save.')
       return
     }
 
     setSaving(true)
     setMessage('')
+
+    if (studentAccess) {
+      try {
+        await studentLearningRequest('save_reading', {
+          device_token: studentAccess.deviceToken,
+          student_token: studentAccess.studentToken,
+          student_assignment_id: studentAssignmentId,
+          answers: evaluated,
+          reading_seconds: readingSeconds,
+          duration_seconds: durationSeconds,
+        })
+        setElapsedSeconds(durationSeconds)
+        setFinished(true)
+        setSaving(false)
+        if (onSaved) await onSaved()
+      } catch (error) {
+        setSaving(false)
+        setMessage(error instanceof Error ? error.message : 'Reading responses could not be saved.')
+      }
+      return
+    }
+
     const now = new Date().toISOString()
 
     const { error: attemptError } = await supabase.from('learning_reading_attempts').insert({
@@ -172,7 +197,7 @@ export default function ReadingActivityRunner({
       review_status: reviewStatus,
       reading_seconds: readingSeconds,
       duration_seconds: durationSeconds,
-      completed_by: userId,
+      completed_by: userId!,
       submitted_at: now,
       updated_at: now,
     })
@@ -187,7 +212,7 @@ export default function ReadingActivityRunner({
       status: 'completed',
       completed_at: now,
       minutes_spent: Math.max(1, Math.ceil(durationSeconds / 60)),
-      updated_by: userId,
+      updated_by: userId!,
       updated_at: now,
     }
 
