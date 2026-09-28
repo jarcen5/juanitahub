@@ -2051,7 +2051,106 @@ export default function LearningPage() {
 
         {tab === 'reading' && (
           <section className="learning-section">
-            <div className="learning-heading"><div><span className="learning-kicker">Reading practice</span><h2>Reading Log</h2><p>Track minutes and books without requiring a full assignment.</p></div></div>
+            <div className="learning-heading">
+              <div>
+                <span className="learning-kicker">Reading practice</span>
+                <h2>Reading Lab</h2>
+                <p>Run comprehension activities with the passage kept in view, review written responses, and keep the existing lightweight reading log in the same workspace.</p>
+              </div>
+            </div>
+
+            <div className="learning-metrics">
+              <article><strong>{readingLabSummary.assigned}</strong><span>Comprehension assignments</span><small>{readingLabSummary.attempts} attempts this week</small></article>
+              <article><strong>{readingLabSummary.pending}</strong><span>Awaiting review</span><small>Written responses</small></article>
+              <article><strong>{readingLabSummary.autoAttempts ? readingLabSummary.autoAverage.toFixed(1) + '%' : '—'}</strong><span>Auto-graded average</span><small>{readingLabSummary.autoAttempts} fully objective attempts</small></article>
+              <article><strong>{metrics.readingMinutes}</strong><span>Reading log minutes</span><small>Books and independent reading</small></article>
+            </div>
+
+            {weeklyReadingAssignments.length === 0 ? (
+              <section className="card learning-empty">
+                <span>📖</span>
+                <h2>No comprehension assignments this week</h2>
+                <p>Assign a Reading activity from Assignment Library to launch the new Reading Lab. You can still record independent reading below.</p>
+                <button className="primary" type="button" onClick={() => { window.location.hash = 'library'; setTab('library'); setSubjectFilter('reading') }}>Open reading assignments</button>
+              </section>
+            ) : (
+              <div className="reading-lab-staff-grid">
+                <section className="card reading-lab-assignments">
+                  <div className="section-heading"><div><h2>{weekLabel(weekStart)}</h2><p className="subtle">Assigned comprehension activities</p></div></div>
+                  <div className="reading-lab-staff-list">
+                    {weeklyReadingAssignments.map((row) => {
+                      const assignment = assignmentById.get(row.assignment_id)
+                      const child = childById.get(row.child_id)
+                      if (!assignment || !child) return null
+                      const attempts = weeklyReadingAttempts.filter((attempt) => attempt.student_assignment_id === row.id)
+                      const latest = attempts[0]
+                      const writtenEarned = latest?.review_status === 'reviewed'
+                        ? Object.values(latest.review_scores ?? {}).reduce((sum, value) => sum + Number(value), 0)
+                        : 0
+                      const earned = latest ? Number(latest.objective_correct) + writtenEarned : 0
+                      const max = latest ? Number(latest.objective_count) + Number(latest.written_count) : 0
+                      return (
+                        <article key={row.id}>
+                          <span className="learning-avatar">{child.first_name[0]?.toUpperCase()}</span>
+                          <span className="reading-lab-row-copy">
+                            <strong>{childName(child)}</strong>
+                            <small>{assignment.title} • {assignment.activity_config?.questions?.length ?? 0} questions{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</small>
+                            {latest && <em>{latest.review_status === 'pending' ? latest.objective_correct + '/' + latest.objective_count + ' objective • awaiting written review' : max ? earned + '/' + max + ' • ' + Math.round((earned / max) * 100) + '%' : 'Attempt saved'}</em>}
+                          </span>
+                          <span className={'learning-status ' + row.status}>{latest?.review_status === 'pending' ? 'Submitted' : latest?.review_status === 'reviewed' ? 'Reviewed' : statusLabel(row.status)}</span>
+                          <span className="reading-lab-row-actions">
+                            <button className="primary" type="button" onClick={() => setReadingTarget({ row, child, assignment })}>{attempts.length ? 'Try again' : 'Launch'}</button>
+                            {latest && latest.written_count > 0 && <button className="ghost" type="button" onClick={() => setReadingReviewTarget({ attempt: latest, child, assignment })}>{latest.review_status === 'reviewed' ? 'View review' : 'Review'}</button>}
+                          </span>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </section>
+
+                <section className="card reading-review-queue">
+                  <div className="section-heading"><div><h2>Response review</h2><p className="subtle">Short responses that need staff judgment.</p></div><span className="badge">{weeklyReadingAttempts.filter((attempt) => attempt.review_status === 'pending').length}</span></div>
+                  <div className="reading-review-queue-list">
+                    {weeklyReadingAttempts.filter((attempt) => attempt.review_status === 'pending').map((attempt) => {
+                      const child = childById.get(attempt.child_id)
+                      const assignment = assignmentById.get(attempt.assignment_id)
+                      if (!child || !assignment) return null
+                      return (
+                        <article key={attempt.id}>
+                          <span><strong>{childName(child)}</strong><small>{assignment.title} • {attempt.objective_correct}/{attempt.objective_count} objective correct • {attempt.written_count} written</small></span>
+                          <button className="primary" type="button" onClick={() => setReadingReviewTarget({ attempt, child, assignment })}>Review</button>
+                        </article>
+                      )
+                    })}
+                    {weeklyReadingAttempts.filter((attempt) => attempt.review_status === 'pending').length === 0 && <div className="learning-inline-empty">No reading responses are waiting for review.</div>}
+                  </div>
+
+                  <div className="reading-recent-heading"><strong>Recent attempts</strong><span>{weeklyReadingAttempts.length}</span></div>
+                  <div className="reading-review-queue-list recent">
+                    {weeklyReadingAttempts.slice(0, 8).map((attempt) => {
+                      const child = childById.get(attempt.child_id)
+                      const assignment = assignmentById.get(attempt.assignment_id)
+                      if (!child || !assignment) return null
+                      const reviewEarned = attempt.review_status === 'reviewed' ? Object.values(attempt.review_scores ?? {}).reduce((sum, value) => sum + Number(value), 0) : 0
+                      const earned = Number(attempt.objective_correct) + reviewEarned
+                      const max = Number(attempt.objective_count) + Number(attempt.written_count)
+                      return (
+                        <article key={attempt.id}>
+                          <span><strong>{childName(child)}</strong><small>{assignment.title} • {new Date(attempt.created_at).toLocaleDateString()}</small></span>
+                          <span className="reading-attempt-result"><strong>{attempt.review_status === 'pending' ? 'Review' : max ? earned + '/' + max : 'Saved'}</strong><small>{Math.max(1, Math.ceil(attempt.duration_seconds / 60))} min</small></span>
+                        </article>
+                      )
+                    })}
+                    {weeklyReadingAttempts.length === 0 && <div className="learning-inline-empty">No comprehension attempts yet.</div>}
+                  </div>
+                </section>
+              </div>
+            )}
+
+            <section className="reading-log-divider">
+              <div><span className="learning-kicker">Independent reading</span><h2>Reading Log</h2><p>Keep tracking books and reading minutes that do not need a full comprehension assignment.</p></div>
+            </section>
+
             <div className="learning-two-column">
               <section className="card">
                 <h2>Record reading</h2>
