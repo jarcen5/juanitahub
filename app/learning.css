@@ -4555,3 +4555,226 @@
   .my-week-footer{align-items:stretch;flex-direction:column}
   .my-week-footer button{width:100%}
 }
+
+
+/* Computer Lab Student Learning */
+.lab-setup-page,
+.lab-login-page{
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(81,164,210,.13),transparent 30%),
+    radial-gradient(circle at 90% 0%,rgba(143,111,201,.12),transparent 30%),
+    #f4f8fb;
+  color:#274a61;
+}
+.lab-setup-page{
+  display:grid;
+  place-items:center;
+  padding:24px;
+}
+.lab-setup-card{
+  width:min(620px,100%);
+  display:grid;
+  justify-items:center;
+  gap:10px;
+  padding:34px;
+  border:1px solid #dce8ef;
+  border-radius:22px;
+  background:white;
+  box-shadow:0 20px 60px rgba(35,77,103,.10);
+  text-align:center;
+}
+.lab-logo{
+  width:56px;
+  height:56px;
+  display:grid;
+  place-items:center;
+  border-radius:16px;
+  background:linear-gradient(135deg,#dff4ff,#eee7ff);
+  color:#3b6680;
+  font-size:18px;
+  font-weight:950;
+}
+.lab-setup-card h1{
+  margin:2px 0 0;
+  color:#2a536c;
+}
+.lab-setup-card p{
+  max-width:520px;
+  margin:0;
+  color:#748895;
+  line-height:1.55;
+}
+.lab-signin-link{
+  display:inline-flex;
+  justify-content:center;
+  text-decoration:none;
+}
+.lab-setup-card>small{
+  color:#8998a2;
+  font-size:9px;
+}
+.lab-login-header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:14px max(18px,calc((100vw - 1100px)/2));
+  border-bottom:1px solid #dce8ef;
+  background:rgba(255,255,255,.95);
+}
+.lab-login-header>div{
+  display:grid;
+  gap:1px;
+}
+.lab-login-header strong{
+  color:#2e5871;
+  font-size:12px;
+}
+.lab-login-header small{
+  color:#8997a0;
+  font-size:8.5px;
+}
+.lab-login-shell{
+  width:min(1100px,calc(100% - 32px));
+  margin:0 auto;
+  padding:34px 0 48px;
+}
+.lab-login-intro{
+  max-width:680px;
+  margin:0 auto 22px;
+  text-align:center;
+}
+.lab-login-intro h1{
+  margin:5px 0;
+  color:#2c566f;
+  font-size:clamp(2.2rem,6vw,4rem);
+}
+.lab-login-intro p{
+  margin:0;
+  color:#748895;
+}
+.lab-message{
+  width:min(680px,100%);
+  margin:0 auto 18px;
+}
+.lab-loading,.lab-empty{
+  padding:28px;
+  border:1px dashed #cddde6;
+  border-radius:16px;
+  background:rgba(255,255,255,.8);
+  color:#7a8c97;
+  text-align:center;
+}
+.lab-student-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(145px,1fr));
+  gap:10px;
+}
+.lab-student-grid>button{
+  display:grid;
+  justify-items:center;
+  gap:5px;
+  min-height:132px;
+  padding:14px 10px;
+  border:1px solid #dce7ed;
+  border-radius:17px;
+  background:white;
+  color:inherit;
+  cursor:pointer;
+  box-shadow:0 5px 18px rgba(41,79,102,.04);
+}
+.lab-student-grid>button:hover,
+.lab-student-grid>button.selected{
+  border-color:#8dc4df;
+  background:#eff9fe;
+  transform:translateY(-1px);
+}
+.lab-student-grid>button>span{
+  width:48px;
+  height:48px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:linear-gradient(135deg,#e7f6fd,#f0ebfc);
+  color:#47708b;
+  font-size:18px;
+  font-weight:950;
+}
+.lab-student-grid strong{
+  color:#3c5c71;
+  font-size:11px;
+}
+.lab-student-grid small{
+  color:#8b98a0;
+  font-size:8.5px;
+}
+.lab-student-grid .lab-empty{
+  grid-column:1/-1;
+}
+.lab-pin-card{
+  width:min(500px,100%);
+  margin:24px auto 0;
+  display:grid;
+  justify-items:center;
+  gap:9px;
+  padding:26px;
+  border:1px solid #d9e5ec;
+  border-radius:20px;
+  background:white;
+  box-shadow:0 14px 40px rgba(40,78,101,.08);
+  text-align:center;
+}
+.lab-back-choice{
+  justify-self:start;
+  border:0;
+  background:transparent;
+  color:#668399;
+  font-size:9px;
+  font-weight:800;
+}
+.lab-pin-avatar{
+  width:62px;
+  height:62px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#e9f6fd;
+  color:#3d6d89;
+  font-size:23px;
+  font-weight:950;
+}
+.lab-pin-card h2{
+  margin:2px 0 0;
+  color:#315972;
+}
+.lab-pin-card p{
+  margin:0;
+  color:#788b97;
+  line-height:1.5;
+}
+.lab-pin-input{
+  width:min(240px,100%);
+  min-height:62px;
+  border:2px solid #cfdde6;
+  border-radius:16px;
+  outline:none;
+  background:#fbfdfe;
+  color:#2e5269;
+  font-size:30px;
+  font-weight:950;
+  letter-spacing:.32em;
+  text-align:center;
+}
+.lab-pin-input:focus{
+  border-color:#78b6d6;
+  box-shadow:0 0 0 5px rgba(82,159,205,.10);
+}
+.lab-pin-button{
+  width:min(240px,100%);
+  min-height:44px;
+}
+@media(max-width:620px){
+  .lab-login-shell{width:min(100% - 20px,1100px);padding-top:24px}
+  .lab-student-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .lab-setup-card{padding:24px 18px}
+}
