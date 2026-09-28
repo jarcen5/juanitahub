@@ -10,6 +10,8 @@ import AssignmentTestRunner from '@/components/AssignmentTestRunner'
 import QuizActivityRunner, { type QuizConfig, type QuizQuestion, type QuizQuestionType } from '@/components/QuizActivityRunner'
 import WritingActivityRunner, { type WritingConfig, type WritingMode } from '@/components/WritingActivityRunner'
 import WritingReviewDialog, { type WritingSubmission } from '@/components/WritingReviewDialog'
+import ReadingActivityRunner, { type ReadingConfig, type ReadingQuestion, type ReadingQuestionType } from '@/components/ReadingActivityRunner'
+import ReadingReviewDialog, { type ReadingAttempt } from '@/components/ReadingReviewDialog'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
@@ -23,7 +25,7 @@ type TypingConfig = {
   target_wpm?: number
   target_accuracy?: number
 }
-type ActivityConfig = TypingConfig & QuizConfig & WritingConfig
+type ActivityConfig = TypingConfig & QuizConfig & WritingConfig & ReadingConfig
 type LearningAssignment = {
   id: number
   title: string
@@ -140,6 +142,29 @@ const quizQuestionTypeLabels: Record<QuizQuestionType, string> = {
   fill_blank: 'Fill in the blank',
   spelling: 'Spelling / vocabulary',
   reading_comprehension: 'Reading comprehension',
+}
+
+const readingQuestionTypeLabels: Record<ReadingQuestionType, string> = {
+  multiple_choice: 'Multiple choice',
+  main_idea: 'Main idea',
+  detail: 'Supporting detail',
+  vocabulary: 'Vocabulary in context',
+  short_answer: 'Short response',
+}
+
+function isReadingChoiceType(type: ReadingQuestionType) {
+  return type !== 'short_answer'
+}
+
+function makeReadingQuestion(type: ReadingQuestionType = 'multiple_choice'): ReadingQuestion {
+  return {
+    id: 'r-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
+    type,
+    prompt: '',
+    choices: isReadingChoiceType(type) ? ['', '', '', ''] : [],
+    correct_answer: '',
+    explanation: '',
+  }
 }
 
 function isQuizChoiceType(type: QuizQuestionType) {
@@ -476,6 +501,7 @@ export default function LearningPage() {
   const [typingAttempts, setTypingAttempts] = useState<TypingAttempt[]>([])
   const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([])
   const [writingSubmissions, setWritingSubmissions] = useState<WritingSubmission[]>([])
+  const [readingAttempts, setReadingAttempts] = useState<ReadingAttempt[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -499,6 +525,8 @@ export default function LearningPage() {
   const [quizTarget, setQuizTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
   const [writingTarget, setWritingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
   const [writingReviewTarget, setWritingReviewTarget] = useState<{ submission: WritingSubmission; child: Child; assignment: LearningAssignment } | null>(null)
+  const [readingTarget, setReadingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
+  const [readingReviewTarget, setReadingReviewTarget] = useState<{ attempt: ReadingAttempt; child: Child; assignment: LearningAssignment } | null>(null)
 
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState<Subject>('reading')
@@ -525,6 +553,10 @@ export default function LearningPage() {
   const [writingMinWords, setWritingMinWords] = useState('')
   const [writingTargetWords, setWritingTargetWords] = useState('')
   const [writingRubric, setWritingRubric] = useState('Ideas\nOrganization\nGrammar & conventions')
+  const [readingPassageText, setReadingPassageText] = useState('')
+  const [readingQuestions, setReadingQuestions] = useState<ReadingQuestion[]>([])
+  const [readingPassingScore, setReadingPassingScore] = useState('80')
+  const [readingShowExplanations, setReadingShowExplanations] = useState(true)
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null)
   const [assignMode, setAssignMode] = useState<'child' | 'grade'>('child')
