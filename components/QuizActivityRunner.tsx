@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { studentLearningRequest, type StudentAccessContext } from '@/lib/studentLearning'
 
 export type QuizQuestionType =
   | 'multiple_choice'
@@ -34,6 +35,7 @@ type Props = {
   studentName?: string
   activityConfig: QuizConfig | null
   userId?: string
+  studentAccess?: StudentAccessContext
   testMode?: boolean
   onClose: () => void
   onSaved?: () => Promise<void> | void
@@ -71,6 +73,7 @@ export default function QuizActivityRunner({
   studentName,
   activityConfig,
   userId,
+  studentAccess,
   testMode = false,
   onClose,
   onSaved,
@@ -146,13 +149,39 @@ export default function QuizActivityRunner({
       return
     }
 
-    if (!studentAssignmentId || !childId || !assignmentId || !userId) {
+    if (!studentAssignmentId || !childId || !assignmentId || (!userId && !studentAccess)) {
       setSaveWarning('This quiz is missing the assignment information needed to save a result.')
       return
     }
 
     setSaving(true)
     setSaveWarning('')
+
+    if (studentAccess) {
+      try {
+        const result = await studentLearningRequest<{ correct_count: number; question_count: number; percent: number }>('save_quiz', {
+          device_token: studentAccess.deviceToken,
+          student_token: studentAccess.studentToken,
+          student_assignment_id: studentAssignmentId,
+          answers,
+          duration_seconds: finalSeconds,
+        })
+        if (result.question_count === questions.length) {
+          setAnswers((current) => current.map((answer) => {
+            const source = answers.find((item) => item.question_id === answer.question_id)
+            return source ?? answer
+          }))
+        }
+        setElapsedSeconds(finalSeconds)
+        setFinished(true)
+        setSaving(false)
+        if (onSaved) await onSaved()
+      } catch (error) {
+        setSaving(false)
+        setSaveWarning(error instanceof Error ? error.message : 'Quiz result could not be saved.')
+      }
+      return
+    }
 
     const { error: assignmentError } = await supabase
       .from('learning_student_assignments')
@@ -163,7 +192,7 @@ export default function QuizActivityRunner({
         max_score: questions.length,
         minutes_spent: Math.max(1, Math.ceil(finalSeconds / 60)),
         staff_note: note,
-        updated_by: userId,
+        updated_by: userId!,
         updated_at: new Date().toISOString(),
       })
       .eq('id', studentAssignmentId)
@@ -183,7 +212,7 @@ export default function QuizActivityRunner({
       question_count: questions.length,
       percent: finalPercent,
       duration_seconds: finalSeconds,
-      completed_by: userId,
+      completed_by: userId!,
     })
 
     setElapsedSeconds(finalSeconds)
