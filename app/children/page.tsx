@@ -221,9 +221,9 @@ export default function ChildrenPage() {
     setNewStudent({ first_name: '', last_name: '', birth_date: '', school: '', grade: '', school_year: currentSchoolYear() })
     setAddingStudent(false)
     await loadData()
-    const created = children.find((child) => child.id === childId)
+    const { data: created } = await supabase.from('children').select('id, first_name, last_name, active').eq('id', childId).maybeSingle()
     setMessage('Student profile created. Learning access is enabled and the student can be assigned work immediately.')
-    if (created) setSelectedChild(created)
+    if (created) setSelectedChild(created as Child)
   }
 
   function toggleDay(day: string) { setForm((current) => ({ ...current, attendance_days: current.attendance_days.includes(day) ? current.attendance_days.filter((d) => d !== day) : [...current.attendance_days, day] })) }
