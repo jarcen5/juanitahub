@@ -297,6 +297,7 @@ export default function SiteNavigation() {
 
   if (
     pathname.startsWith('/kiosk') ||
+    pathname.startsWith('/learn') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/forgot-password')
@@ -415,6 +416,10 @@ export default function SiteNavigation() {
             <Link className="jh-kiosk-link" href="/kiosk" onClick={closeMobile}>
               <span aria-hidden="true">☺</span>
               <span><strong>Launch Sign-In Kiosk</strong><small>Open the child and visitor sign-in screen</small></span>
+            </Link>
+            <Link className="jh-kiosk-link" href="/learn" onClick={closeMobile}>
+              <span aria-hidden="true">🎓</span>
+              <span><strong>Launch Student Learning</strong><small>Open Computer Lab Mode for individual student work</small></span>
             </Link>
             <div className="jh-role-row">
               <span className="jh-role-dot" aria-hidden="true" />
