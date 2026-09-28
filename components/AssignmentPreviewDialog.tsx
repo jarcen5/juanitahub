@@ -23,7 +23,7 @@ type PreviewAssignment = {
       type: 'multiple_choice' | 'correct_sentence' | 'fill_blank' | 'spelling' | 'reading_comprehension' | 'main_idea' | 'detail' | 'vocabulary' | 'short_answer'
       prompt: string
       choices?: string[]
-      correct_answer: string
+      correct_answer?: string
       explanation?: string
       passage?: string
     }>
@@ -154,8 +154,8 @@ export default function AssignmentPreviewDialog({ assignment, onClose }: Props) 
                       <span>Question {index + 1}</span>
                       {question.passage && <p className="reading">{question.passage}</p>}
                       <strong>{question.prompt}</strong>
-                      {question.choices && question.choices.length > 0 && <div>{question.choices.map((choice) => <small key={choice} className={choice.trim().toLowerCase() === question.correct_answer.trim().toLowerCase() ? 'correct' : ''}>{choice}</small>)}</div>}
-                      {(!question.choices || question.choices.length === 0) && <small className="correct">Answer: {question.correct_answer}</small>}
+                      {question.choices && question.choices.length > 0 && <div>{question.choices.map((choice) => <small key={choice} className={choice.trim().toLowerCase() === (question.correct_answer ?? '').trim().toLowerCase() ? 'correct' : ''}>{choice}</small>)}</div>}
+                      {(!question.choices || question.choices.length === 0) && <small className="correct">Answer: {question.correct_answer || 'No answer added.'}</small>}
                       {question.explanation && <p>{question.explanation}</p>}
                     </article>
                   ))}
@@ -199,9 +199,9 @@ export default function AssignmentPreviewDialog({ assignment, onClose }: Props) 
                       <span>Question {index + 1} • {question.type.replaceAll('_', ' ')}</span>
                       <strong>{question.prompt}</strong>
                       {question.type === 'short_answer'
-                        ? <small className="guidance">Staff guidance: {question.correct_answer}</small>
+                        ? <small className="guidance">Staff guidance: {question.correct_answer || 'No guidance added.'}</small>
                         : <>
-                            {question.choices && question.choices.length > 0 && <div>{question.choices.map((choice) => <small key={choice} className={choice.trim().toLowerCase() === question.correct_answer.trim().toLowerCase() ? 'correct' : ''}>{choice}</small>)}</div>}
+                            {question.choices && question.choices.length > 0 && <div>{question.choices.map((choice) => <small key={choice} className={choice.trim().toLowerCase() === (question.correct_answer ?? '').trim().toLowerCase() ? 'correct' : ''}>{choice}</small>)}</div>}
                             {question.explanation && <p>{question.explanation}</p>}
                           </>}
                     </article>
