@@ -906,6 +906,48 @@ export default function LearningPage() {
     }
   }, [weeklyReadingAssignments, weeklyReadingAttempts])
 
+  const myWeekChild = useMemo(() => myWeekChildId ? childById.get(myWeekChildId) ?? null : null, [myWeekChildId, childById])
+  const myWeekItems = useMemo<MyWeekItem[]>(() => {
+    if (!myWeekChildId) return []
+    return (weeklyByChild.get(myWeekChildId) ?? []).flatMap((row) => {
+      const assignment = assignmentById.get(row.assignment_id)
+      if (!assignment) return []
+      const writingSubmission = assignment.assignment_type === 'writing'
+        ? writingSubmissions.find((submission) => submission.student_assignment_id === row.id) ?? null
+        : null
+      const readingAttempt = assignment.assignment_type === 'reading'
+        ? readingAttempts.find((attempt) => attempt.student_assignment_id === row.id) ?? null
+        : null
+      return [{
+        rowId: row.id,
+        assignmentId: assignment.id,
+        title: assignment.title,
+        subject: assignment.subject,
+        assignmentType: assignment.assignment_type,
+        skill: assignment.skill,
+        status: row.status,
+        dueDate: row.due_date,
+        estimatedMinutes: assignment.estimated_minutes,
+        score: row.score,
+        maxScore: row.max_score,
+        writingStatus: writingSubmission?.status ?? null,
+        readingReviewStatus: readingAttempt?.review_status ?? null,
+      }]
+    })
+  }, [myWeekChildId, weeklyByChild, assignmentById, writingSubmissions, readingAttempts])
+
+  function launchMyWeekItem(item: MyWeekItem) {
+    if (!myWeekChildId) return
+    const child = childById.get(myWeekChildId)
+    const row = weeklyAssignments.find((assignment) => assignment.id === item.rowId)
+    const assignment = assignmentById.get(item.assignmentId)
+    if (!child || !row || !assignment) return
+    if (assignment.assignment_type === 'typing') setTypingTarget({ row, child, assignment })
+    else if (assignment.assignment_type === 'quiz') setQuizTarget({ row, child, assignment })
+    else if (assignment.assignment_type === 'writing') setWritingTarget({ row, child, assignment })
+    else if (assignment.assignment_type === 'reading') setReadingTarget({ row, child, assignment })
+  }
+
   function showMessage(text: string) {
     setMessage(text)
     window.scrollTo({ top: 0, behavior: 'smooth' })
