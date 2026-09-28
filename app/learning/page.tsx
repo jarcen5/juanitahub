@@ -12,6 +12,7 @@ import WritingActivityRunner, { type WritingConfig, type WritingMode } from '@/c
 import WritingReviewDialog, { type WritingSubmission } from '@/components/WritingReviewDialog'
 import ReadingActivityRunner, { type ReadingConfig, type ReadingQuestion, type ReadingQuestionType } from '@/components/ReadingActivityRunner'
 import ReadingReviewDialog, { type ReadingAttempt } from '@/components/ReadingReviewDialog'
+import StudentMyWeek, { type MyWeekItem } from '@/components/StudentMyWeek'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
@@ -101,7 +102,7 @@ type QuizAttempt = {
   duration_seconds: number
   created_at: string
 }
-type LearningTab = 'week' | 'library' | 'typing' | 'quizzes' | 'writing' | 'reading' | 'notes'
+type LearningTab = 'week' | 'my-week' | 'library' | 'typing' | 'quizzes' | 'writing' | 'reading' | 'notes'
 type Subject = LearningAssignment['subject']
 type AssignmentType = LearningAssignment['assignment_type']
 type Difficulty = LearningAssignment['difficulty']
@@ -582,6 +583,8 @@ export default function LearningPage() {
   const [writingReviewTarget, setWritingReviewTarget] = useState<{ submission: WritingSubmission; child: Child; assignment: LearningAssignment } | null>(null)
   const [readingTarget, setReadingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
   const [readingReviewTarget, setReadingReviewTarget] = useState<{ attempt: ReadingAttempt; child: Child; assignment: LearningAssignment } | null>(null)
+  const [myWeekChildId, setMyWeekChildId] = useState<number | null>(null)
+  const [myWeekOpen, setMyWeekOpen] = useState(false)
 
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState<Subject>('reading')
@@ -650,7 +653,7 @@ export default function LearningPage() {
   useEffect(() => {
     function syncTab() {
       const requested = window.location.hash.replace('#', '') as LearningTab
-      setTab(['week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
+      setTab(['week', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
     }
     syncTab()
     window.addEventListener('hashchange', syncTab)
@@ -713,6 +716,7 @@ export default function LearningPage() {
     setWritingSubmissions((writingResult.data ?? []) as WritingSubmission[])
     setReadingAttempts((readingAttemptResult.data ?? []) as ReadingAttempt[])
     setAssignChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
+    setMyWeekChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setReadingChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setNoteChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     if (error) setMessage(error.message)
