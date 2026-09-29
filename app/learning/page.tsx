@@ -15,7 +15,7 @@ import ReadingReviewDialog, { type ReadingAttempt } from '@/components/ReadingRe
 import StudentMyWeek, { type MyWeekItem } from '@/components/StudentMyWeek'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
-type Child = { id: number; first_name: string; last_name: string | null; active: boolean }
+type Child = { id: number; first_name: string; last_name: string | null; active: boolean; is_demo: boolean }
 type Registration = { child_id: number; grade: string | null; school: string | null }
 type TypingMode = 'passage' | 'letter_drill' | 'guided_keys' | 'hand_placement'
 type TypingConfig = {
@@ -571,7 +571,7 @@ export default function LearningPage() {
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | Difficulty>('all')
   const [formatFilter, setFormatFilter] = useState<'all' | DeliveryFormat>('all')
   const [libraryStatusFilter, setLibraryStatusFilter] = useState<'active' | 'archived' | 'all'>('active')
-  const [assignmentUsageRows, setAssignmentUsageRows] = useState<{ assignment_id: number; status: StudentAssignment['status'] }[]>([])
+  const [assignmentUsageRows, setAssignmentUsageRows] = useState<{ assignment_id: number; child_id: number; status: StudentAssignment['status'] }[]>([])
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
   const [starterAdding, setStarterAdding] = useState(false)
@@ -676,13 +676,13 @@ export default function LearningPage() {
 
     const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult, quizResult, writingResult, readingAttemptResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
-      supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
+      supabase.from('children').select('id, first_name, last_name, active, is_demo').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
       supabase.from('learning_assignments').select('id, title, subject, assignment_type, skill, grade_levels, difficulty, delivery_format, instructions, estimated_minutes, resource_url, active, activity_config').order('subject').order('title'),
       supabase.from('learning_student_assignments').select('id, child_id, assignment_id, week_start, due_date, status, completed_at, score, max_score, minutes_spent, staff_note').eq('week_start', weekStart).order('child_id').order('id'),
       supabase.from('learning_reading_logs').select('id, child_id, read_on, title, minutes, pages, note, created_at').gte('read_on', weekStart).lte('read_on', weekEnd).order('read_on', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
-      supabase.from('learning_student_assignments').select('assignment_id, status'),
+      supabase.from('learning_student_assignments').select('assignment_id, child_id, status'),
       supabase.from('learning_typing_attempts').select('id, student_assignment_id, child_id, assignment_id, wpm, accuracy, duration_seconds, correct_characters, typed_characters, activity_mode, focus_keys, mistake_counts, created_at').order('created_at', { ascending: false }).limit(80),
       supabase.from('learning_quiz_attempts').select('id, student_assignment_id, child_id, assignment_id, correct_count, question_count, percent, duration_seconds, created_at').order('created_at', { ascending: false }).limit(80),
       supabase.from('learning_writing_submissions').select('id, student_assignment_id, child_id, assignment_id, content, word_count, status, started_at, submitted_at, last_saved_at, active_seconds, staff_feedback, rubric_scores, reviewed_at, updated_at').order('updated_at', { ascending: false }).limit(120),
@@ -710,7 +710,7 @@ export default function LearningPage() {
     setWeeklyAssignments((weeklyResult.data ?? []) as StudentAssignment[])
     setReadingLogs((readingResult.data ?? []) as ReadingLog[])
     setNotes((notesResult.data ?? []) as LearningNote[])
-    setAssignmentUsageRows((usageResult.data ?? []) as { assignment_id: number; status: StudentAssignment['status'] }[])
+    setAssignmentUsageRows((usageResult.data ?? []) as { assignment_id: number; child_id: number; status: StudentAssignment['status'] }[])
     setTypingAttempts((typingResult.data ?? []) as TypingAttempt[])
     setQuizAttempts((quizResult.data ?? []) as QuizAttempt[])
     setWritingSubmissions((writingResult.data ?? []) as WritingSubmission[])
@@ -724,6 +724,7 @@ export default function LearningPage() {
   }
 
   const childById = useMemo(() => new Map(children.map((child) => [child.id, child])), [children])
+  const reportingChildIds = useMemo(() => new Set(children.filter((child) => !child.is_demo).map((child) => child.id)), [children])
   const registrationByChild = useMemo(() => new Map(registrations.map((registration) => [registration.child_id, registration])), [registrations])
   const assignmentById = useMemo(() => new Map(library.map((assignment) => [assignment.id, assignment])), [library])
   const gradeOptions = useMemo(() => [...new Set(registrations.map((registration) => registration.grade?.trim()).filter((grade): grade is string => Boolean(grade)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [registrations])
@@ -770,13 +771,14 @@ export default function LearningPage() {
   const usageByAssignment = useMemo(() => {
     const map = new Map<number, { assigned: number; completed: number }>()
     for (const row of assignmentUsageRows) {
+      if (!reportingChildIds.has(row.child_id)) continue
       const current = map.get(row.assignment_id) ?? { assigned: 0, completed: 0 }
       current.assigned += 1
       if (row.status === 'completed') current.completed += 1
       map.set(row.assignment_id, current)
     }
     return map
-  }, [assignmentUsageRows])
+  }, [assignmentUsageRows, reportingChildIds])
 
   const libraryGroups = useMemo(() => {
     const groups: { subject: Subject; skills: { skill: string; assignments: LearningAssignment[] }[] }[] = []
@@ -836,14 +838,16 @@ export default function LearningPage() {
 
   const weeklyChildren = useMemo(() => children.filter((child) => (weeklyByChild.get(child.id)?.length ?? 0) > 0 || (readingByChild.get(child.id)?.length ?? 0) > 0), [children, weeklyByChild, readingByChild])
 
+  const reportingWeeklyAssignments = useMemo(() => weeklyAssignments.filter((row) => reportingChildIds.has(row.child_id)), [weeklyAssignments, reportingChildIds])
+  const reportingReadingLogs = useMemo(() => readingLogs.filter((row) => reportingChildIds.has(row.child_id)), [readingLogs, reportingChildIds])
   const metrics = useMemo(() => ({
-    assigned: weeklyAssignments.length,
-    completed: weeklyAssignments.filter((row) => row.status === 'completed').length,
-    readingMinutes: readingLogs.reduce((sum, row) => sum + Number(row.minutes), 0),
-    children: new Set([...weeklyAssignments.map((row) => row.child_id), ...readingLogs.map((row) => row.child_id)]).size,
-  }), [weeklyAssignments, readingLogs])
+    assigned: reportingWeeklyAssignments.length,
+    completed: reportingWeeklyAssignments.filter((row) => row.status === 'completed').length,
+    readingMinutes: reportingReadingLogs.reduce((sum, row) => sum + Number(row.minutes), 0),
+    children: new Set([...reportingWeeklyAssignments.map((row) => row.child_id), ...reportingReadingLogs.map((row) => row.child_id)]).size,
+  }), [reportingWeeklyAssignments, reportingReadingLogs])
 
-  const weeklyTypingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'typing'), [weeklyAssignments, assignmentById])
+  const weeklyTypingAssignments = useMemo(() => reportingWeeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'typing'), [reportingWeeklyAssignments, assignmentById])
   const weeklyTypingIds = useMemo(() => new Set(weeklyTypingAssignments.map((row) => row.id)), [weeklyTypingAssignments])
   const weeklyTypingAttempts = useMemo(() => typingAttempts.filter((attempt) => weeklyTypingIds.has(attempt.student_assignment_id)), [typingAttempts, weeklyTypingIds])
   const typingSummary = useMemo(() => {
@@ -861,7 +865,7 @@ export default function LearningPage() {
     }
   }, [weeklyTypingAssignments, weeklyTypingAttempts])
 
-  const weeklyQuizAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'quiz'), [weeklyAssignments, assignmentById])
+  const weeklyQuizAssignments = useMemo(() => reportingWeeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'quiz'), [reportingWeeklyAssignments, assignmentById])
   const weeklyQuizIds = useMemo(() => new Set(weeklyQuizAssignments.map((row) => row.id)), [weeklyQuizAssignments])
   const weeklyQuizAttempts = useMemo(() => quizAttempts.filter((attempt) => weeklyQuizIds.has(attempt.student_assignment_id)), [quizAttempts, weeklyQuizIds])
   const quizSummary = useMemo(() => {
@@ -875,7 +879,7 @@ export default function LearningPage() {
     }
   }, [weeklyQuizAssignments, weeklyQuizAttempts])
 
-  const weeklyWritingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'writing'), [weeklyAssignments, assignmentById])
+  const weeklyWritingAssignments = useMemo(() => reportingWeeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'writing'), [reportingWeeklyAssignments, assignmentById])
   const weeklyWritingIds = useMemo(() => new Set(weeklyWritingAssignments.map((row) => row.id)), [weeklyWritingAssignments])
   const weeklyWritingSubmissions = useMemo(() => writingSubmissions.filter((submission) => weeklyWritingIds.has(submission.student_assignment_id)), [writingSubmissions, weeklyWritingIds])
   const writingSummary = useMemo(() => ({
@@ -886,7 +890,7 @@ export default function LearningPage() {
     words: weeklyWritingSubmissions.reduce((sum, submission) => sum + Number(submission.word_count), 0),
   }), [weeklyWritingAssignments, weeklyWritingSubmissions])
 
-  const weeklyReadingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'reading'), [weeklyAssignments, assignmentById])
+  const weeklyReadingAssignments = useMemo(() => reportingWeeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'reading'), [reportingWeeklyAssignments, assignmentById])
   const weeklyReadingIds = useMemo(() => new Set(weeklyReadingAssignments.map((row) => row.id)), [weeklyReadingAssignments])
   const weeklyReadingAttempts = useMemo(() => readingAttempts.filter((attempt) => weeklyReadingIds.has(attempt.student_assignment_id)), [readingAttempts, weeklyReadingIds])
   const readingLabSummary = useMemo(() => {
