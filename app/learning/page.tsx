@@ -12,7 +12,8 @@ import WritingActivityRunner, { type WritingConfig, type WritingMode } from '@/c
 import WritingReviewDialog, { type WritingSubmission } from '@/components/WritingReviewDialog'
 import ReadingActivityRunner, { type ReadingConfig, type ReadingQuestion, type ReadingQuestionType } from '@/components/ReadingActivityRunner'
 import ReadingReviewDialog, { type ReadingAttempt } from '@/components/ReadingReviewDialog'
-import StudentMyWeek, { type MyWeekItem } from '@/components/StudentMyWeek'
+import StudentMyWeek, { type MyWeekItem, type StudentGoalView, type StudentAchievementView } from '@/components/StudentMyWeek'
+import LearningGoalsPanel from '@/components/LearningGoalsPanel'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean; is_demo: boolean }
@@ -102,7 +103,7 @@ type QuizAttempt = {
   duration_seconds: number
   created_at: string
 }
-type LearningTab = 'week' | 'review' | 'my-week' | 'library' | 'typing' | 'quizzes' | 'writing' | 'reading' | 'notes'
+type LearningTab = 'week' | 'review' | 'goals' | 'my-week' | 'library' | 'typing' | 'quizzes' | 'writing' | 'reading' | 'notes'
 type Subject = LearningAssignment['subject']
 type AssignmentType = LearningAssignment['assignment_type']
 type Difficulty = LearningAssignment['difficulty']
@@ -585,6 +586,8 @@ export default function LearningPage() {
   const [readingReviewTarget, setReadingReviewTarget] = useState<{ attempt: ReadingAttempt; child: Child; assignment: LearningAssignment } | null>(null)
   const [myWeekChildId, setMyWeekChildId] = useState<number | null>(null)
   const [myWeekOpen, setMyWeekOpen] = useState(false)
+  const [myWeekGoals, setMyWeekGoals] = useState<StudentGoalView[]>([])
+  const [myWeekAchievements, setMyWeekAchievements] = useState<StudentAchievementView[]>([])
 
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState<Subject>('reading')
@@ -653,7 +656,7 @@ export default function LearningPage() {
   useEffect(() => {
     function syncTab() {
       const requested = window.location.hash.replace('#', '') as LearningTab
-      setTab(['week', 'review', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
+      setTab(['week', 'review', 'goals', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
     }
     syncTab()
     window.addEventListener('hashchange', syncTab)
@@ -733,6 +736,26 @@ export default function LearningPage() {
   useEffect(() => {
     if (!assignGrade && gradeOptions.length) setAssignGrade(gradeOptions[0])
   }, [gradeOptions, assignGrade])
+
+  useEffect(() => {
+    if (!myWeekChildId || !session) {
+      setMyWeekGoals([])
+      setMyWeekAchievements([])
+      return
+    }
+    let mounted = true
+    async function loadMotivation() {
+      const [goalResult, achievementResult] = await Promise.all([
+        supabase.rpc('refresh_learning_goals', { p_child_id: myWeekChildId }),
+        supabase.rpc('refresh_learning_achievements', { p_child_id: myWeekChildId }),
+      ])
+      if (!mounted) return
+      setMyWeekGoals(((goalResult.data ?? []) as StudentGoalView[]).filter((goal) => ['active', 'reached', 'approved'].includes(goal.status)).slice(0, 6))
+      setMyWeekAchievements(((achievementResult.data ?? []) as StudentAchievementView[]).slice(0, 8))
+    }
+    void loadMotivation()
+    return () => { mounted = false }
+  }, [myWeekChildId, session])
 
   const skillOptions = useMemo(() => {
     return [...new Set(library
@@ -1724,6 +1747,10 @@ export default function LearningPage() {
           </section>
         )}
 
+        {tab === 'goals' && (
+          <LearningGoalsPanel children={children.map((child) => ({ id: child.id, first_name: child.first_name, last_name: child.last_name, is_demo: child.is_demo }))} />
+        )}
+
         {tab === 'my-week' && (
           <section className="learning-section">
             <div className="learning-heading">
@@ -2584,6 +2611,8 @@ export default function LearningPage() {
           onLaunch={launchMyWeekItem}
           onExit={() => setMyWeekOpen(false)}
           isDemo={myWeekChild.is_demo}
+          goals={myWeekGoals}
+          achievements={myWeekAchievements}
         />
       )}
 
