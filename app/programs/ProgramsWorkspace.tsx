@@ -40,7 +40,7 @@ type Enrollment = {
   source: 'staff' | 'parent' | 'import'
   enrolled_at: string
 }
-type Child = { id: number; first_name: string; last_name: string | null }
+type Child = { id: number; first_name: string; last_name: string | null; is_demo: boolean }
 type Household = { id: number; display_name: string }
 type HouseholdLink = { household_id: number; child_id: number; is_primary: boolean; active: boolean }
 type AdultParticipant = { id: number; first_name: string; last_name: string | null; status: string }
@@ -189,7 +189,7 @@ export default function ProgramsWorkspace() {
       supabase.from('programs').select('id, name, program_type, audience, registration_mode, season_label, description, location, starts_on, ends_on, meeting_days, start_time, end_time, capacity, status').order('created_at', { ascending: false }),
       supabase.from('program_registration_options').select('id, program_id, registration_mode, display_order').order('display_order').order('id'),
       supabase.from('program_enrollments').select('id, program_id, household_id, child_id, adult_participant_id, status, source, enrolled_at').order('enrolled_at'),
-      supabase.from('children').select('id, first_name, last_name').eq('active', true).order('first_name').order('last_name'),
+      supabase.from('children').select('id, first_name, last_name, is_demo').eq('active', true).order('first_name').order('last_name'),
       supabase.from('households').select('id, display_name').eq('status', 'active').order('display_name'),
       supabase.from('household_children').select('household_id, child_id, is_primary, active').eq('active', true),
       supabase.from('adult_participants').select('id, first_name, last_name, status').eq('status', 'active').order('first_name').order('last_name'),
@@ -447,7 +447,10 @@ export default function ProgramsWorkspace() {
 
   const selectedRoster = selected ? enrollmentsByProgram.get(selected.id) ?? [] : []
   const selectedYouthIds = new Set(selectedRoster.filter((enrollment) => enrollment.child_id).map((enrollment) => enrollment.child_id as number))
-  const activeCount = selectedRoster.filter((enrollment) => ['pending', 'enrolled', 'waitlisted'].includes(enrollment.status)).length
+  const activeCount = selectedRoster.filter((enrollment) => {
+    if (!['pending', 'enrolled', 'waitlisted'].includes(enrollment.status)) return false
+    return !enrollment.child_id || !childById.get(enrollment.child_id)?.is_demo
+  }).length
   const selectedModes = selected
     ? (registrationOptionsByProgram.get(selected.id) ?? []).map((option) => option.registration_mode)
     : []
@@ -508,7 +511,8 @@ export default function ProgramsWorkspace() {
             <div className="programs-list">
               {programs.map((program) => {
                 const roster = enrollmentsByProgram.get(program.id) ?? []
-                return <button type="button" key={program.id} className={`program-list-item ${selectedId === program.id ? 'active' : ''}`} onClick={() => setSelectedId(program.id)}><span><strong>{program.name}</strong><small>{typeLabels[program.program_type]}{program.season_label ? ` • ${program.season_label}` : ''}</small></span><span><b>{roster.length}</b><small>roster</small></span><em className={`program-status ${program.status}`}>{program.status}</em></button>
+                const reportingRosterCount = roster.filter((enrollment) => !enrollment.child_id || !childById.get(enrollment.child_id)?.is_demo).length
+                return <button type="button" key={program.id} className={`program-list-item ${selectedId === program.id ? 'active' : ''}`} onClick={() => setSelectedId(program.id)}><span><strong>{program.name}</strong><small>{typeLabels[program.program_type]}{program.season_label ? ` • ${program.season_label}` : ''}</small></span><span><b>{reportingRosterCount}</b><small>roster</small></span><em className={`program-status ${program.status}`}>{program.status}</em></button>
               })}
               {programs.length === 0 && <div className="programs-empty">No programs yet. The first one can be afterschool, summer, a club, a class, or another center activity.</div>}
             </div>
@@ -562,7 +566,7 @@ export default function ProgramsWorkspace() {
                       return (
                         <article className="program-roster-row" key={enrollment.id}>
                           <div>
-                            <strong>{name}</strong>
+                            <strong>{name}{child?.is_demo ? ' • Demo' : ''}</strong>
                             <small>{household ? household.display_name : adult ? 'Adult participant' : 'No household linked'} • {enrollment.source}</small>
                           </div>
                           {profile.role === 'admin' ? (
