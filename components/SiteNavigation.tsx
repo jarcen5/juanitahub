@@ -190,7 +190,6 @@ export default function SiteNavigation() {
   const [access, setAccess] = useState<AccessState>({ active: false, role: null })
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
-  const [openGroup, setOpenGroup] = useState<string | null>(null)
   const [learningReviewCount, setLearningReviewCount] = useState(0)
 
   useEffect(() => {
@@ -284,14 +283,11 @@ export default function SiteNavigation() {
 
   useEffect(() => {
     if (pathname === '/') {
-      setOpenGroup(null)
       setMobileOpen(false)
       setSidebarExpanded(false)
       return
     }
 
-    const currentGroup = navGroups.find((group) => currentItemHref(visibleItems(group)) !== null)
-    if (currentGroup) setOpenGroup(currentGroup.label)
     setMobileOpen(false)
     setSidebarExpanded(false)
     // access.role is intentionally included so admin-only routes can resolve after access loads.
@@ -328,15 +324,6 @@ export default function SiteNavigation() {
   }
 
   if (!access.active) return null
-
-  function toggleGroup(label: string) {
-    if (!sidebarExpanded) {
-      setSidebarExpanded(true)
-      setOpenGroup(label)
-      return
-    }
-    setOpenGroup((current) => current === label ? null : label)
-  }
 
   function closeNavigation() {
     setMobileOpen(false)
@@ -392,55 +379,23 @@ export default function SiteNavigation() {
             <div className="jh-section-list">
               {navGroups.map((group) => {
                 const items = visibleItems(group)
-                if (items.length === 0) return null
+                const destination = items.find((item) => item.href)?.href
+                if (!destination) return null
 
-                const activeHref = currentItemHref(items)
-                const active = activeHref !== null
-                const isOpen = openGroup === group.label
-                const sectionId = `jh-section-${group.label.toLowerCase().replace(/\s+/g, '-')}`
+                const active = currentItemHref(items) !== null
 
                 return (
-                  <section className={`jh-nav-section ${active ? 'active' : ''} ${isOpen ? 'open' : ''}`} key={group.label}>
-                    <button
-                      type="button"
+                  <section className={`jh-nav-section ${active ? 'active' : ''}`} key={group.label}>
+                    <Link
                       className="jh-section-trigger"
-                      aria-expanded={isOpen}
-                      aria-controls={sectionId}
-                      onClick={() => toggleGroup(group.label)}
+                      href={destination}
+                      aria-current={active ? 'page' : undefined}
+                      onClick={closeNavigation}
                       title={group.label}
                     >
                       <span className="jh-section-icon" aria-hidden="true">{group.icon}</span>
                       <span className="jh-section-copy"><strong>{group.label}{group.label === 'Learning' && learningReviewCount > 0 && <span className="jh-nav-count">{learningReviewCount}</span>}</strong><small>{group.description}</small></span>
-                      <span className="jh-section-chevron" aria-hidden="true">⌄</span>
-                    </button>
-
-                    {isOpen && (
-                      <div className="jh-section-items" id={sectionId}>
-                        {items.map((item) => {
-                          if (item.comingSoon || !item.href) {
-                            return (
-                              <div className="jh-nav-item disabled" key={item.label}>
-                                <span><strong>{item.label}</strong>{item.description && <small>{item.description}</small>}</span>
-                                <span className="jh-coming-soon">Soon</span>
-                              </div>
-                            )
-                          }
-
-                          const current = activeHref === item.href
-                          return (
-                            <Link
-                              className={`jh-nav-item ${current ? 'active' : ''}`}
-                              href={item.href}
-                              key={item.href}
-                              aria-current={current ? 'page' : undefined}
-                              onClick={closeNavigation}
-                            >
-                              <span><strong>{item.label}</strong>{item.description && <small>{item.description}</small>}</span>
-                            </Link>
-                          )
-                        })}
-                      </div>
-                    )}
+                    </Link>
                   </section>
                 )
               })}
