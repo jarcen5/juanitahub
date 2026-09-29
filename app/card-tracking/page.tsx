@@ -33,6 +33,16 @@ type StaffProfile = {
   active: boolean
 }
 
+type GoalBonus = {
+  id: number
+  goal_id: number
+  child_id: number
+  points: number
+  awarded_on: string
+  note: string | null
+  created_at: string
+}
+
 type AppSettings = {
   wheel_rule_mode: 'pending' | 'points_per_spin' | 'tiers'
   points_per_spin: number | null
@@ -113,6 +123,7 @@ export default function Home() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [children, setChildren] = useState<Child[]>([])
   const [entries, setEntries] = useState<Entry[]>([])
+  const [goalBonuses, setGoalBonuses] = useState<GoalBonus[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
@@ -148,6 +159,7 @@ export default function Home() {
       setSettings(null)
       setChildren([])
       setEntries([])
+      setGoalBonuses([])
       return
     }
 
@@ -159,7 +171,7 @@ export default function Home() {
 
     setLoading(true)
 
-    const [profileResult, settingsResult, childrenResult, entriesResult] = await Promise.all([
+    const [profileResult, settingsResult, childrenResult, entriesResult, bonusResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('app_settings').select('wheel_rule_mode, points_per_spin, wheel_rule_notes').eq('id', 1).maybeSingle(),
       supabase.from('children').select('id, first_name, last_name, active, is_demo').order('first_name').order('last_name'),
@@ -169,12 +181,19 @@ export default function Home() {
         .gte('entry_date', bounds.start)
         .lte('entry_date', bounds.end)
         .order('entry_date', { ascending: false }),
+      supabase
+        .from('learning_goal_bonus_points')
+        .select('id, goal_id, child_id, points, awarded_on, note, created_at')
+        .gte('awarded_on', bounds.start)
+        .lte('awarded_on', bounds.end)
+        .order('awarded_on', { ascending: false }),
     ])
 
     setProfile(profileResult.data as StaffProfile | null)
     setSettings(settingsResult.data as AppSettings | null)
     setChildren((childrenResult.data ?? []) as Child[])
     setEntries((entriesResult.data ?? []) as Entry[])
+    setGoalBonuses((bonusResult.data ?? []) as GoalBonus[])
     setLoading(false)
   }
 
@@ -363,6 +382,7 @@ export default function Home() {
   const reportingActiveChildren = useMemo(() => reportingChildren.filter((child) => child.active), [reportingChildren])
   const reportingChildIds = useMemo(() => new Set(reportingChildren.map((child) => child.id)), [reportingChildren])
   const reportingEntries = useMemo(() => entries.filter((entry) => reportingChildIds.has(entry.child_id)), [entries, reportingChildIds])
+  const reportingGoalBonuses = useMemo(() => goalBonuses.filter((bonus) => reportingChildIds.has(bonus.child_id)), [goalBonuses, reportingChildIds])
   const archivedChildren = useMemo(() => children.filter((child) => !child.active), [children])
 
   const todayEntries = useMemo(
@@ -371,8 +391,9 @@ export default function Home() {
   )
 
   const monthlyPoints = useMemo(
-    () => reportingEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0),
-    [reportingEntries],
+    () => reportingEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
+      + reportingGoalBonuses.reduce((sum, bonus) => sum + Number(bonus.points || 0), 0),
+    [reportingEntries, reportingGoalBonuses],
   )
 
   const summaryChildren = useMemo(() => {
@@ -383,17 +404,23 @@ export default function Home() {
   const childSummaries = useMemo(
     () => summaryChildren.map((child) => {
       const childEntries = reportingEntries.filter((entry) => entry.child_id === child.id)
-      const points = childEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
+      const childBonuses = reportingGoalBonuses.filter((bonus) => bonus.child_id === child.id)
+      const behaviorPoints = childEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
+      const learningBonusPoints = childBonuses.reduce((sum, bonus) => sum + Number(bonus.points || 0), 0)
+      const points = behaviorPoints + learningBonusPoints
       const diamonds = childEntries.filter((entry) => entry.card === 'diamond').length
       return {
         ...child,
         points,
+        behaviorPoints,
+        learningBonusPoints,
+        learningBonuses: childBonuses.length,
         diamonds,
         spins: spinsForPoints(points, diamonds),
         entries: childEntries.length,
       }
     }),
-    [summaryChildren, reportingEntries, settings],
+    [summaryChildren, reportingEntries, reportingGoalBonuses, settings],
   )
 
   const totalWheelSpins = useMemo(
@@ -411,9 +438,15 @@ export default function Home() {
     [entries, selectedChildId],
   )
 
+  const selectedChildGoalBonuses = useMemo(
+    () => goalBonuses.filter((bonus) => bonus.child_id === selectedChildId),
+    [goalBonuses, selectedChildId],
+  )
+
   const selectedChildPoints = useMemo(
-    () => selectedChildEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0),
-    [selectedChildEntries],
+    () => selectedChildEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
+      + selectedChildGoalBonuses.reduce((sum, bonus) => sum + Number(bonus.points || 0), 0),
+    [selectedChildEntries, selectedChildGoalBonuses],
   )
 
   const selectedChildDiamonds = useMemo(
@@ -547,7 +580,7 @@ export default function Home() {
             <span className="subtle">{activeView === 'today' ? 'Completed today' : 'Recorded entries'}</span>
             <strong>{activeView === 'today' ? `${completedToday}/${reportingActiveChildren.length}` : reportingEntries.length}</strong>
           </div>
-          <div className="card stat"><span className="subtle">{monthLabel(selectedMonth)} points</span><strong>{monthlyPoints}</strong></div>
+          <div className="card stat"><span className="subtle">{monthLabel(selectedMonth)} points</span><strong>{monthlyPoints}</strong><small className="subtle">Includes approved Learning Goal bonuses</small></div>
           <div className="card stat"><span className="subtle">Total wheel spins</span><strong>{wheelRuleReady ? totalWheelSpins : 'Pending'}</strong></div>
         </section>
 
@@ -616,7 +649,7 @@ export default function Home() {
                   <span>
                     <strong>{childFullName(child)}</strong>{!child.active && <span className="badge archived-badge">Archived</span>}<br />
                     <span className="subtle" style={{ fontSize: 13 }}>
-                      {child.entries} recorded {child.entries === 1 ? 'day' : 'days'}{child.diamonds > 0 ? ` • ${child.diamonds} Diamond bonus ${child.diamonds === 1 ? 'spin' : 'spins'}` : ''}
+                      {child.entries} recorded {child.entries === 1 ? 'day' : 'days'}{child.learningBonuses > 0 ? ` • ${child.learningBonuses} Learning Goal bonus ${child.learningBonuses === 1 ? 'point' : 'points'}` : ''}{child.diamonds > 0 ? ` • ${child.diamonds} Diamond bonus ${child.diamonds === 1 ? 'spin' : 'spins'}` : ''}
                     </span>
                   </span>
                   <span className="summary-actions">
@@ -632,10 +665,11 @@ export default function Home() {
               <h2>Card totals</h2>
               <div className="summary-row"><span>◆ Diamond (+1 bonus spin each)</span><strong>{diamondCount}</strong></div>
               <div className="summary-row"><span>● Green</span><strong>{greenCount}</strong></div>
-              <div className="summary-row"><span>● Yellow</span><strong>{entries.filter((entry) => entry.card === 'yellow').length}</strong></div>
-              <div className="summary-row"><span>● Orange</span><strong>{entries.filter((entry) => entry.card === 'orange').length}</strong></div>
-              <div className="summary-row"><span>● Red</span><strong>{entries.filter((entry) => entry.card === 'red').length}</strong></div>
-              <div className="summary-row"><span>Statuses / non-behavior days</span><strong>{entries.filter((entry) => entry.entry_type === 'status').length}</strong></div>
+              <div className="summary-row"><span>● Yellow</span><strong>{reportingEntries.filter((entry) => entry.card === 'yellow').length}</strong></div>
+              <div className="summary-row"><span>● Orange</span><strong>{reportingEntries.filter((entry) => entry.card === 'orange').length}</strong></div>
+              <div className="summary-row"><span>● Red</span><strong>{reportingEntries.filter((entry) => entry.card === 'red').length}</strong></div>
+              <div className="summary-row"><span>Statuses / non-behavior days</span><strong>{reportingEntries.filter((entry) => entry.entry_type === 'status').length}</strong></div>
+              <div className="summary-row"><span>🎯 Learning Goal bonus points</span><strong>+{reportingGoalBonuses.reduce((sum, bonus) => sum + Number(bonus.points || 0), 0)}</strong></div>
             </div>
           </section>
         )}
@@ -657,6 +691,7 @@ export default function Home() {
                   <div><span className="subtle">Points</span><strong>{selectedChildPoints}</strong></div>
                   <div><span className="subtle">Spins</span><strong>{wheelRuleReady ? historySpins : 'Pending'}</strong></div>
                   <div><span className="subtle">Diamond bonus</span><strong>{selectedChildDiamonds}</strong></div>
+                  <div><span className="subtle">Learning bonus</span><strong>+{selectedChildGoalBonuses.reduce((sum, bonus) => sum + Number(bonus.points || 0), 0)}</strong></div>
                   <div><span className="subtle">Entries</span><strong>{selectedChildEntries.length}</strong></div>
                 </div>
               )}
@@ -673,10 +708,16 @@ export default function Home() {
                     <button className="ghost" onClick={() => setActiveView('summary')}>Back to summary</button>
                   </div>
 
-                  {selectedChildEntries.length === 0 ? (
+                  {selectedChildEntries.length === 0 && selectedChildGoalBonuses.length === 0 ? (
                     <div className="empty">No entries for {childFullName(selectedChild)} in {monthLabel(selectedMonth)}.</div>
                   ) : (
-                    <HistoryEntryList entries={selectedChildEntries} onSaved={loadAppData} />
+                    <>
+                      {selectedChildEntries.length > 0 && <HistoryEntryList entries={selectedChildEntries} onSaved={loadAppData} />}
+                      {selectedChildGoalBonuses.length > 0 && <div className="learning-bonus-history">
+                        <h3>Learning Goal bonuses</h3>
+                        {selectedChildGoalBonuses.map((bonus) => <div className="summary-row" key={bonus.id}><span><strong>🎯 {bonus.note || 'Learning Goal Bonus'}</strong><br/><small className="subtle">{new Date(bonus.awarded_on+'T12:00:00').toLocaleDateString()}</small></span><strong>+{Number(bonus.points)} pt</strong></div>)}
+                      </div>}
+                    </>
                   )}
                 </>
               ) : (
