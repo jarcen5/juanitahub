@@ -5176,3 +5176,7 @@
   .my-week-section-heading{align-items:flex-start;flex-direction:column}
   .my-week-achievement-row{grid-template-columns:1fr 1fr}
 }
+
+.learning-review-icon.goal{
+  background:#fff4cc;
+}
