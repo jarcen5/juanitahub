@@ -181,6 +181,7 @@
 
 .jh-section-trigger {
   min-height: 58px;
+  grid-template-columns: 36px minmax(0, 1fr);
   padding: 9px 10px;
   cursor: pointer;
 }
