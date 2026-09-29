@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import type { StudentGoalView, StudentAchievementView } from '@/components/StudentMyWeek'
 
 type Props = {
   childId: number
@@ -31,6 +32,12 @@ function shiftDays(value: string, days: number) {
 function avg(values: number[]) {
   return values.length ? values.reduce((sum,value)=>sum+value,0)/values.length : null
 }
+function goalProgress(goal: StudentGoalView) {
+  const repeated=['quiz_consistency','typing_accuracy','custom'].includes(goal.goal_type)
+  const current=repeated?Number(goal.current_count):Number(goal.current_value)
+  const target=repeated?Number(goal.target_count):Number(goal.target_value)
+  return Math.max(0,Math.min(100,target?Math.round(current/target*100):0))
+}
 
 export default function ChildProgressSummary({ childId, childName, grade, isDemo }: Props) {
   const [assignments, setAssignments] = useState<StudentAssignment[]>([])
@@ -38,6 +45,8 @@ export default function ChildProgressSummary({ childId, childName, grade, isDemo
   const [typing, setTyping] = useState<TypingAttempt[]>([])
   const [reading, setReading] = useState<ReadingLog[]>([])
   const [writing, setWriting] = useState<WritingSubmission[]>([])
+  const [goals, setGoals] = useState<StudentGoalView[]>([])
+  const [achievements, setAchievements] = useState<StudentAchievementView[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
 
@@ -51,20 +60,24 @@ export default function ChildProgressSummary({ childId, childName, grade, isDemo
     const startIso = start + 'T00:00:00'
     const endIso = end + 'T23:59:59.999'
 
-    const [assignmentRows, quizRows, typingRows, readingRows, writingRows] = await Promise.all([
+    const [assignmentRows, quizRows, typingRows, readingRows, writingRows, goalRows, achievementRows] = await Promise.all([
       supabase.from('learning_student_assignments').select('id,assignment_id,status,week_start').eq('child_id',childId).gte('week_start',start).lte('week_start',end),
       supabase.from('learning_quiz_attempts').select('id,percent,created_at').eq('child_id',childId).gte('created_at',startIso).lte('created_at',endIso),
       supabase.from('learning_typing_attempts').select('id,wpm,accuracy,created_at').eq('child_id',childId).gte('created_at',startIso).lte('created_at',endIso).order('created_at',{ascending:true}),
       supabase.from('learning_reading_logs').select('id,minutes,read_on').eq('child_id',childId).gte('read_on',start).lte('read_on',end),
       supabase.from('learning_writing_submissions').select('id,status,word_count,updated_at').eq('child_id',childId).gte('updated_at',startIso).lte('updated_at',endIso),
+      supabase.rpc('refresh_learning_goals',{p_child_id:childId}),
+      supabase.rpc('refresh_learning_achievements',{p_child_id:childId}),
     ])
-    const error = assignmentRows.error ?? quizRows.error ?? typingRows.error ?? readingRows.error ?? writingRows.error
+    const error = assignmentRows.error ?? quizRows.error ?? typingRows.error ?? readingRows.error ?? writingRows.error ?? goalRows.error ?? achievementRows.error
     if (error) setMessage(error.message)
     setAssignments((assignmentRows.data ?? []) as StudentAssignment[])
     setQuizzes((quizRows.data ?? []) as QuizAttempt[])
     setTyping((typingRows.data ?? []) as TypingAttempt[])
     setReading((readingRows.data ?? []) as ReadingLog[])
     setWriting((writingRows.data ?? []) as WritingSubmission[])
+    setGoals(((goalRows.data ?? []) as StudentGoalView[]).filter((goal)=>['active','reached','approved'].includes(goal.status)).slice(0,6))
+    setAchievements(((achievementRows.data ?? []) as StudentAchievementView[]).slice(0,8))
     setLoading(false)
   }
 
@@ -108,6 +121,24 @@ export default function ChildProgressSummary({ childId, childName, grade, isDemo
             <article><small>Typing accuracy</small><strong>{metrics.typingAccuracy==null?'—':Math.round(metrics.typingAccuracy)+'%'}</strong><span>{typing.length} attempt{typing.length===1?'':'s'}</span></article>
             <article><small>Writing</small><strong>{metrics.writingCount}</strong><span>{metrics.reviewedWriting} reviewed</span></article>
           </div>
+
+          {(goals.length>0 || achievements.length>0) && <div className="child-progress-motivation">
+            {goals.length>0 && <section className="child-progress-goals">
+              <div className="child-learning-block-heading"><div><small>Current goals</small><h4>Working toward +1</h4></div><Link className="ghost" href="/learning#goals">Manage goals</Link></div>
+              <div className="child-progress-goal-list">{goals.slice(0,4).map((goal)=>{
+                const progress=goalProgress(goal)
+                return <article key={goal.id} className={goal.status}>
+                  <span>🎯</span>
+                  <span><strong>{goal.title}</strong><small>{goal.status==='approved'?'Bonus point earned':goal.status==='reached'?'Reached • waiting for approval':progress+'% complete'}</small><span className="child-progress-goal-track"><i style={{width:progress+'%'}} /></span></span>
+                  <em>{goal.status==='approved'?'+1':goal.status==='reached'?'Ready':'In progress'}</em>
+                </article>
+              })}</div>
+            </section>}
+            {achievements.length>0 && <section className="child-progress-achievements">
+              <div className="child-learning-block-heading"><div><small>Milestones</small><h4>Achievements</h4></div><span>{achievements.length}</span></div>
+              <div className="child-progress-achievement-grid">{achievements.slice(0,6).map((achievement)=><article key={achievement.id}><span>{achievement.icon}</span><strong>{achievement.title}</strong><small>{achievement.description}</small></article>)}</div>
+            </section>}
+          </div>}
 
           <div className="child-progress-insights">
             <article>
