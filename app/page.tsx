@@ -21,6 +21,7 @@ type Child = {
   first_name: string
   last_name: string | null
   active: boolean
+  is_demo: boolean
 }
 
 type BehaviorEntry = {
@@ -167,7 +168,7 @@ export default function StaffHomePage() {
         .maybeSingle(),
       supabase
         .from('children')
-        .select('id, first_name, last_name, active')
+        .select('id, first_name, last_name, active, is_demo')
         .eq('active', true)
         .order('first_name'),
       supabase
@@ -230,24 +231,28 @@ export default function StaffHomePage() {
     await supabase.auth.signOut()
   }
 
-  const completedCards = useMemo(() => new Set(entries.map((entry) => entry.child_id)).size, [entries])
-  const missingCards = Math.max(0, children.length - completedCards)
-  const signedInChildIds = useMemo(() => new Set(attendanceVisits.filter((visit) => visit.participant_type === 'child' && visit.child_id != null).map((visit) => visit.child_id)), [attendanceVisits])
+  const reportingChildren = useMemo(() => children.filter((child) => !child.is_demo), [children])
+  const reportingChildIds = useMemo(() => new Set(reportingChildren.map((child) => child.id)), [reportingChildren])
+  const completedCards = useMemo(() => new Set(entries.filter((entry) => reportingChildIds.has(entry.child_id)).map((entry) => entry.child_id)).size, [entries, reportingChildIds])
+  const missingCards = Math.max(0, reportingChildren.length - completedCards)
+  const signedInChildIds = useMemo(() => new Set(attendanceVisits
+    .filter((visit) => visit.participant_type === 'child' && visit.child_id != null && reportingChildIds.has(visit.child_id))
+    .map((visit) => visit.child_id)), [attendanceVisits, reportingChildIds])
   const childSignIns = signedInChildIds.size
-  const childrenNotSignedIn = Math.max(0, children.length - childSignIns)
+  const childrenNotSignedIn = Math.max(0, reportingChildren.length - childSignIns)
   const communityPresent = attendanceVisits.filter((visit) => visit.participant_type !== 'child' && !visit.signed_out_at).length
   const presentNow = childSignIns + communityPresent
   const communitySignIns = attendanceVisits.filter((visit) => visit.participant_type !== 'child').length
 
   const upcomingBirthdays = useMemo(() => {
-    const childMap = new Map(children.map((child) => [child.id, child]))
+    const childMap = new Map(reportingChildren.map((child) => [child.id, child]))
     return birthdayRegistrations
       .filter((registration): registration is BirthdayRegistration & { birth_date: string } => Boolean(registration.birth_date))
       .map((registration) => ({ registration, child: childMap.get(registration.child_id), days: daysUntilBirthday(registration.birth_date) }))
       .filter((item) => item.child && item.days <= 7)
       .sort((a, b) => a.days - b.days || (a.child?.first_name ?? '').localeCompare(b.child?.first_name ?? ''))
       .slice(0, 5)
-  }, [birthdayRegistrations, children])
+  }, [birthdayRegistrations, reportingChildren])
 
   const centerStatus = !operatingDay
     ? 'Not recorded yet'
@@ -333,7 +338,7 @@ export default function StaffHomePage() {
               <div className="home-section-heading compact"><div><span className="home-section-kicker">Snapshot</span><h2>Today</h2></div></div>
               <div className="home-snapshot-grid">
                 <div><strong>{presentNow}</strong><span>Here now</span><small>{childSignIns} children + {communityPresent} community</small></div>
-                <div><strong>{childSignIns}</strong><span>Children signed in</span><small>of {children.length} active</small></div>
+                <div><strong>{childSignIns}</strong><span>Children signed in</span><small>of {reportingChildren.length} active</small></div>
                 <div><strong>{completedCards}</strong><span>Cards/statuses entered</span><small>{missingCards} still missing</small></div>
                 <div><strong>{communitySignIns}</strong><span>Community sign-ins</span><small>Today's total visits</small></div>
               </div>
