@@ -1448,7 +1448,7 @@ export default function LearningPage() {
                     <article className="card learning-student-card" key={child.id}>
                       <header>
                         <span className="learning-avatar">{child.first_name[0]?.toUpperCase()}</span>
-                        <span><strong>{childName(child)}</strong><small>{registrationByChild.get(child.id)?.grade ? 'Grade ' + registrationByChild.get(child.id)?.grade : 'Grade not recorded'} • {minutes} reading min</small></span>
+                        <span><strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong><small>{registrationByChild.get(child.id)?.grade ? 'Grade ' + registrationByChild.get(child.id)?.grade : 'Grade not recorded'} • {minutes} reading min</small></span>
                         <span className="learning-progress">{assignments.filter((row) => row.status === 'completed').length}/{assignments.length} done</span>
                       </header>
                       <div className="learning-assignment-list">
@@ -1502,7 +1502,7 @@ export default function LearningPage() {
 
                 <label className="field"><span>Student</span>
                   <select value={myWeekChildId ?? ''} onChange={(event) => setMyWeekChildId(Number(event.target.value))}>
-                    {children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}
+                    {children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{child.is_demo ? ' • Demo' : ''}{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}
                   </select>
                 </label>
 
@@ -1538,7 +1538,7 @@ export default function LearningPage() {
                     return (
                       <button className={myWeekChildId === child.id ? 'active' : ''} type="button" key={child.id} onClick={() => setMyWeekChildId(child.id)}>
                         <span className="learning-avatar small">{child.first_name[0]?.toUpperCase()}</span>
-                        <span><strong>{childName(child)}</strong><small>{rows.length ? done + '/' + rows.length + ' completed' : 'No assignments this week'}</small></span>
+                        <span><strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong><small>{rows.length ? done + '/' + rows.length + ' completed' : 'No assignments this week'}</small></span>
                         <em>{percent}%</em>
                       </button>
                     )
@@ -1917,7 +1917,7 @@ export default function LearningPage() {
                       <button type="button" className={assignMode === 'grade' ? 'active' : ''} onClick={() => setAssignMode('grade')}>Whole grade</button>
                     </div>
                     {assignMode === 'child'
-                      ? <label className="field"><span>Student</span><select value={assignChildId ?? ''} onChange={(event) => setAssignChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{registrationByChild.get(child.id)?.grade ? ' — Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}</select></label>
+                      ? <label className="field"><span>Student</span><select value={assignChildId ?? ''} onChange={(event) => setAssignChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{child.is_demo ? ' • Demo' : ''}{registrationByChild.get(child.id)?.grade ? ' — Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}</select></label>
                       : <label className="field"><span>Grade</span><select value={assignGrade} onChange={(event) => setAssignGrade(event.target.value)}>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>}
                     <label className="field"><span>Week</span><input type="date" value={weekStart} onChange={(event) => event.target.value && setWeekStart(mondayFor(event.target.value))} /></label>
                     <label className="field"><span>Due date <small>(optional)</small></span><input type="date" value={assignDueDate} onChange={(event) => setAssignDueDate(event.target.value)} /></label>
