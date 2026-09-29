@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { studentLearningRequest, type StudentAccessContext } from '@/lib/studentLearning'
-import StudentMyWeek, { type MyWeekItem } from '@/components/StudentMyWeek'
+import StudentMyWeek, { type MyWeekItem, type StudentGoalView, type StudentAchievementView } from '@/components/StudentMyWeek'
 import TypingActivityRunner from '@/components/TypingActivityRunner'
 import QuizActivityRunner, { type QuizConfig } from '@/components/QuizActivityRunner'
 import WritingActivityRunner, { type WritingConfig } from '@/components/WritingActivityRunner'
@@ -55,6 +55,8 @@ type WeekResponse = {
   assignments: LabAssignment[]
   writing: WritingState[]
   reading: ReadingState[]
+  goals: StudentGoalView[]
+  achievements: StudentAchievementView[]
 }
 
 const DEVICE_KEY = 'juanita-learning-device'
@@ -97,7 +99,7 @@ export default function StudentLearningPage() {
   const [students, setStudents] = useState<LabStudent[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null)
   const [pin, setPin] = useState('')
-  const [week, setWeek] = useState<WeekResponse>({ rows: [], assignments: [], writing: [], reading: [] })
+  const [week, setWeek] = useState<WeekResponse>({ rows: [], assignments: [], writing: [], reading: [], goals: [], achievements: [] })
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
   const [message, setMessage] = useState('')
@@ -174,6 +176,8 @@ export default function StudentLearningPage() {
         assignments: data.assignments ?? [],
         writing: data.writing ?? [],
         reading: data.reading ?? [],
+        goals: data.goals ?? [],
+        achievements: data.achievements ?? [],
       })
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Your Student Learning session ended.')
@@ -251,7 +255,7 @@ export default function StudentLearningPage() {
     setStudentToken('')
     setStudent(null)
     setActiveItem(null)
-    setWeek({ rows: [], assignments: [], writing: [], reading: [] })
+    setWeek({ rows: [], assignments: [], writing: [], reading: [], goals: [], achievements: [] })
     setMessage(inactive ? 'You were signed out after 30 minutes of inactivity.' : '')
     await loadStudents(deviceToken)
   }
@@ -376,6 +380,8 @@ export default function StudentLearningPage() {
         onExit={() => void signOutStudent(false)}
         exitLabel="Sign out"
         isDemo={student.is_demo}
+        goals={week.goals}
+        achievements={week.achievements}
       />
 
       {activeItem?.assignment.assignment_type === 'typing' && access && (
