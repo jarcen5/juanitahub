@@ -252,11 +252,12 @@ export default function SiteNavigation() {
 
     let mounted = true
     async function loadReviewCount() {
-      const [writing, reading] = await Promise.all([
+      const [writing, reading, goals] = await Promise.all([
         supabase.from('learning_writing_submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
         supabase.from('learning_reading_attempts').select('id', { count: 'exact', head: true }).eq('review_status', 'pending'),
+        supabase.from('learning_goals').select('id', { count: 'exact', head: true }).eq('status', 'reached'),
       ])
-      if (mounted) setLearningReviewCount(Number(writing.count ?? 0) + Number(reading.count ?? 0))
+      if (mounted) setLearningReviewCount(Number(writing.count ?? 0) + Number(reading.count ?? 0) + Number(goals.count ?? 0))
     }
 
     void loadReviewCount()
@@ -266,7 +267,7 @@ export default function SiteNavigation() {
       mounted = false
       window.removeEventListener('juanita-learning-review-updated', refresh)
     }
-  }, [access.active])
+  }, [access.active, pathname])
 
   function routeMatches(href?: string) {
     if (!href) return false
