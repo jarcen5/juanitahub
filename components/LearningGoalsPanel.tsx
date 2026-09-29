@@ -133,6 +133,7 @@ export default function LearningGoalsPanel({ children }: { children: GoalChild[]
     })))
     setAchievements((achievementResult.data ?? []) as LearningAchievement[])
     setSuggestions(Array.isArray(suggestionResult.data) ? suggestionResult.data as GoalSuggestion[] : [])
+    window.dispatchEvent(new Event('juanita-learning-review-updated'))
     setLoading(false)
   }
 
