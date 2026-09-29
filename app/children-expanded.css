@@ -171,3 +171,65 @@
   .children-learning-access-footer>a{width:100%;text-align:center}
   .children-learning-profile-actions{display:grid;grid-template-columns:1fr}
 }
+
+
+/* Demo / test student safeguards */
+.children-demo-badge{
+  display:inline-flex;
+  align-items:center;
+  margin-left:6px;
+  padding:3px 7px;
+  border-radius:999px;
+  background:#f0eaff;
+  color:#7051a5;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.02em;
+  vertical-align:middle;
+}
+.children-demo-badge.small{
+  margin-left:4px;
+  padding:2px 5px;
+  font-size:7px;
+}
+.children-profile-heading-actions{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.children-demo-student-check{
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  margin-top:12px;
+  padding:11px;
+  border:1px solid #dfd4f2;
+  border-radius:11px;
+  background:#faf7ff;
+}
+.children-demo-student-check input{
+  width:17px;
+  height:17px;
+  margin-top:1px;
+}
+.children-demo-student-check>span{
+  display:grid;
+  gap:2px;
+}
+.children-demo-student-check strong{
+  color:#66508a;
+  font-size:10px;
+}
+.children-demo-student-check small{
+  color:#80768d;
+  font-size:8.5px;
+  line-height:1.4;
+}
+@media(max-width:620px){
+  .children-profile-heading-actions{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr;
+  }
+}
