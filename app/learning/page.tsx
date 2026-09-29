@@ -102,7 +102,7 @@ type QuizAttempt = {
   duration_seconds: number
   created_at: string
 }
-type LearningTab = 'week' | 'my-week' | 'library' | 'typing' | 'quizzes' | 'writing' | 'reading' | 'notes'
+type LearningTab = 'week' | 'review' | 'my-week' | 'library' | 'typing' | 'quizzes' | 'writing' | 'reading' | 'notes'
 type Subject = LearningAssignment['subject']
 type AssignmentType = LearningAssignment['assignment_type']
 type Difficulty = LearningAssignment['difficulty']
@@ -653,7 +653,7 @@ export default function LearningPage() {
   useEffect(() => {
     function syncTab() {
       const requested = window.location.hash.replace('#', '') as LearningTab
-      setTab(['week', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
+      setTab(['week', 'review', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
     }
     syncTab()
     window.addEventListener('hashchange', syncTab)
@@ -721,6 +721,7 @@ export default function LearningPage() {
     setNoteChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     if (error) setMessage(error.message)
     setLoading(false)
+    window.dispatchEvent(new Event('juanita-learning-review-updated'))
   }
 
   const childById = useMemo(() => new Map(children.map((child) => [child.id, child])), [children])
@@ -921,6 +922,123 @@ export default function LearningPage() {
       autoAverage,
     }
   }, [reportingReadingAssignments, reportingReadingAttempts])
+
+  const pendingWritingReviews = useMemo(() => writingSubmissions
+    .filter((submission) => submission.status === 'submitted')
+    .filter((submission) => childById.has(submission.child_id) && assignmentById.has(submission.assignment_id))
+    .sort((a, b) => new Date(b.submitted_at ?? b.updated_at).getTime() - new Date(a.submitted_at ?? a.updated_at).getTime()), [writingSubmissions, childById, assignmentById])
+
+  const pendingReadingReviews = useMemo(() => readingAttempts
+    .filter((attempt) => attempt.review_status === 'pending')
+    .filter((attempt) => childById.has(attempt.child_id) && assignmentById.has(attempt.assignment_id))
+    .sort((a, b) => new Date(b.submitted_at ?? b.created_at).getTime() - new Date(a.submitted_at ?? a.created_at).getTime()), [readingAttempts, childById, assignmentById])
+
+  const currentWeekWritingDrafts = useMemo(() => writingSubmissions
+    .filter((submission) => submission.status === 'draft')
+    .flatMap((submission) => {
+      const row = weeklyAssignments.find((assignment) => assignment.id === submission.student_assignment_id)
+      const child = childById.get(submission.child_id)
+      const assignment = assignmentById.get(submission.assignment_id)
+      return row && child && assignment ? [{ submission, row, child, assignment }] : []
+    })
+    .sort((a, b) => new Date(b.submission.updated_at).getTime() - new Date(a.submission.updated_at).getTime()), [writingSubmissions, weeklyAssignments, childById, assignmentById])
+
+  const overdueAssignments = useMemo(() => {
+    const today = localDate()
+    return weeklyAssignments
+      .filter((row) => row.due_date && row.due_date < today && !['completed', 'skipped'].includes(row.status))
+      .flatMap((row) => {
+        const child = childById.get(row.child_id)
+        const assignment = assignmentById.get(row.assignment_id)
+        return child && assignment ? [{ row, child, assignment }] : []
+      })
+      .sort((a, b) => String(a.row.due_date).localeCompare(String(b.row.due_date)))
+  }, [weeklyAssignments, childById, assignmentById])
+
+  const supportFlags = useMemo(() => {
+    const quizFlags = quizAttempts.flatMap((attempt) => {
+      const child = childById.get(attempt.child_id)
+      const assignment = assignmentById.get(attempt.assignment_id)
+      if (!child || !assignment) return []
+      const goal = Number(assignment.activity_config?.passing_score ?? 80)
+      if (Number(attempt.percent) >= goal) return []
+      return [{
+        key: 'quiz-' + attempt.id,
+        child,
+        assignment,
+        label: 'Quiz result',
+        summary: Number(attempt.percent).toFixed(1) + '% • goal ' + goal + '%',
+        createdAt: attempt.created_at,
+      }]
+    })
+    const typingFlags = typingAttempts.flatMap((attempt) => {
+      const child = childById.get(attempt.child_id)
+      const assignment = assignmentById.get(attempt.assignment_id)
+      if (!child || !assignment) return []
+      const goal = Number(assignment.activity_config?.target_accuracy ?? 90)
+      if (Number(attempt.accuracy) >= goal) return []
+      return [{
+        key: 'typing-' + attempt.id,
+        child,
+        assignment,
+        label: 'Typing accuracy',
+        summary: Number(attempt.accuracy).toFixed(1) + '% • goal ' + goal + '%',
+        createdAt: attempt.created_at,
+      }]
+    })
+    return [...quizFlags, ...typingFlags]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10)
+  }, [quizAttempts, typingAttempts, childById, assignmentById])
+
+  const recentLearningActivity = useMemo(() => {
+    const rows = [
+      ...typingAttempts.map((attempt) => ({
+        key: 'typing-' + attempt.id,
+        childId: attempt.child_id,
+        assignmentId: attempt.assignment_id,
+        type: 'Typing',
+        summary: Number(attempt.wpm).toFixed(1) + ' WPM • ' + Number(attempt.accuracy).toFixed(1) + '% accuracy',
+        createdAt: attempt.created_at,
+      })),
+      ...quizAttempts.map((attempt) => ({
+        key: 'quiz-' + attempt.id,
+        childId: attempt.child_id,
+        assignmentId: attempt.assignment_id,
+        type: 'Quiz',
+        summary: attempt.correct_count + '/' + attempt.question_count + ' • ' + Number(attempt.percent).toFixed(1) + '%',
+        createdAt: attempt.created_at,
+      })),
+      ...writingSubmissions.filter((submission) => submission.status === 'reviewed').map((submission) => ({
+        key: 'writing-' + submission.id,
+        childId: submission.child_id,
+        assignmentId: submission.assignment_id,
+        type: 'Writing',
+        summary: submission.word_count + ' words • reviewed',
+        createdAt: submission.reviewed_at ?? submission.updated_at,
+      })),
+      ...readingAttempts.filter((attempt) => attempt.review_status === 'reviewed' || attempt.review_status === 'not_needed').map((attempt) => ({
+        key: 'reading-' + attempt.id,
+        childId: attempt.child_id,
+        assignmentId: attempt.assignment_id,
+        type: 'Reading',
+        summary: attempt.review_status === 'reviewed'
+          ? 'Written responses reviewed'
+          : attempt.objective_correct + '/' + attempt.objective_count + ' objective correct',
+        createdAt: attempt.reviewed_at ?? attempt.created_at,
+      })),
+    ]
+    return rows
+      .flatMap((row) => {
+        const child = childById.get(row.childId)
+        const assignment = assignmentById.get(row.assignmentId)
+        return child && assignment ? [{ ...row, child, assignment }] : []
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 14)
+  }, [typingAttempts, quizAttempts, writingSubmissions, readingAttempts, childById, assignmentById])
+
+  const reviewCount = pendingWritingReviews.length + pendingReadingReviews.length
 
   const myWeekChild = useMemo(() => myWeekChildId ? childById.get(myWeekChildId) ?? null : null, [myWeekChildId, childById])
   const myWeekItems = useMemo<MyWeekItem[]>(() => {
