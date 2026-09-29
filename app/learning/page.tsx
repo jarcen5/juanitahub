@@ -2330,6 +2330,7 @@ export default function LearningPage() {
           items={myWeekItems}
           onLaunch={launchMyWeekItem}
           onExit={() => setMyWeekOpen(false)}
+          isDemo={myWeekChild.is_demo}
         />
       )}
 
