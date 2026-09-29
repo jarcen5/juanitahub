@@ -756,9 +756,13 @@ body:has(.jh-workspace-bar) .topbar{
   .jh-sidebar.collapsed .jh-brand>span:last-child,
   .jh-sidebar.collapsed .jh-home-link>span:last-child,
   .jh-sidebar.collapsed .jh-section-copy,
-  .jh-sidebar.collapsed .jh-section-chevron,
-  .jh-sidebar.collapsed .jh-kiosk-link>span:last-child,
+  .jh-sidebar.collapsed .jh-kiosk-link>span:last-child{
+    display:grid;
+  }
+  .jh-sidebar.collapsed .jh-section-chevron{
+    display:block;
+  }
   .jh-sidebar.collapsed .jh-role-row>span:last-child{
-    display:initial;
+    display:inline;
   }
 }
