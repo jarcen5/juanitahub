@@ -847,68 +847,80 @@ export default function LearningPage() {
     children: new Set([...reportingWeeklyAssignments.map((row) => row.child_id), ...reportingReadingLogs.map((row) => row.child_id)]).size,
   }), [reportingWeeklyAssignments, reportingReadingLogs])
 
-  const weeklyTypingAssignments = useMemo(() => reportingWeeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'typing'), [reportingWeeklyAssignments, assignmentById])
+  const weeklyTypingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'typing'), [weeklyAssignments, assignmentById])
   const weeklyTypingIds = useMemo(() => new Set(weeklyTypingAssignments.map((row) => row.id)), [weeklyTypingAssignments])
   const weeklyTypingAttempts = useMemo(() => typingAttempts.filter((attempt) => weeklyTypingIds.has(attempt.student_assignment_id)), [typingAttempts, weeklyTypingIds])
+  const reportingTypingAssignments = useMemo(() => weeklyTypingAssignments.filter((row) => reportingChildIds.has(row.child_id)), [weeklyTypingAssignments, reportingChildIds])
+  const reportingTypingIds = useMemo(() => new Set(reportingTypingAssignments.map((row) => row.id)), [reportingTypingAssignments])
+  const reportingTypingAttempts = useMemo(() => weeklyTypingAttempts.filter((attempt) => reportingTypingIds.has(attempt.student_assignment_id)), [weeklyTypingAttempts, reportingTypingIds])
   const typingSummary = useMemo(() => {
-    const attempts = weeklyTypingAttempts.length
-    const speedAttempts = weeklyTypingAttempts.filter((attempt) => attempt.activity_mode === 'passage' || attempt.activity_mode === 'letter_drill')
+    const attempts = reportingTypingAttempts.length
+    const speedAttempts = reportingTypingAttempts.filter((attempt) => attempt.activity_mode === 'passage' || attempt.activity_mode === 'letter_drill')
     const averageWpm = speedAttempts.length ? speedAttempts.reduce((sum, attempt) => sum + Number(attempt.wpm), 0) / speedAttempts.length : 0
-    const averageAccuracy = attempts ? weeklyTypingAttempts.reduce((sum, attempt) => sum + Number(attempt.accuracy), 0) / attempts : 0
+    const averageAccuracy = attempts ? reportingTypingAttempts.reduce((sum, attempt) => sum + Number(attempt.accuracy), 0) / attempts : 0
     return {
-      assigned: weeklyTypingAssignments.length,
-      completed: weeklyTypingAssignments.filter((row) => row.status === 'completed').length,
+      assigned: reportingTypingAssignments.length,
+      completed: reportingTypingAssignments.filter((row) => row.status === 'completed').length,
       attempts,
       speedAttempts: speedAttempts.length,
       averageWpm,
       averageAccuracy,
     }
-  }, [weeklyTypingAssignments, weeklyTypingAttempts])
+  }, [reportingTypingAssignments, reportingTypingAttempts])
 
-  const weeklyQuizAssignments = useMemo(() => reportingWeeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'quiz'), [reportingWeeklyAssignments, assignmentById])
+  const weeklyQuizAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'quiz'), [weeklyAssignments, assignmentById])
   const weeklyQuizIds = useMemo(() => new Set(weeklyQuizAssignments.map((row) => row.id)), [weeklyQuizAssignments])
   const weeklyQuizAttempts = useMemo(() => quizAttempts.filter((attempt) => weeklyQuizIds.has(attempt.student_assignment_id)), [quizAttempts, weeklyQuizIds])
+  const reportingQuizAssignments = useMemo(() => weeklyQuizAssignments.filter((row) => reportingChildIds.has(row.child_id)), [weeklyQuizAssignments, reportingChildIds])
+  const reportingQuizIds = useMemo(() => new Set(reportingQuizAssignments.map((row) => row.id)), [reportingQuizAssignments])
+  const reportingQuizAttempts = useMemo(() => weeklyQuizAttempts.filter((attempt) => reportingQuizIds.has(attempt.student_assignment_id)), [weeklyQuizAttempts, reportingQuizIds])
   const quizSummary = useMemo(() => {
-    const attempts = weeklyQuizAttempts.length
-    const averagePercent = attempts ? weeklyQuizAttempts.reduce((sum, attempt) => sum + Number(attempt.percent), 0) / attempts : 0
+    const attempts = reportingQuizAttempts.length
+    const averagePercent = attempts ? reportingQuizAttempts.reduce((sum, attempt) => sum + Number(attempt.percent), 0) / attempts : 0
     return {
-      assigned: weeklyQuizAssignments.length,
-      completed: weeklyQuizAssignments.filter((row) => row.status === 'completed').length,
+      assigned: reportingQuizAssignments.length,
+      completed: reportingQuizAssignments.filter((row) => row.status === 'completed').length,
       attempts,
       averagePercent,
     }
-  }, [weeklyQuizAssignments, weeklyQuizAttempts])
+  }, [reportingQuizAssignments, reportingQuizAttempts])
 
-  const weeklyWritingAssignments = useMemo(() => reportingWeeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'writing'), [reportingWeeklyAssignments, assignmentById])
+  const weeklyWritingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'writing'), [weeklyAssignments, assignmentById])
   const weeklyWritingIds = useMemo(() => new Set(weeklyWritingAssignments.map((row) => row.id)), [weeklyWritingAssignments])
   const weeklyWritingSubmissions = useMemo(() => writingSubmissions.filter((submission) => weeklyWritingIds.has(submission.student_assignment_id)), [writingSubmissions, weeklyWritingIds])
+  const reportingWritingAssignments = useMemo(() => weeklyWritingAssignments.filter((row) => reportingChildIds.has(row.child_id)), [weeklyWritingAssignments, reportingChildIds])
+  const reportingWritingIds = useMemo(() => new Set(reportingWritingAssignments.map((row) => row.id)), [reportingWritingAssignments])
+  const reportingWritingSubmissions = useMemo(() => weeklyWritingSubmissions.filter((submission) => reportingWritingIds.has(submission.student_assignment_id)), [weeklyWritingSubmissions, reportingWritingIds])
   const writingSummary = useMemo(() => ({
-    assigned: weeklyWritingAssignments.length,
-    submitted: weeklyWritingSubmissions.filter((submission) => submission.status === 'submitted').length,
-    reviewed: weeklyWritingSubmissions.filter((submission) => submission.status === 'reviewed').length,
-    drafts: weeklyWritingSubmissions.filter((submission) => submission.status === 'draft').length,
-    words: weeklyWritingSubmissions.reduce((sum, submission) => sum + Number(submission.word_count), 0),
-  }), [weeklyWritingAssignments, weeklyWritingSubmissions])
+    assigned: reportingWritingAssignments.length,
+    submitted: reportingWritingSubmissions.filter((submission) => submission.status === 'submitted').length,
+    reviewed: reportingWritingSubmissions.filter((submission) => submission.status === 'reviewed').length,
+    drafts: reportingWritingSubmissions.filter((submission) => submission.status === 'draft').length,
+    words: reportingWritingSubmissions.reduce((sum, submission) => sum + Number(submission.word_count), 0),
+  }), [reportingWritingAssignments, reportingWritingSubmissions])
 
-  const weeklyReadingAssignments = useMemo(() => reportingWeeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'reading'), [reportingWeeklyAssignments, assignmentById])
+  const weeklyReadingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'reading'), [weeklyAssignments, assignmentById])
   const weeklyReadingIds = useMemo(() => new Set(weeklyReadingAssignments.map((row) => row.id)), [weeklyReadingAssignments])
   const weeklyReadingAttempts = useMemo(() => readingAttempts.filter((attempt) => weeklyReadingIds.has(attempt.student_assignment_id)), [readingAttempts, weeklyReadingIds])
+  const reportingReadingAssignments = useMemo(() => weeklyReadingAssignments.filter((row) => reportingChildIds.has(row.child_id)), [weeklyReadingAssignments, reportingChildIds])
+  const reportingReadingIds = useMemo(() => new Set(reportingReadingAssignments.map((row) => row.id)), [reportingReadingAssignments])
+  const reportingReadingAttempts = useMemo(() => weeklyReadingAttempts.filter((attempt) => reportingReadingIds.has(attempt.student_assignment_id)), [weeklyReadingAttempts, reportingReadingIds])
   const readingLabSummary = useMemo(() => {
-    const pending = weeklyReadingAttempts.filter((attempt) => attempt.review_status === 'pending').length
-    const reviewed = weeklyReadingAttempts.filter((attempt) => attempt.review_status === 'reviewed').length
-    const autoAttempts = weeklyReadingAttempts.filter((attempt) => attempt.written_count === 0 && attempt.objective_count > 0)
+    const pending = reportingReadingAttempts.filter((attempt) => attempt.review_status === 'pending').length
+    const reviewed = reportingReadingAttempts.filter((attempt) => attempt.review_status === 'reviewed').length
+    const autoAttempts = reportingReadingAttempts.filter((attempt) => attempt.written_count === 0 && attempt.objective_count > 0)
     const autoAverage = autoAttempts.length
       ? autoAttempts.reduce((sum, attempt) => sum + (Number(attempt.objective_correct) / Number(attempt.objective_count)) * 100, 0) / autoAttempts.length
       : 0
     return {
-      assigned: weeklyReadingAssignments.length,
-      attempts: weeklyReadingAttempts.length,
+      assigned: reportingReadingAssignments.length,
+      attempts: reportingReadingAttempts.length,
       pending,
       reviewed,
       autoAttempts: autoAttempts.length,
       autoAverage,
     }
-  }, [weeklyReadingAssignments, weeklyReadingAttempts])
+  }, [reportingReadingAssignments, reportingReadingAttempts])
 
   const myWeekChild = useMemo(() => myWeekChildId ? childById.get(myWeekChildId) ?? null : null, [myWeekChildId, childById])
   const myWeekItems = useMemo<MyWeekItem[]>(() => {
