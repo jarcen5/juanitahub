@@ -61,18 +61,6 @@ const STUDENT_KEY = 'juanita-learning-student-session'
 const STUDENT_PROFILE_KEY = 'juanita-learning-student-profile'
 const INACTIVITY_MS = 30 * 60 * 1000
 
-function randomDeviceToken() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  let binary = ''
-  bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
-}
-
-async function sha256Hex(value: string) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
-  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
 function localDate() {
   const now = new Date()
   return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
@@ -207,20 +195,17 @@ export default function StudentLearningPage() {
       const session = sessionData.session
       if (!session?.user) throw new Error('Please sign in as an admin, then return to Student Learning.')
 
-      const rawToken = randomDeviceToken()
-      const tokenHash = await sha256Hex(rawToken)
-      const { error } = await supabase.from('learning_lab_devices').insert({
-        token_hash: tokenHash,
-        label: 'Computer Lab • ' + new Date().toLocaleDateString(),
-        created_by: session.user.id,
+      const { data: deviceId, error } = await supabase.rpc('activate_learning_lab_device_v2', {
+        p_label: 'Computer Lab • ' + new Date().toLocaleDateString(),
       })
-      if (error) throw error
+      if (error || !deviceId) throw error ?? new Error('This computer could not be activated.')
 
-      window.localStorage.setItem(DEVICE_KEY, rawToken)
-      setDeviceToken(rawToken)
+      const deviceToken = String(deviceId)
+      window.localStorage.setItem(DEVICE_KEY, deviceToken)
+      setDeviceToken(deviceToken)
+      await loadStudents(deviceToken)
       await supabase.auth.signOut()
       setStaffSessionAvailable(false)
-      await loadStudents(rawToken)
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'This computer could not be activated.'
       setMessage('Activation failed: ' + detail)
