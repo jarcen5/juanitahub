@@ -233,3 +233,137 @@
     grid-template-columns:1fr;
   }
 }
+
+
+/* Student profile Progress tab */
+.children-profile-tabs{
+  display:flex;
+  gap:7px;
+  margin:12px 0 14px;
+  padding:4px;
+  border:1px solid #dce7ee;
+  border-radius:12px;
+  background:#f7fafc;
+}
+.children-profile-tabs button{
+  min-height:38px;
+  flex:1;
+  border:1px solid transparent;
+  border-radius:9px;
+  background:transparent;
+  color:#6c8090;
+  font-size:10px;
+  font-weight:900;
+}
+.children-profile-tabs button.active{
+  border-color:#cfe0eb;
+  background:white;
+  color:#216691;
+  box-shadow:0 3px 10px rgba(37,83,116,.07);
+}
+.children-profile-hidden{
+  display:none!important;
+}
+.child-progress-tab{
+  display:grid;
+  gap:14px;
+}
+.child-progress-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  padding:15px;
+  border:1px solid #dce8ef;
+  border-radius:14px;
+  background:linear-gradient(135deg,#f7fbff,#f8fcfa);
+}
+.child-progress-heading h3{
+  margin:3px 0 4px;
+  color:#285773;
+}
+.child-progress-heading p{
+  margin:0;
+  color:#7b8c99;
+  font-size:9px;
+}
+.child-progress-metrics{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+}
+.child-progress-metrics article{
+  padding:12px;
+  border:1px solid #e0e8ed;
+  border-radius:12px;
+  background:#fbfdfe;
+}
+.child-progress-metrics small{
+  display:block;
+  color:#82929e;
+  font-size:8px;
+  font-weight:850;
+}
+.child-progress-metrics strong{
+  display:block;
+  margin:5px 0 3px;
+  color:#2d6b90;
+  font-size:21px;
+}
+.child-progress-metrics span{
+  color:#8a979f;
+  font-size:8px;
+}
+.child-progress-insights{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.child-progress-insights article{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:10px;
+  padding:13px;
+  border:1px solid #e0e8ed;
+  border-radius:12px;
+  background:#fbfdfe;
+}
+.child-progress-insights article>span{
+  width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:#eef6fb;font-size:18px;
+}
+.child-progress-insights small{
+  display:block;color:#86949e;font-size:8px;margin-bottom:4px
+}
+.child-progress-insights strong{
+  color:#425f74;font-size:10px
+}
+.child-progress-insights p{
+  margin:5px 0 0;color:#81909a;font-size:8.5px;line-height:1.4
+}
+.child-progress-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  border:1px solid #d8e8df;
+  border-radius:12px;
+  background:#f5fbf7;
+}
+.child-progress-footer>span{
+  color:#698276;
+  font-size:9px;
+  line-height:1.45;
+}
+@media(max-width:850px){
+  .child-progress-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .child-progress-heading,
+  .child-progress-footer{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .child-progress-metrics{grid-template-columns:1fr 1fr}
+  .child-progress-insights{grid-template-columns:1fr}
+}
