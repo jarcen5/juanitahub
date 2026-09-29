@@ -108,7 +108,7 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     routes: ['/reports'],
     links: [
       { href: '/reports/attendance', label: 'Attendance' },
-      { label: 'Student Progress', comingSoon: true },
+      { href: '/reports/progress', label: 'Student Progress' },
     ],
   },
   {
@@ -177,7 +177,7 @@ const navGroups: NavGroup[] = [
     description: 'Progress, attendance, and center reporting',
     items: [
       { href: '/reports/attendance', label: 'Attendance Reports', description: 'Monthly sign-in totals, averages, and CSV exports.' },
-      { label: 'Student Progress Reports', description: 'Learning and academic progress reports will live here.', comingSoon: true },
+      { href: '/reports/progress', label: 'Student Progress Reports', description: 'Learning progress, skill results, staff feedback, and printable student reports.' },
     ],
   },
   {
