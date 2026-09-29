@@ -1070,16 +1070,21 @@ export default function LearningPage() {
     })
   }, [myWeekChildId, weeklyByChild, assignmentById, writingSubmissions, readingAttempts])
 
+  function openLearningAssignment(row: StudentAssignment, child: Child, assignment: LearningAssignment) {
+    if (assignment.assignment_type === 'typing') setTypingTarget({ row, child, assignment })
+    else if (assignment.assignment_type === 'quiz') setQuizTarget({ row, child, assignment })
+    else if (assignment.assignment_type === 'writing') setWritingTarget({ row, child, assignment })
+    else if (assignment.assignment_type === 'reading') setReadingTarget({ row, child, assignment })
+    else setCompletionTarget({ row, child, assignment })
+  }
+
   function launchMyWeekItem(item: MyWeekItem) {
     if (!myWeekChildId) return
     const child = childById.get(myWeekChildId)
     const row = weeklyAssignments.find((assignment) => assignment.id === item.rowId)
     const assignment = assignmentById.get(item.assignmentId)
     if (!child || !row || !assignment) return
-    if (assignment.assignment_type === 'typing') setTypingTarget({ row, child, assignment })
-    else if (assignment.assignment_type === 'quiz') setQuizTarget({ row, child, assignment })
-    else if (assignment.assignment_type === 'writing') setWritingTarget({ row, child, assignment })
-    else if (assignment.assignment_type === 'reading') setReadingTarget({ row, child, assignment })
+    openLearningAssignment(row, child, assignment)
   }
 
   function showMessage(text: string) {
@@ -1598,6 +1603,124 @@ export default function LearningPage() {
                 })}
               </div>
             )}
+          </section>
+        )}
+
+        {tab === 'review' && (
+          <section className="learning-section">
+            <div className="learning-heading">
+              <div>
+                <span className="learning-kicker">Staff follow-up</span>
+                <h2>Learning Review Center</h2>
+                <p>Everything that needs a staff look—submitted writing, reading responses, unfinished drafts, overdue work, and recent results—in one place.</p>
+              </div>
+            </div>
+
+            <div className="learning-metrics learning-review-metrics">
+              <article><strong>{reviewCount}</strong><span>Needs review</span><small>{pendingWritingReviews.length} writing • {pendingReadingReviews.length} reading</small></article>
+              <article><strong>{currentWeekWritingDrafts.length}</strong><span>Drafts in progress</span><small>This week</small></article>
+              <article><strong>{overdueAssignments.length}</strong><span>Overdue</span><small>Still unfinished</small></article>
+              <article><strong>{supportFlags.length}</strong><span>May need support</span><small>Recent results below goal</small></article>
+            </div>
+
+            <div className="learning-review-layout">
+              <section className="card learning-review-queue">
+                <div className="section-heading">
+                  <div><h2>Needs review</h2><p className="subtle">Submitted work waiting for staff feedback.</p></div>
+                  <span className="badge">{reviewCount}</span>
+                </div>
+
+                <div className="learning-review-list">
+                  {pendingWritingReviews.map((submission) => {
+                    const child = childById.get(submission.child_id)!
+                    const assignment = assignmentById.get(submission.assignment_id)!
+                    return (
+                      <article key={'writing-' + submission.id}>
+                        <span className="learning-review-icon writing">✍️</span>
+                        <span className="learning-review-copy">
+                          <strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong>
+                          <small>{assignment.title} • Writing • {submission.word_count} words</small>
+                          <em>{submission.submitted_at ? 'Submitted ' + new Date(submission.submitted_at).toLocaleString() : 'Ready for review'}</em>
+                        </span>
+                        <button className="primary" type="button" onClick={() => setWritingReviewTarget({ submission, child, assignment })}>Review</button>
+                      </article>
+                    )
+                  })}
+                  {pendingReadingReviews.map((attempt) => {
+                    const child = childById.get(attempt.child_id)!
+                    const assignment = assignmentById.get(attempt.assignment_id)!
+                    return (
+                      <article key={'reading-' + attempt.id}>
+                        <span className="learning-review-icon reading">📖</span>
+                        <span className="learning-review-copy">
+                          <strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong>
+                          <small>{assignment.title} • Reading • {attempt.written_count} written response{attempt.written_count === 1 ? '' : 's'}</small>
+                          <em>{attempt.objective_count ? attempt.objective_correct + '/' + attempt.objective_count + ' objective correct • ' : ''}Submitted {new Date(attempt.submitted_at ?? attempt.created_at).toLocaleString()}</em>
+                        </span>
+                        <button className="primary" type="button" onClick={() => setReadingReviewTarget({ attempt, child, assignment })}>Review</button>
+                      </article>
+                    )
+                  })}
+                  {reviewCount === 0 && <div className="learning-review-empty"><span>✓</span><strong>You're caught up.</strong><p>No writing or reading responses are waiting for review.</p></div>}
+                </div>
+              </section>
+
+              <div className="learning-review-side">
+                <section className="card">
+                  <div className="section-heading"><div><h2>Drafts in progress</h2><p className="subtle">Writing started but not submitted.</p></div><span className="badge">{currentWeekWritingDrafts.length}</span></div>
+                  <div className="learning-review-compact-list">
+                    {currentWeekWritingDrafts.slice(0, 8).map(({ submission, row, child, assignment }) => (
+                      <article key={submission.id}>
+                        <span><strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong><small>{assignment.title} • {submission.word_count} words</small></span>
+                        <button className="ghost" type="button" onClick={() => openLearningAssignment(row, child, assignment)}>Open</button>
+                      </article>
+                    ))}
+                    {currentWeekWritingDrafts.length === 0 && <div className="learning-inline-empty">No saved writing drafts this week.</div>}
+                  </div>
+                </section>
+
+                <section className="card">
+                  <div className="section-heading"><div><h2>Overdue</h2><p className="subtle">Assigned work past its due date.</p></div><span className="badge">{overdueAssignments.length}</span></div>
+                  <div className="learning-review-compact-list">
+                    {overdueAssignments.slice(0, 8).map(({ row, child, assignment }) => (
+                      <article key={row.id}>
+                        <span><strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong><small>{assignment.title} • due {row.due_date ? dateLabel(row.due_date) : ''}</small></span>
+                        <button className="ghost" type="button" onClick={() => openLearningAssignment(row, child, assignment)}>Open</button>
+                      </article>
+                    ))}
+                    {overdueAssignments.length === 0 && <div className="learning-inline-empty">Nothing overdue for this week.</div>}
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div className="learning-review-bottom-grid">
+              <section className="card">
+                <div className="section-heading"><div><h2>May need support</h2><p className="subtle">Recent quiz or typing results below that activity’s goal.</p></div><span className="badge">{supportFlags.length}</span></div>
+                <div className="learning-review-compact-list">
+                  {supportFlags.map((item) => (
+                    <article key={item.key}>
+                      <span><strong>{childName(item.child)}{item.child.is_demo ? ' • Demo' : ''}</strong><small>{item.assignment.title} • {item.label}</small></span>
+                      <em>{item.summary}</em>
+                    </article>
+                  ))}
+                  {supportFlags.length === 0 && <div className="learning-inline-empty">No recent results are below their activity goals.</div>}
+                </div>
+              </section>
+
+              <section className="card">
+                <div className="section-heading"><div><h2>Recent activity</h2><p className="subtle">Latest completed and reviewed learning work.</p></div></div>
+                <div className="learning-review-compact-list">
+                  {recentLearningActivity.map((item) => (
+                    <article key={item.key}>
+                      <span><strong>{childName(item.child)}{item.child.is_demo ? ' • Demo' : ''}</strong><small>{item.assignment.title} • {item.type}</small></span>
+                      <span className="learning-review-result"><strong>{item.summary}</strong><small>{new Date(item.createdAt).toLocaleDateString()}</small></span>
+                    </article>
+                  ))}
+                  {recentLearningActivity.length === 0 && <div className="learning-inline-empty">No completed learning activity yet.</div>}
+                </div>
+              </section>
+            </div>
           </section>
         )}
 
