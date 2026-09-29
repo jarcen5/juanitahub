@@ -103,6 +103,14 @@ type QuizAttempt = {
   duration_seconds: number
   created_at: string
 }
+type GoalApproval = {
+  id: number
+  child_id: number
+  title: string
+  goal_type: string
+  reward_points: number
+  reached_at: string | null
+}
 type LearningTab = 'week' | 'review' | 'goals' | 'my-week' | 'library' | 'typing' | 'quizzes' | 'writing' | 'reading' | 'notes'
 type Subject = LearningAssignment['subject']
 type AssignmentType = LearningAssignment['assignment_type']
@@ -559,6 +567,7 @@ export default function LearningPage() {
   const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([])
   const [writingSubmissions, setWritingSubmissions] = useState<WritingSubmission[]>([])
   const [readingAttempts, setReadingAttempts] = useState<ReadingAttempt[]>([])
+  const [goalApprovals, setGoalApprovals] = useState<GoalApproval[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -677,7 +686,7 @@ export default function LearningPage() {
     setMessage('')
     const weekEnd = addDays(weekStart, 6)
 
-    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult, quizResult, writingResult, readingAttemptResult] = await Promise.all([
+    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult, quizResult, writingResult, readingAttemptResult, goalApprovalResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('children').select('id, first_name, last_name, active, is_demo').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
@@ -690,6 +699,7 @@ export default function LearningPage() {
       supabase.from('learning_quiz_attempts').select('id, student_assignment_id, child_id, assignment_id, correct_count, question_count, percent, duration_seconds, created_at').order('created_at', { ascending: false }).limit(80),
       supabase.from('learning_writing_submissions').select('id, student_assignment_id, child_id, assignment_id, content, word_count, status, started_at, submitted_at, last_saved_at, active_seconds, staff_feedback, rubric_scores, reviewed_at, updated_at').order('updated_at', { ascending: false }).limit(120),
       supabase.from('learning_reading_attempts').select('id, student_assignment_id, child_id, assignment_id, answers, objective_correct, objective_count, written_count, review_scores, review_status, staff_feedback, reading_seconds, duration_seconds, submitted_at, reviewed_at, created_at').order('created_at', { ascending: false }).limit(120),
+      supabase.from('learning_goals').select('id, child_id, title, goal_type, reward_points, reached_at').eq('status', 'reached').order('reached_at', { ascending: false }),
     ])
 
     const error = profileResult.error
@@ -704,6 +714,7 @@ export default function LearningPage() {
       ?? quizResult.error
       ?? writingResult.error
       ?? readingAttemptResult.error
+      ?? goalApprovalResult.error
 
     const nextChildren = (childResult.data ?? []) as Child[]
     setProfile(profileResult.data as Profile | null)
@@ -718,6 +729,7 @@ export default function LearningPage() {
     setQuizAttempts((quizResult.data ?? []) as QuizAttempt[])
     setWritingSubmissions((writingResult.data ?? []) as WritingSubmission[])
     setReadingAttempts((readingAttemptResult.data ?? []) as ReadingAttempt[])
+    setGoalApprovals(((goalApprovalResult.data ?? []) as GoalApproval[]).map((goal) => ({ ...goal, reward_points: Number(goal.reward_points) })))
     setAssignChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setMyWeekChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setReadingChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
@@ -755,7 +767,7 @@ export default function LearningPage() {
     }
     void loadMotivation()
     return () => { mounted = false }
-  }, [myWeekChildId, session])
+  }, [myWeekChildId, session, tab])
 
   const skillOptions = useMemo(() => {
     return [...new Set(library
@@ -956,6 +968,8 @@ export default function LearningPage() {
     .filter((attempt) => childById.has(attempt.child_id) && assignmentById.has(attempt.assignment_id))
     .sort((a, b) => new Date(b.submitted_at ?? b.created_at).getTime() - new Date(a.submitted_at ?? a.created_at).getTime()), [readingAttempts, childById, assignmentById])
 
+  const pendingGoalApprovals = useMemo(() => goalApprovals.filter((goal) => childById.has(goal.child_id)), [goalApprovals, childById])
+
   const currentWeekWritingDrafts = useMemo(() => writingSubmissions
     .filter((submission) => submission.status === 'draft')
     .flatMap((submission) => {
@@ -1061,7 +1075,7 @@ export default function LearningPage() {
       .slice(0, 14)
   }, [typingAttempts, quizAttempts, writingSubmissions, readingAttempts, childById, assignmentById])
 
-  const reviewCount = pendingWritingReviews.length + pendingReadingReviews.length
+  const reviewCount = pendingWritingReviews.length + pendingReadingReviews.length + pendingGoalApprovals.length
 
   const myWeekChild = useMemo(() => myWeekChildId ? childById.get(myWeekChildId) ?? null : null, [myWeekChildId, childById])
   const myWeekItems = useMemo<MyWeekItem[]>(() => {
@@ -1549,6 +1563,16 @@ export default function LearningPage() {
     await loadData()
   }
 
+  async function approveGoalBonus(goal: GoalApproval) {
+    if (saving) return
+    setSaving(true)
+    const { error } = await supabase.rpc('approve_learning_goal_bonus', { p_goal_id: goal.id })
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    setMessage(goal.title + ' approved — +1 Learning Goal Bonus point was added to Rewards.')
+    await loadData()
+  }
+
   if (loading && !session) return <main className="login-wrap"><div className="card login-card">Loading Learning Hub…</div></main>
   if (!session) return <main className="login-wrap"><section className="card login-card"><h1>Learning Hub</h1><p className="subtle">Sign in through Juanita Hub to manage student learning.</p></section></main>
   if (!profile?.active) return <main className="login-wrap"><section className="card login-card"><h1>Learning Hub</h1><div className="notice">Your staff account must be active to use Learning Hub.</div></section></main>
@@ -1640,7 +1664,7 @@ export default function LearningPage() {
             </div>
 
             <div className="learning-metrics learning-review-metrics">
-              <article><strong>{reviewCount}</strong><span>Needs review</span><small>{pendingWritingReviews.length} writing • {pendingReadingReviews.length} reading</small></article>
+              <article><strong>{reviewCount}</strong><span>Needs review</span><small>{pendingWritingReviews.length} writing • {pendingReadingReviews.length} reading • {pendingGoalApprovals.length} goals</small></article>
               <article><strong>{currentWeekWritingDrafts.length}</strong><span>Drafts in progress</span><small>This week</small></article>
               <article><strong>{overdueAssignments.length}</strong><span>Overdue</span><small>Still unfinished</small></article>
               <article><strong>{supportFlags.length}</strong><span>May need support</span><small>Recent results below goal</small></article>
@@ -1684,7 +1708,21 @@ export default function LearningPage() {
                       </article>
                     )
                   })}
-                  {reviewCount === 0 && <div className="learning-review-empty"><span>✓</span><strong>You're caught up.</strong><p>No writing or reading responses are waiting for review.</p></div>}
+                  {pendingGoalApprovals.map((goal) => {
+                    const child = childById.get(goal.child_id)!
+                    return (
+                      <article key={'goal-' + goal.id}>
+                        <span className="learning-review-icon goal">🎯</span>
+                        <span className="learning-review-copy">
+                          <strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong>
+                          <small>{goal.title} • Learning goal reached</small>
+                          <em>{goal.reached_at ? 'Reached ' + new Date(goal.reached_at).toLocaleString() : 'Ready for staff confirmation'} • +1 point</em>
+                        </span>
+                        <button className="primary" type="button" disabled={saving} onClick={() => void approveGoalBonus(goal)}>Approve +1</button>
+                      </article>
+                    )
+                  })}
+                  {reviewCount === 0 && <div className="learning-review-empty"><span>✓</span><strong>You're caught up.</strong><p>No writing, reading, or reached goals are waiting for review.</p></div>}
                 </div>
               </section>
 
