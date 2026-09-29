@@ -26,6 +26,7 @@ type Props = {
   onLaunch: (item: MyWeekItem) => void
   onExit: () => void
   exitLabel?: string
+  isDemo?: boolean
 }
 
 const subjectIcons: Record<MyWeekItem['subject'], string> = {
@@ -77,7 +78,7 @@ function actionLabel(item: MyWeekItem) {
   return 'Start'
 }
 
-export default function StudentMyWeek({ studentName, grade, weekLabel, items, onLaunch, onExit, exitLabel = 'Back to staff view' }: Props) {
+export default function StudentMyWeek({ studentName, grade, weekLabel, items, onLaunch, onExit, exitLabel = 'Back to staff view', isDemo = false }: Props) {
   const completed = items.filter((item) => ['completed', 'skipped'].includes(item.status) || item.writingStatus === 'submitted' || item.writingStatus === 'reviewed' || item.readingReviewStatus === 'pending' || item.readingReviewStatus === 'reviewed').length
   const inProgress = items.filter((item) => statusFor(item).key === 'in_progress').length
   const todo = Math.max(0, items.length - completed - inProgress)
@@ -107,7 +108,7 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
 
         <section className="my-week-hero">
           <div>
-            <span className="learning-kicker">{weekLabel}</span>
+            <span className="learning-kicker">{weekLabel}{isDemo ? ' • DEMO/TEST STUDENT' : ''}</span>
             <h1>Hi, {studentName.split(' ')[0]}! 👋</h1>
             <p>{grade ? 'Grade ' + grade + ' • ' : ''}Here’s what you’re working on this week.</p>
           </div>
