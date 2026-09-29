@@ -32,6 +32,18 @@ type WritingSubmission = { id: number; assignment_id: number; word_count: number
 type ReadingAttempt = { id: number; assignment_id: number; objective_correct: number; objective_count: number; written_count: number; review_scores: Record<string, number>; review_status: 'not_needed'|'pending'|'reviewed'; staff_feedback: string | null; submitted_at: string; reviewed_at: string | null; created_at: string }
 type ReadingLog = { id: number; read_on: string; title: string | null; minutes: number; pages: string | null }
 type LearningNote = { id: number; note_date: string; note: string }
+type GoalSnapshot = { id: number; title: string; goal_type: string; status: string; start_date: string; end_date: string; target_value: number; target_count: number; current_value: number; current_count: number; reward_points: number; reached_at: string | null; approved_at: string | null }
+type AchievementSnapshot = { id: number; title: string; description: string; icon: string; unlocked_at: string }
+type ArchivedReport = {
+  id: number
+  child_id: number
+  period_start: string
+  period_end: string
+  report_title: string
+  status: 'finalized' | 'archived'
+  finalized_at: string
+  archived_at: string | null
+}
 type PeriodPreset = '30' | '90' | 'month' | 'school' | 'custom'
 
 const subjectLabels: Record<Assignment['subject'], string> = {
@@ -84,6 +96,9 @@ export default function StudentProgressReportsPage() {
   const [readingAttempts, setReadingAttempts] = useState<ReadingAttempt[]>([])
   const [readingLogs, setReadingLogs] = useState<ReadingLog[]>([])
   const [notes, setNotes] = useState<LearningNote[]>([])
+  const [goals, setGoals] = useState<GoalSnapshot[]>([])
+  const [achievements, setAchievements] = useState<AchievementSnapshot[]>([])
+  const [archives, setArchives] = useState<ArchivedReport[]>([])
   const [reportComment, setReportComment] = useState('')
   const [commentSaved, setCommentSaved] = useState('')
   const [loading, setLoading] = useState(true)
@@ -144,7 +159,7 @@ export default function StudentProgressReportsPage() {
     const startIso = start + 'T00:00:00'
     const endIso = end + 'T23:59:59.999'
 
-    const [assignmentRows, typingRows, quizRows, writingRows, readingRows, logRows, noteRows, commentRow] = await Promise.all([
+    const [assignmentRows, typingRows, quizRows, writingRows, readingRows, logRows, noteRows, commentRow, goalRows, achievementRows, archiveRows] = await Promise.all([
       supabase.from('learning_student_assignments')
         .select('id,assignment_id,week_start,due_date,status,completed_at,score,max_score,minutes_spent,staff_note')
         .eq('child_id',childId).gte('week_start',start).lte('week_start',end).order('week_start',{ascending:false}),
@@ -166,9 +181,17 @@ export default function StudentProgressReportsPage() {
         .select('id,note_date,note').eq('child_id',childId).gte('note_date',start).lte('note_date',end).order('note_date',{ascending:false}),
       supabase.from('learning_progress_report_comments')
         .select('summary,updated_at').eq('child_id',childId).eq('period_start',start).eq('period_end',end).maybeSingle(),
+      supabase.from('learning_goals')
+        .select('id,title,goal_type,status,start_date,end_date,target_value,target_count,current_value,current_count,reward_points,reached_at,approved_at')
+        .eq('child_id',childId).lte('start_date',end).gte('end_date',start).order('created_at',{ascending:false}),
+      supabase.from('learning_student_achievements')
+        .select('id,title,description,icon,unlocked_at').eq('child_id',childId).gte('unlocked_at',startIso).lte('unlocked_at',endIso).order('unlocked_at',{ascending:false}),
+      supabase.from('learning_progress_report_archives')
+        .select('id,child_id,period_start,period_end,report_title,status,finalized_at,archived_at')
+        .eq('child_id',childId).order('finalized_at',{ascending:false}),
     ])
 
-    const error = assignmentRows.error ?? typingRows.error ?? quizRows.error ?? writingRows.error ?? readingRows.error ?? logRows.error ?? noteRows.error ?? commentRow.error
+    const error = assignmentRows.error ?? typingRows.error ?? quizRows.error ?? writingRows.error ?? readingRows.error ?? logRows.error ?? noteRows.error ?? commentRow.error ?? goalRows.error ?? achievementRows.error ?? archiveRows.error
     if (error) setMessage(error.message)
     setStudentAssignments((assignmentRows.data ?? []) as StudentAssignment[])
     setTyping((typingRows.data ?? []) as TypingAttempt[])
@@ -177,6 +200,16 @@ export default function StudentProgressReportsPage() {
     setReadingAttempts((readingRows.data ?? []) as ReadingAttempt[])
     setReadingLogs((logRows.data ?? []) as ReadingLog[])
     setNotes((noteRows.data ?? []) as LearningNote[])
+    setGoals(((goalRows.data ?? []) as GoalSnapshot[]).map((goal)=>({
+      ...goal,
+      target_value:Number(goal.target_value),
+      target_count:Number(goal.target_count),
+      current_value:Number(goal.current_value),
+      current_count:Number(goal.current_count),
+      reward_points:Number(goal.reward_points),
+    })))
+    setAchievements((achievementRows.data ?? []) as AchievementSnapshot[])
+    setArchives((archiveRows.data ?? []) as ArchivedReport[])
     setReportComment(String(commentRow.data?.summary ?? ''))
     setCommentSaved(commentRow.data?.updated_at ? 'Saved ' + new Date(commentRow.data.updated_at).toLocaleString() : '')
     setReportLoading(false)
@@ -207,9 +240,97 @@ export default function StudentProgressReportsPage() {
     setCommentSaved('Saved just now')
   }
 
+  async function finalizeReport() {
+    if (!session || !childId || !child || saving || reportLoading) return
+    const existing = archives.find((report)=>report.status==='finalized' && report.period_start===start && report.period_end===end)
+    if (existing) {
+      setMessage('This reporting period is already finalized. Archive the existing snapshot before creating a replacement.')
+      return
+    }
+    if (!window.confirm('Finalize this report? The saved snapshot will not change if Juanita Hub data changes later.')) return
+
+    setSaving(true)
+    setMessage('')
+    const reportTitle = 'Progress Report • ' + dateLabel(start) + ' – ' + dateLabel(end)
+    const snapshot = {
+      version: 1,
+      student: {
+        id: child.id,
+        name: fullName(child),
+        first_name: child.first_name,
+        is_demo: child.is_demo,
+        grade: registration?.grade ?? null,
+        school: registration?.school ?? null,
+        school_year: registration?.school_year ?? null,
+      },
+      period: { start, end },
+      report_comment: reportComment.trim(),
+      metrics: {
+        ...metrics,
+        reading_score_average: readingScoreAverage,
+        typing_attempts: typing.length,
+        quiz_attempts: quizzes.length,
+        reading_attempts: readingAttempts.length,
+        total_writing_words: writing.reduce((sum,row)=>sum+Number(row.word_count),0),
+      },
+      subjects: subjectRows,
+      typing: {
+        attempts: typing,
+        first: typingStart ?? null,
+        latest: typingEnd ?? null,
+      },
+      reading: {
+        attempts: readingAttempts,
+        logs: readingLogs,
+      },
+      writing: writing.map((row)=>({
+        ...row,
+        assignment_title: assignmentById.get(row.assignment_id)?.title ?? 'Writing assignment',
+      })),
+      quizzes: quizzes.map((row)=>({
+        ...row,
+        assignment_title: assignmentById.get(row.assignment_id)?.title ?? 'Quiz',
+      })),
+      assignments: studentAssignments.map((row)=>({
+        ...row,
+        assignment_title: assignmentById.get(row.assignment_id)?.title ?? 'Assignment',
+        subject: assignmentById.get(row.assignment_id)?.subject ?? null,
+        skill: assignmentById.get(row.assignment_id)?.skill ?? null,
+      })),
+      goals,
+      achievements,
+      finalized_from_live_report_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase.rpc('finalize_learning_progress_report', {
+      p_child_id: childId,
+      p_period_start: start,
+      p_period_end: end,
+      p_report_title: reportTitle,
+      p_snapshot: snapshot,
+    })
+    setSaving(false)
+    if (error) { setMessage(error.message); return }
+    setMessage('Report finalized. This snapshot is now preserved in Report History.')
+    await loadReport()
+  }
+
+  async function archiveReport(report: ArchivedReport) {
+    if (saving || report.status !== 'finalized') return
+    if (!window.confirm('Archive this finalized report? The snapshot will stay available in history and cannot be reopened as a finalized report.')) return
+    setSaving(true)
+    setMessage('')
+    const { error } = await supabase.rpc('archive_learning_progress_report', { p_report_id: report.id })
+    setSaving(false)
+    if (error) { setMessage(error.message); return }
+    setMessage('Report archived. Its frozen snapshot remains available in Report History.')
+    await loadReport()
+  }
+
   const child = useMemo(() => children.find((item)=>item.id===childId) ?? null,[children,childId])
   const registration = useMemo(() => registrations.find((item)=>item.child_id===childId) ?? null,[registrations,childId])
   const assignmentById = useMemo(() => new Map(assignments.map((item)=>[item.id,item])),[assignments])
+  const currentFinalized = useMemo(() => archives.find((report)=>report.status==='finalized' && report.period_start===start && report.period_end===end) ?? null,[archives,start,end])
 
   const metrics = useMemo(() => {
     const counted = studentAssignments.filter((row)=>row.status !== 'skipped')
@@ -267,7 +388,11 @@ export default function StudentProgressReportsPage() {
       <main className="main reports-page progress-report-page">
         <section className="hero reports-hero progress-report-hero no-print">
           <div><span className="reports-eyebrow">Learning reports</span><h1>Student Progress</h1><p className="subtle">Turn saved assignments, practice, reading, writing, and staff feedback into one clear student learning picture.</p></div>
-          <button className="primary" type="button" disabled={!child || reportLoading} onClick={()=>window.print()}>Print / Save PDF</button>
+          <div className="progress-report-actions">
+            <span className={'progress-report-state ' + (currentFinalized ? 'finalized' : 'draft')}>{currentFinalized ? 'Finalized' : 'Draft'}</span>
+            <button className="ghost" type="button" disabled={!child || reportLoading} onClick={()=>window.print()}>Print / Save PDF</button>
+            <button className="primary" type="button" disabled={!child || reportLoading || saving || Boolean(currentFinalized)} onClick={()=>void finalizeReport()}>{saving?'Saving…':currentFinalized?'Already finalized':'Finalize report'}</button>
+          </div>
         </section>
 
         <section className="card progress-report-controls no-print">
@@ -354,6 +479,21 @@ export default function StudentProgressReportsPage() {
             <section className="card progress-internal-notes no-print">
               <div className="reports-section-heading"><div><span className="reports-eyebrow">Internal only</span><h2>Private staff Learning Notes</h2><p className="subtle">These notes are intentionally excluded from Print / Save PDF.</p></div><span className="badge">{notes.length}</span></div>
               <div className="progress-internal-list">{notes.map((note)=><article key={note.id}><small>{dateLabel(note.note_date)}</small><p>{note.note}</p></article>)}{notes.length===0 && <div className="reports-empty">No private Learning Notes in this period.</div>}</div>
+            </section>
+
+            <section className="card progress-report-archive no-print">
+              <div className="reports-section-heading"><div><span className="reports-eyebrow">Saved snapshots</span><h2>Report History</h2><p className="subtle">Finalized reports are frozen snapshots. Archiving keeps the snapshot while clearing the period for a replacement if one is ever needed.</p></div><span className="badge">{archives.length}</span></div>
+              <div className="progress-archive-list">
+                {archives.map((report)=>(
+                  <article key={report.id}>
+                    <span className={'progress-archive-status '+report.status}>{report.status}</span>
+                    <span className="progress-archive-copy"><strong>{report.report_title}</strong><small>{dateLabel(report.period_start)} – {dateLabel(report.period_end)} • Finalized {new Date(report.finalized_at).toLocaleDateString()}</small></span>
+                    <a className="ghost" href={'/reports/progress/archive/'+report.id}>Open snapshot</a>
+                    {report.status==='finalized' && <button className="ghost" type="button" disabled={saving} onClick={()=>void archiveReport(report)}>Archive</button>}
+                  </article>
+                ))}
+                {archives.length===0 && <div className="reports-empty">No finalized progress reports yet.</div>}
+              </div>
             </section>
           </article>
         )}
