@@ -4778,3 +4778,171 @@
   .lab-student-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .lab-setup-card{padding:24px 18px}
 }
+
+
+/* Staff Learning Review Center */
+.learning-review-metrics article:first-child{
+  border-color:#efd8ae;
+  background:linear-gradient(180deg,#fffdf8,#fff9ed);
+}
+.learning-review-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);
+  gap:16px;
+  align-items:start;
+}
+.learning-review-side{
+  display:grid;
+  gap:16px;
+}
+.learning-review-list{
+  display:grid;
+  gap:8px;
+}
+.learning-review-list>article{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:11px;
+  align-items:center;
+  padding:11px;
+  border:1px solid #e0e7ed;
+  border-radius:13px;
+  background:#fbfdfe;
+}
+.learning-review-icon{
+  width:40px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  font-size:19px;
+}
+.learning-review-icon.writing{
+  background:#edf8f2;
+}
+.learning-review-icon.reading{
+  background:#eef6fc;
+}
+.learning-review-copy{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.learning-review-copy strong{
+  color:#3c5870;
+  font-size:11px;
+}
+.learning-review-copy small{
+  color:#7f8f9a;
+  font-size:9px;
+}
+.learning-review-copy em{
+  color:#8e9aa2;
+  font-size:8.5px;
+  font-style:normal;
+}
+.learning-review-empty{
+  display:grid;
+  justify-items:center;
+  gap:4px;
+  padding:30px 14px;
+  border:1px dashed #cfdfe7;
+  border-radius:14px;
+  color:#708690;
+  text-align:center;
+}
+.learning-review-empty>span{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#e9f7ee;
+  color:#347854;
+  font-size:19px;
+  font-weight:950;
+}
+.learning-review-empty strong{
+  color:#46675a;
+  font-size:11px;
+}
+.learning-review-empty p{
+  margin:0;
+  font-size:9px;
+}
+.learning-review-compact-list{
+  display:grid;
+  gap:7px;
+}
+.learning-review-compact-list article{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:9px;
+  border:1px solid #e2e8ec;
+  border-radius:11px;
+  background:#fbfdfe;
+}
+.learning-review-compact-list article>span:first-child{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.learning-review-compact-list strong{
+  color:#405d72;
+  font-size:9.5px;
+}
+.learning-review-compact-list small{
+  color:#89969e;
+  font-size:8.25px;
+}
+.learning-review-compact-list em{
+  flex:0 0 auto;
+  color:#8b6545;
+  font-size:8.5px;
+  font-style:normal;
+  font-weight:900;
+  text-align:right;
+}
+.learning-review-result{
+  flex:0 0 auto;
+  display:grid;
+  gap:2px;
+  text-align:right;
+}
+.learning-review-result strong{
+  color:#486a7f;
+  font-size:9px;
+}
+.learning-review-bottom-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-top:16px;
+}
+@media(max-width:950px){
+  .learning-review-layout,
+  .learning-review-bottom-grid{
+    grid-template-columns:1fr;
+  }
+}
+@media(max-width:620px){
+  .learning-review-list>article{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+  .learning-review-list>article>button{
+    grid-column:1/-1;
+    width:100%;
+  }
+  .learning-review-compact-list article{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .learning-review-compact-list article>button{
+    width:100%;
+  }
+  .learning-review-result{
+    text-align:left;
+  }
+}
