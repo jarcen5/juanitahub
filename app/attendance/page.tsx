@@ -15,6 +15,7 @@ type Child = {
   first_name: string
   last_name: string | null
   active: boolean
+  is_demo: boolean
 }
 
 type Mood = 'happy' | 'meh' | 'sad'
@@ -134,7 +135,7 @@ export default function AttendancePage() {
         .maybeSingle(),
       supabase
         .from('children')
-        .select('id, first_name, last_name, active')
+        .select('id, first_name, last_name, active, is_demo')
         .eq('active', true)
         .order('first_name')
         .order('last_name'),
@@ -202,10 +203,13 @@ export default function AttendancePage() {
     })
   }, [children, search, childVisitByChild])
 
-  const childSignedIn = visits.filter((visit) => visit.participant_type === 'child').length
+  const reportingChildren = useMemo(() => children.filter((child) => !child.is_demo), [children])
+  const reportingChildIds = useMemo(() => new Set(reportingChildren.map((child) => child.id)), [reportingChildren])
+  const reportingChildVisits = visits.filter((visit) => visit.participant_type === 'child' && visit.child_id != null && reportingChildIds.has(visit.child_id))
+  const childSignedIn = reportingChildVisits.length
   const communityVisits = visits.filter((visit) => visit.participant_type !== 'child')
   const communityPresentNow = communityVisits.filter((visit) => !visit.signed_out_at).length
-  const totalVisits = visits.length
+  const totalVisits = reportingChildVisits.length + communityVisits.length
   const presentNow = childSignedIn + communityPresentNow
 
   function startChildSignIn(child: Child) {
@@ -432,7 +436,7 @@ export default function AttendancePage() {
         <section className="grid attendance-stats">
           <div className="card stat"><span className="subtle">Here now</span><strong>{presentNow}</strong></div>
           <div className="card stat"><span className="subtle">Total sign-ins</span><strong>{totalVisits}</strong></div>
-          <div className="card stat"><span className="subtle">Children signed in</span><strong>{childSignedIn}/{children.length}</strong></div>
+          <div className="card stat"><span className="subtle">Children signed in</span><strong>{childSignedIn}/{reportingChildren.length}</strong></div>
           <div className="card stat"><span className="subtle">Community sign-ins</span><strong>{communityVisits.length}</strong></div>
         </section>
 
@@ -469,7 +473,7 @@ export default function AttendancePage() {
 
                   return (
                     <article key={child.id} className={`attendance-person attendance-live-person ${visit ? 'present' : ''}`}>
-                      <span className="attendance-person-name">{childName(child)}</span>
+                      <span className="attendance-person-name">{childName(child)}{child.is_demo ? ' • Demo' : ''}</span>
                       <span className="attendance-person-status">
                         {!visit && 'Not signed in yet'}
                         {visit && `${mood?.emoji ?? '✓'} Signed in at ${formatTime(visit.signed_in_at)}`}
