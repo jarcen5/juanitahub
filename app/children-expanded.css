@@ -437,3 +437,69 @@
 @media(max-width:480px){
   .child-progress-achievement-grid{grid-template-columns:1fr 1fr}
 }
+
+
+/* Saved progress reports in student profile */
+.child-progress-reports{
+  padding:13px;
+  border:1px solid #dfe8ed;
+  border-radius:13px;
+  background:#fbfdfe;
+}
+.child-progress-report-list{
+  display:grid;
+  gap:7px;
+}
+.child-progress-report-list article{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:9px;
+  align-items:center;
+  padding:9px;
+  border:1px solid #e1e8ed;
+  border-radius:11px;
+  background:white;
+}
+.child-progress-report-list article>span:nth-child(2){
+  display:grid;
+  gap:2px;
+  min-width:0;
+}
+.child-progress-report-list strong{
+  color:#405f74;
+  font-size:9px;
+}
+.child-progress-report-list small{
+  color:#89959d;
+  font-size:8px;
+}
+.child-progress-report-list a{
+  text-decoration:none;
+}
+.child-progress-report-status{
+  display:inline-flex;
+  justify-content:center;
+  padding:4px 7px;
+  border-radius:999px;
+  font-size:7.5px;
+  font-weight:950;
+  text-transform:capitalize;
+}
+.child-progress-report-status.finalized{
+  background:#e8f6ee;
+  color:#347353;
+}
+.child-progress-report-status.archived{
+  background:#eef1f4;
+  color:#687785;
+}
+@media(max-width:560px){
+  .child-progress-report-list article{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+  .child-progress-report-list article>a{
+    grid-column:1/-1;
+    width:100%;
+    text-align:center;
+  }
+}
