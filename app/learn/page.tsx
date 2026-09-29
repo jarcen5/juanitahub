@@ -14,6 +14,7 @@ type LabStudent = {
   first_name: string
   display_name: string
   grade: string | null
+  is_demo: boolean
 }
 
 type WeekRow = {
@@ -330,7 +331,7 @@ export default function StudentLearningPage() {
                 <button className={selectedStudentId === item.id ? 'selected' : ''} type="button" key={item.id} onClick={() => { setSelectedStudentId(item.id); setPin(''); setMessage('') }}>
                   <span>{item.first_name[0]?.toUpperCase()}</span>
                   <strong>{item.display_name}</strong>
-                  <small>{item.grade ? 'Grade ' + item.grade : 'Student'}</small>
+                  <small>{item.is_demo ? 'Demo/Test • ' : ''}{item.grade ? 'Grade ' + item.grade : 'Student'}</small>
                 </button>
               ))}
               {students.length === 0 && <div className="lab-empty">No students are ready for Learning access yet. Ask a staff member to check birthdays and Learning Access in Student Directory.</div>}
@@ -374,6 +375,7 @@ export default function StudentLearningPage() {
         onLaunch={launchItem}
         onExit={() => void signOutStudent(false)}
         exitLabel="Sign out"
+        isDemo={student.is_demo}
       />
 
       {activeItem?.assignment.assignment_type === 'typing' && access && (
