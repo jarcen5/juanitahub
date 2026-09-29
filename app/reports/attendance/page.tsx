@@ -29,6 +29,7 @@ type MonthlyReport = {
 type VisitRow = {
   service_date: string
   participant_type: 'child' | 'adult' | 'family' | 'visitor'
+  child_id: number | null
 }
 
 type OperatingRow = {
@@ -108,7 +109,7 @@ export default function AttendanceReportsPage() {
     setMessage('')
 
     const { start, end } = monthBounds(month)
-    const [profileResult, reportResult, visitsResult, operatingResult] = await Promise.all([
+    const [profileResult, reportResult, visitsResult, operatingResult, demoResult] = await Promise.all([
       supabase
         .from('staff_profiles')
         .select('display_name, role, active')
@@ -117,7 +118,7 @@ export default function AttendanceReportsPage() {
       supabase.rpc('attendance_monthly_report', { p_month_start: start }),
       supabase
         .from('attendance_visits')
-        .select('service_date, participant_type')
+        .select('service_date, participant_type, child_id')
         .eq('status', 'active')
         .gte('service_date', start)
         .lte('service_date', end),
@@ -127,9 +128,10 @@ export default function AttendanceReportsPage() {
         .gte('service_date', start)
         .lte('service_date', end)
         .order('service_date'),
+      supabase.from('children').select('id').eq('is_demo', true),
     ])
 
-    const error = profileResult.error ?? reportResult.error ?? visitsResult.error ?? operatingResult.error
+    const error = profileResult.error ?? reportResult.error ?? visitsResult.error ?? operatingResult.error ?? demoResult.error
     if (error) setMessage(error.message)
 
     setProfile(profileResult.data as Profile | null)
@@ -147,7 +149,10 @@ export default function AttendanceReportsPage() {
       })
     })
 
-    ;((visitsResult.data ?? []) as VisitRow[]).forEach((visit) => {
+    const demoIds = new Set((demoResult.data ?? []).map((child) => Number(child.id)))
+    ;((visitsResult.data ?? []) as VisitRow[])
+      .filter((visit) => visit.participant_type !== 'child' || visit.child_id == null || !demoIds.has(visit.child_id))
+      .forEach((visit) => {
       const row = rows.get(visit.service_date) ?? {
         date: visit.service_date,
         isOpen: null,
