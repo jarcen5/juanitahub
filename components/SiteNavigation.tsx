@@ -59,16 +59,7 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     icon: '📘',
     routes: ['/learning'],
     links: [
-      { href: '/learning#week', label: 'This Week' },
-      { href: '/learning#review', label: 'Review' },
-      { href: '/learning#goals', label: 'Goals' },
-      { href: '/learning#my-week', label: 'My Week' },
-      { href: '/learning#library', label: 'Assignment Library' },
-      { href: '/learning#typing', label: 'Typing Lab' },
-      { href: '/learning#quizzes', label: 'Quiz Lab' },
-      { href: '/learning#writing', label: 'Writing Lab' },
-      { href: '/learning#reading', label: 'Reading Lab' },
-      { href: '/learning#notes', label: 'Notes' },
+      { href: '/learning', label: 'Learning Hub' },
     ],
   },
   {
@@ -475,7 +466,7 @@ export default function SiteNavigation() {
 
       {mobileOpen && <button className="jh-nav-overlay" type="button" onClick={closeMobile} aria-label="Close navigation" />}
 
-      {workspace && (
+      {workspace && workspaceLinks.length > 1 && (
         <nav className="jh-workspace-bar" aria-label={workspace.label + ' workspace sections'}>
           <div className="jh-workspace-title"><span aria-hidden="true">{workspace.icon}</span><strong>{workspace.label}</strong></div>
           <div className="jh-workspace-links">
