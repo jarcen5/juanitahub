@@ -272,3 +272,217 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Student Progress Reports */
+.progress-report-page{gap:16px}
+.progress-report-controls{
+  display:grid;
+  grid-template-columns:minmax(220px,1.4fr) repeat(3,minmax(150px,.7fr));
+  gap:12px;
+  align-items:end;
+}
+.progress-report-controls .field{margin:0}
+.progress-report-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+}
+.progress-student-identity{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  min-width:0;
+}
+.progress-student-identity h2{
+  margin:3px 0 5px;
+  color:#173c63;
+}
+.progress-student-identity p{margin:0;color:#728699}
+.progress-avatar{
+  width:58px;
+  height:58px;
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  border-radius:18px;
+  background:linear-gradient(135deg,#dff1ff,#e4f6eb);
+  color:#2d6d8e;
+  font-size:24px;
+  font-weight:950;
+}
+.progress-period{
+  flex:0 0 auto;
+  display:grid;
+  gap:2px;
+  padding:12px 14px;
+  border:1px solid #d8e5ec;
+  border-radius:13px;
+  background:#f8fbfd;
+  text-align:right;
+}
+.progress-period small{color:#83929e;font-size:9px;text-transform:uppercase;font-weight:900;letter-spacing:.05em}
+.progress-period strong{color:#315a76;font-size:13px}
+.progress-period span{color:#738796;font-size:9px}
+.progress-metric-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+.progress-family-summary textarea{
+  width:100%;
+  resize:vertical;
+  min-height:110px;
+  padding:12px;
+  border:1px solid #cddce6;
+  border-radius:12px;
+  color:#314b60;
+  line-height:1.5;
+}
+.progress-comment-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:10px;
+}
+.progress-comment-actions span{color:#82919d;font-size:9px}
+.progress-summary-print{
+  display:none;
+  color:#455e70;
+  line-height:1.6;
+  white-space:pre-wrap;
+}
+.progress-report-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+.progress-report-card{min-width:0}
+.progress-subject-list,
+.progress-mini-list,
+.progress-feedback-list,
+.progress-internal-list{display:grid;gap:8px}
+.progress-subject-list article{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  padding:9px 0;
+  border-bottom:1px solid #e7edf1;
+}
+.progress-subject-list article:last-child{border-bottom:0}
+.progress-subject-icon{
+  width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#f0f6fa
+}
+.progress-subject-list article>span:nth-child(2){display:grid;gap:3px}
+.progress-subject-list strong{color:#3a5870;font-size:10px}
+.progress-subject-list small{color:#85939d;font-size:8.5px}
+.progress-subject-list em{font-style:normal;color:#38769b;font-size:10px;font-weight:900}
+.progress-track{height:5px;border-radius:999px;background:#edf2f5;overflow:hidden}
+.progress-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#55b98e,#4b9ddd)}
+.progress-skill-facts{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+}
+.progress-skill-facts>div{
+  padding:10px;
+  border:1px solid #e1e8ed;
+  border-radius:11px;
+  background:#fbfdfe;
+}
+.progress-skill-facts small{display:block;color:#81909b;font-size:8px;margin-bottom:4px}
+.progress-skill-facts strong{color:#2e6588;font-size:17px}
+.progress-trend-note{margin:12px 0 0;color:#6f8493;font-size:9px;line-height:1.45}
+.progress-mini-list>div{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 0;
+  border-bottom:1px solid #e8edf1;
+}
+.progress-mini-list>div:last-child{border-bottom:0}
+.progress-mini-list>div>span{display:grid;gap:2px}
+.progress-mini-list strong{color:#425e73;font-size:9px}
+.progress-mini-list small{color:#89969f;font-size:8px}
+.progress-mini-list em{color:#3b7495;font-size:9px;font-style:normal;font-weight:900}
+.progress-feedback-list article,
+.progress-internal-list article{
+  padding:10px;
+  border:1px solid #e2e8ed;
+  border-radius:11px;
+  background:#fbfdfe;
+}
+.progress-feedback-list strong{color:#395c73;font-size:9.5px}
+.progress-feedback-list p,
+.progress-internal-list p{margin:5px 0 0;color:#60798a;font-size:9px;line-height:1.5}
+.progress-internal-list small{color:#8a979f;font-size:8px;font-weight:850}
+.progress-table-sub{display:block;margin-top:3px;color:#87949e}
+.progress-status{
+  display:inline-flex;
+  padding:4px 7px;
+  border-radius:999px;
+  background:#eef2f4;
+  color:#687c8a;
+  font-size:8.5px;
+  font-weight:850;
+  text-transform:capitalize;
+}
+.progress-status.completed{background:#e9f7ef;color:#387655}
+.progress-status.in_progress{background:#fff7df;color:#8a6b19}
+.progress-status.skipped{background:#f2f3f5;color:#7c848b}
+.progress-internal-notes{
+  border-style:dashed;
+  background:#fbfcfd;
+}
+@media(max-width:1000px){
+  .progress-report-controls{grid-template-columns:1fr 1fr}
+  .progress-metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .progress-report-header{align-items:stretch;flex-direction:column}
+  .progress-period{text-align:left}
+  .progress-report-grid{grid-template-columns:1fr}
+  .progress-metric-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  .progress-report-controls{grid-template-columns:1fr}
+  .progress-metric-grid{grid-template-columns:1fr}
+  .progress-skill-facts{grid-template-columns:1fr 1fr 1fr}
+}
+@media print{
+  @page{margin:.45in}
+  body{background:white!important}
+  .site-nav,.jh-workspace-bar,.topbar,.no-print{display:none!important}
+  body:has(.site-nav) .shell,
+  body:has(.site-nav):has(.jh-sidebar.collapsed) .shell,
+  body:has(.site-nav):has(.jh-sidebar.expanded) .shell{
+    width:100%!important;
+    margin-left:0!important;
+    padding-top:0!important;
+  }
+  .progress-report-page{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    display:block!important;
+  }
+  .progress-print-sheet{display:block}
+  .progress-print-sheet>.card,
+  .progress-report-grid>.card{
+    break-inside:avoid;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    background:white!important;
+  }
+  .progress-report-header,
+  .progress-family-summary,
+  .progress-report-grid,
+  .progress-assignment-history{margin-bottom:12px}
+  .progress-summary-print{display:block}
+  .progress-report-grid{grid-template-columns:1fr 1fr}
+  .progress-metric-grid{grid-template-columns:repeat(5,1fr)}
+  .reports-metric{min-height:96px;padding:12px}
+  .reports-metric strong{font-size:23px}
+  .progress-family-summary textarea{display:none!important}
+  .progress-internal-notes{display:none!important}
+  .children-demo-badge{border:1px solid #b9aacd}
+}
