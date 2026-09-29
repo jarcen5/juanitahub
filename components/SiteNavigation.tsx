@@ -60,6 +60,7 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     routes: ['/learning'],
     links: [
       { href: '/learning#week', label: 'This Week' },
+      { href: '/learning#review', label: 'Review' },
       { href: '/learning#my-week', label: 'My Week' },
       { href: '/learning#library', label: 'Assignment Library' },
       { href: '/learning#typing', label: 'Typing Lab' },
@@ -196,7 +197,9 @@ export default function SiteNavigation() {
   const navRef = useRef<HTMLElement | null>(null)
   const [access, setAccess] = useState<AccessState>({ active: false, role: null })
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const [learningReviewCount, setLearningReviewCount] = useState(0)
 
   useEffect(() => {
     function syncHash() { setLocationHash(window.location.hash.replace('#', '')) }
@@ -240,6 +243,30 @@ export default function SiteNavigation() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!access.active) {
+      setLearningReviewCount(0)
+      return
+    }
+
+    let mounted = true
+    async function loadReviewCount() {
+      const [writing, reading] = await Promise.all([
+        supabase.from('learning_writing_submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
+        supabase.from('learning_reading_attempts').select('id', { count: 'exact', head: true }).eq('review_status', 'pending'),
+      ])
+      if (mounted) setLearningReviewCount(Number(writing.count ?? 0) + Number(reading.count ?? 0))
+    }
+
+    void loadReviewCount()
+    const refresh = () => void loadReviewCount()
+    window.addEventListener('juanita-learning-review-updated', refresh)
+    return () => {
+      mounted = false
+      window.removeEventListener('juanita-learning-review-updated', refresh)
+    }
+  }, [access.active])
+
   function routeMatches(href?: string) {
     if (!href) return false
     if (href === '/') return pathname === '/'
@@ -266,12 +293,14 @@ export default function SiteNavigation() {
     if (pathname === '/') {
       setOpenGroup(null)
       setMobileOpen(false)
+      setSidebarExpanded(false)
       return
     }
 
     const currentGroup = navGroups.find((group) => currentItemHref(visibleItems(group)) !== null)
     if (currentGroup) setOpenGroup(currentGroup.label)
     setMobileOpen(false)
+    setSidebarExpanded(false)
     // access.role is intentionally included so admin-only routes can resolve after access loads.
   }, [pathname, access.role])
 
@@ -308,7 +337,17 @@ export default function SiteNavigation() {
   if (!access.active) return null
 
   function toggleGroup(label: string) {
+    if (!sidebarExpanded) {
+      setSidebarExpanded(true)
+      setOpenGroup(label)
+      return
+    }
     setOpenGroup((current) => current === label ? null : label)
+  }
+
+  function closeNavigation() {
+    setMobileOpen(false)
+    setSidebarExpanded(false)
   }
 
   function closeMobile() {
@@ -335,12 +374,13 @@ export default function SiteNavigation() {
           </button>
         </div>
 
-        <aside id="juanita-navigation-drawer" className={`jh-sidebar ${mobileOpen ? 'open' : ''}`}>
+        <aside id="juanita-navigation-drawer" className={`jh-sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'} ${mobileOpen ? 'open' : ''}`}>
           <div className="jh-sidebar-header">
-            <Link className="jh-brand" href="/" onClick={closeMobile} aria-label="Juanita Hub home">
+            <Link className="jh-brand" href="/" onClick={closeNavigation} aria-label="Juanita Hub home">
               <span className="jh-brand-mark" aria-hidden="true">JH</span>
               <span><strong>Juanita Hub</strong><small>Community Center</small></span>
             </Link>
+            <button className="jh-sidebar-expand" type="button" onClick={() => setSidebarExpanded((value) => !value)} aria-label={sidebarExpanded ? 'Minimize navigation' : 'Expand navigation'} title={sidebarExpanded ? 'Minimize navigation' : 'Expand navigation'}>{sidebarExpanded ? '‹' : '›'}</button>
             <button className="jh-sidebar-close" type="button" onClick={closeMobile} aria-label="Close navigation">×</button>
           </div>
 
@@ -349,7 +389,8 @@ export default function SiteNavigation() {
               className={`jh-home-link ${pathname === '/' ? 'active' : ''}`}
               href="/"
               aria-current={pathname === '/' ? 'page' : undefined}
-              onClick={closeMobile}
+              onClick={closeNavigation}
+              title="Home"
             >
               <span className="jh-section-icon" aria-hidden="true">⌂</span>
               <span><strong>Home</strong><small>Today’s dashboard and quick actions</small></span>
@@ -373,9 +414,10 @@ export default function SiteNavigation() {
                       aria-expanded={isOpen}
                       aria-controls={sectionId}
                       onClick={() => toggleGroup(group.label)}
+                      title={group.label}
                     >
                       <span className="jh-section-icon" aria-hidden="true">{group.icon}</span>
-                      <span className="jh-section-copy"><strong>{group.label}</strong><small>{group.description}</small></span>
+                      <span className="jh-section-copy"><strong>{group.label}{group.label === 'Learning' && learningReviewCount > 0 && <span className="jh-nav-count">{learningReviewCount}</span>}</strong><small>{group.description}</small></span>
                       <span className="jh-section-chevron" aria-hidden="true">⌄</span>
                     </button>
 
@@ -398,7 +440,7 @@ export default function SiteNavigation() {
                               href={item.href}
                               key={item.href}
                               aria-current={current ? 'page' : undefined}
-                              onClick={closeMobile}
+                              onClick={closeNavigation}
                             >
                               <span><strong>{item.label}</strong>{item.description && <small>{item.description}</small>}</span>
                             </Link>
@@ -413,11 +455,11 @@ export default function SiteNavigation() {
           </div>
 
           <div className="jh-sidebar-footer">
-            <Link className="jh-kiosk-link" href="/kiosk" onClick={closeMobile}>
+            <Link className="jh-kiosk-link" href="/kiosk" onClick={closeNavigation} title="Launch Sign-In Kiosk">
               <span aria-hidden="true">☺</span>
               <span><strong>Launch Sign-In Kiosk</strong><small>Open the child and visitor sign-in screen</small></span>
             </Link>
-            <Link className="jh-kiosk-link" href="/learn" onClick={closeMobile}>
+            <Link className="jh-kiosk-link" href="/learn" onClick={closeNavigation} title="Launch Student Learning">
               <span aria-hidden="true">🎓</span>
               <span><strong>Launch Student Learning</strong><small>Open Computer Lab Mode for individual student work</small></span>
             </Link>
@@ -465,7 +507,7 @@ export default function SiteNavigation() {
                       setLocationHash(itemTab)
                     }}
                   >
-                    {item.label}
+                    {item.label === 'Review' && learningReviewCount > 0 ? `Review (${learningReviewCount})` : item.label}
                   </a>
                 )
               }
