@@ -680,6 +680,10 @@ export default function LearningPage() {
     void loadData()
   }, [session, weekStart])
 
+  useEffect(() => {
+    if (session && tab === 'review') void loadData()
+  }, [tab])
+
   async function loadData() {
     if (!session) return
     setLoading(true)
