@@ -486,3 +486,153 @@
   .progress-internal-notes{display:none!important}
   .children-demo-badge{border:1px solid #b9aacd}
 }
+
+
+/* Progress report archive */
+.progress-report-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.progress-report-state,
+.progress-archive-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:28px;
+  padding:5px 9px;
+  border-radius:999px;
+  font-size:8.5px;
+  font-weight:950;
+  text-transform:capitalize;
+  letter-spacing:.02em;
+}
+.progress-report-state.draft{
+  background:#fff5d8;
+  color:#7c641e;
+}
+.progress-report-state.finalized,
+.progress-archive-status.finalized{
+  background:#e8f6ee;
+  color:#347353;
+}
+.progress-report-state.archived,
+.progress-archive-status.archived{
+  background:#eef1f4;
+  color:#687785;
+}
+.progress-report-archive{
+  display:grid;
+  gap:12px;
+}
+.progress-archive-list{
+  display:grid;
+  gap:8px;
+}
+.progress-archive-list article{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+  padding:10px;
+  border:1px solid #e0e8ed;
+  border-radius:12px;
+  background:#fbfdfe;
+}
+.progress-archive-copy{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.progress-archive-copy strong{
+  color:#3d5c72;
+  font-size:10px;
+}
+.progress-archive-copy small{
+  color:#87949d;
+  font-size:8.5px;
+}
+.progress-archive-list a{
+  text-decoration:none;
+}
+.progress-archive-banner{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  background:#f8fbfd;
+}
+.progress-archive-banner>div{
+  display:grid;
+  gap:2px;
+}
+.progress-archive-banner strong{
+  color:#4a6577;
+  font-size:9.5px;
+}
+.progress-archive-banner small{
+  color:#89959d;
+  font-size:8px;
+}
+.progress-summary-archive{
+  color:#455e70;
+  font-size:10px;
+  line-height:1.65;
+  white-space:pre-wrap;
+}
+.progress-archive-goals,
+.progress-archive-achievements{
+  display:grid;
+  gap:8px;
+}
+.progress-archive-goals article,
+.progress-archive-achievements article{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:9px;
+  align-items:start;
+  padding:9px;
+  border:1px solid #e2e8ed;
+  border-radius:11px;
+  background:#fbfdfe;
+}
+.progress-archive-goals article>span:first-child,
+.progress-archive-achievements article>span:first-child{
+  font-size:18px;
+}
+.progress-archive-goals article>span:last-child,
+.progress-archive-achievements article>span:last-child{
+  display:grid;
+  gap:2px;
+}
+.progress-archive-goals strong,
+.progress-archive-achievements strong{
+  color:#405e73;
+  font-size:9px;
+}
+.progress-archive-goals small,
+.progress-archive-achievements small{
+  color:#87939c;
+  font-size:8px;
+}
+@media(max-width:760px){
+  .progress-report-actions{
+    justify-content:flex-start;
+  }
+  .progress-archive-list article{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+  .progress-archive-list article>a,
+  .progress-archive-list article>button{
+    width:100%;
+    grid-column:1/-1;
+    text-align:center;
+  }
+}
+@media print{
+  .archived-progress-page .progress-archive-banner{
+    border:1px solid #dfe5e9;
+  }
+}
