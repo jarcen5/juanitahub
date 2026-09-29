@@ -17,6 +17,14 @@ type QuizAttempt = { id: number; percent: number; created_at: string }
 type TypingAttempt = { id: number; wpm: number; accuracy: number; created_at: string }
 type ReadingLog = { id: number; minutes: number; read_on: string }
 type WritingSubmission = { id: number; status: 'draft'|'submitted'|'reviewed'; word_count: number; updated_at: string }
+type ArchivedReport = {
+  id: number
+  period_start: string
+  period_end: string
+  report_title: string
+  status: 'finalized'|'archived'
+  finalized_at: string
+}
 
 function localDate() {
   const now = new Date()
@@ -47,6 +55,7 @@ export default function ChildProgressSummary({ childId, childName, grade, isDemo
   const [writing, setWriting] = useState<WritingSubmission[]>([])
   const [goals, setGoals] = useState<StudentGoalView[]>([])
   const [achievements, setAchievements] = useState<StudentAchievementView[]>([])
+  const [archives, setArchives] = useState<ArchivedReport[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
 
@@ -60,7 +69,7 @@ export default function ChildProgressSummary({ childId, childName, grade, isDemo
     const startIso = start + 'T00:00:00'
     const endIso = end + 'T23:59:59.999'
 
-    const [assignmentRows, quizRows, typingRows, readingRows, writingRows, goalRows, achievementRows] = await Promise.all([
+    const [assignmentRows, quizRows, typingRows, readingRows, writingRows, goalRows, achievementRows, archiveRows] = await Promise.all([
       supabase.from('learning_student_assignments').select('id,assignment_id,status,week_start').eq('child_id',childId).gte('week_start',start).lte('week_start',end),
       supabase.from('learning_quiz_attempts').select('id,percent,created_at').eq('child_id',childId).gte('created_at',startIso).lte('created_at',endIso),
       supabase.from('learning_typing_attempts').select('id,wpm,accuracy,created_at').eq('child_id',childId).gte('created_at',startIso).lte('created_at',endIso).order('created_at',{ascending:true}),
@@ -68,8 +77,9 @@ export default function ChildProgressSummary({ childId, childName, grade, isDemo
       supabase.from('learning_writing_submissions').select('id,status,word_count,updated_at').eq('child_id',childId).gte('updated_at',startIso).lte('updated_at',endIso),
       supabase.rpc('refresh_learning_goals',{p_child_id:childId}),
       supabase.rpc('refresh_learning_achievements',{p_child_id:childId}),
+      supabase.from('learning_progress_report_archives').select('id,period_start,period_end,report_title,status,finalized_at').eq('child_id',childId).order('finalized_at',{ascending:false}).limit(6),
     ])
-    const error = assignmentRows.error ?? quizRows.error ?? typingRows.error ?? readingRows.error ?? writingRows.error ?? goalRows.error ?? achievementRows.error
+    const error = assignmentRows.error ?? quizRows.error ?? typingRows.error ?? readingRows.error ?? writingRows.error ?? goalRows.error ?? achievementRows.error ?? archiveRows.error
     if (error) setMessage(error.message)
     setAssignments((assignmentRows.data ?? []) as StudentAssignment[])
     setQuizzes((quizRows.data ?? []) as QuizAttempt[])
@@ -78,6 +88,7 @@ export default function ChildProgressSummary({ childId, childName, grade, isDemo
     setWriting((writingRows.data ?? []) as WritingSubmission[])
     setGoals(((goalRows.data ?? []) as StudentGoalView[]).filter((goal)=>['active','reached','approved'].includes(goal.status)).slice(0,6))
     setAchievements(((achievementRows.data ?? []) as StudentAchievementView[]).slice(0,8))
+    setArchives((archiveRows.data ?? []) as ArchivedReport[])
     setLoading(false)
   }
 
@@ -150,6 +161,18 @@ export default function ChildProgressSummary({ childId, childName, grade, isDemo
               <div><small>Writing activity</small><strong>{writing.length ? writing.reduce((sum,row)=>sum+Number(row.word_count),0)+' words across '+writing.length+' submission'+(writing.length===1?'':'s') : 'No writing submissions yet'}</strong><p>Drafts remain available for the student to resume in Student Learning.</p></div>
             </article>
           </div>
+
+          <section className="child-progress-reports">
+            <div className="child-learning-block-heading"><div><small>Saved reports</small><h4>Report History</h4></div><span>{archives.length}</span></div>
+            <div className="child-progress-report-list">
+              {archives.map((report)=><article key={report.id}>
+                <span className={'child-progress-report-status '+report.status}>{report.status}</span>
+                <span><strong>{report.report_title}</strong><small>{new Date(report.period_start+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})} – {new Date(report.period_end+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</small></span>
+                <Link className="ghost" href={'/reports/progress/archive/'+report.id}>Open</Link>
+              </article>)}
+              {archives.length===0 && <div className="children-empty-inline">No finalized progress reports yet.</div>}
+            </div>
+          </section>
 
           <div className="child-progress-footer">
             <span>The full report includes subject completion, quizzes, typing, reading, writing, staff feedback, assignment history, and a printable progress summary.</span>
