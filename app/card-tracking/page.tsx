@@ -10,6 +10,7 @@ type Child = {
   first_name: string
   last_name: string | null
   active: boolean
+  is_demo: boolean
 }
 
 type CardName = 'diamond' | 'green' | 'yellow' | 'orange' | 'red'
@@ -161,7 +162,7 @@ export default function Home() {
     const [profileResult, settingsResult, childrenResult, entriesResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('app_settings').select('wheel_rule_mode, points_per_spin, wheel_rule_notes').eq('id', 1).maybeSingle(),
-      supabase.from('children').select('id, first_name, last_name, active').order('first_name').order('last_name'),
+      supabase.from('children').select('id, first_name, last_name, active, is_demo').order('first_name').order('last_name'),
       supabase
         .from('behavior_entries')
         .select('id, child_id, entry_date, entry_type, card, day_status, points, note, recorded_by')
@@ -358,6 +359,10 @@ export default function Home() {
   }
 
   const activeChildren = useMemo(() => children.filter((child) => child.active), [children])
+  const reportingChildren = useMemo(() => children.filter((child) => !child.is_demo), [children])
+  const reportingActiveChildren = useMemo(() => reportingChildren.filter((child) => child.active), [reportingChildren])
+  const reportingChildIds = useMemo(() => new Set(reportingChildren.map((child) => child.id)), [reportingChildren])
+  const reportingEntries = useMemo(() => entries.filter((entry) => reportingChildIds.has(entry.child_id)), [entries, reportingChildIds])
   const archivedChildren = useMemo(() => children.filter((child) => !child.active), [children])
 
   const todayEntries = useMemo(
@@ -366,18 +371,18 @@ export default function Home() {
   )
 
   const monthlyPoints = useMemo(
-    () => entries.reduce((sum, entry) => sum + Number(entry.points || 0), 0),
-    [entries],
+    () => reportingEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0),
+    [reportingEntries],
   )
 
   const summaryChildren = useMemo(() => {
-    const childrenWithEntries = new Set(entries.map((entry) => entry.child_id))
-    return children.filter((child) => child.active || childrenWithEntries.has(child.id))
-  }, [children, entries])
+    const childrenWithEntries = new Set(reportingEntries.map((entry) => entry.child_id))
+    return reportingChildren.filter((child) => child.active || childrenWithEntries.has(child.id))
+  }, [reportingChildren, reportingEntries])
 
   const childSummaries = useMemo(
     () => summaryChildren.map((child) => {
-      const childEntries = entries.filter((entry) => entry.child_id === child.id)
+      const childEntries = reportingEntries.filter((entry) => entry.child_id === child.id)
       const points = childEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
       const diamonds = childEntries.filter((entry) => entry.card === 'diamond').length
       return {
@@ -388,7 +393,7 @@ export default function Home() {
         entries: childEntries.length,
       }
     }),
-    [summaryChildren, entries, settings],
+    [summaryChildren, reportingEntries, settings],
   )
 
   const totalWheelSpins = useMemo(
@@ -417,10 +422,10 @@ export default function Home() {
   )
 
   const completedToday = selectedMonth === currentMonthKey()
-    ? activeChildren.filter((child) => todayEntries.has(child.id)).length
+    ? reportingActiveChildren.filter((child) => todayEntries.has(child.id)).length
     : 0
-  const diamondCount = entries.filter((entry) => entry.card === 'diamond').length
-  const greenCount = entries.filter((entry) => entry.card === 'green').length
+  const diamondCount = reportingEntries.filter((entry) => entry.card === 'diamond').length
+  const greenCount = reportingEntries.filter((entry) => entry.card === 'green').length
   const wheelRuleReady = settings?.wheel_rule_mode === 'points_per_spin' && Number(settings.points_per_spin) > 0
   const historySpins = spinsForPoints(selectedChildPoints, selectedChildDiamonds)
 
@@ -537,10 +542,10 @@ export default function Home() {
         {message && <div className="notice">{message}</div>}
 
         <section className="grid stats">
-          <div className="card stat"><span className="subtle">Active children</span><strong>{activeChildren.length}</strong></div>
+          <div className="card stat"><span className="subtle">Active children</span><strong>{reportingActiveChildren.length}</strong></div>
           <div className="card stat">
             <span className="subtle">{activeView === 'today' ? 'Completed today' : 'Recorded entries'}</span>
-            <strong>{activeView === 'today' ? `${completedToday}/${activeChildren.length}` : entries.length}</strong>
+            <strong>{activeView === 'today' ? `${completedToday}/${reportingActiveChildren.length}` : reportingEntries.length}</strong>
           </div>
           <div className="card stat"><span className="subtle">{monthLabel(selectedMonth)} points</span><strong>{monthlyPoints}</strong></div>
           <div className="card stat"><span className="subtle">Total wheel spins</span><strong>{wheelRuleReady ? totalWheelSpins : 'Pending'}</strong></div>
@@ -559,7 +564,7 @@ export default function Home() {
                 return (
                   <div className="child-row" key={child.id}>
                     <div>
-                      <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}</button>
+                      <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}{child.is_demo ? ' • Demo' : ''}</button>
                       <div className="subtle" style={{ fontSize: 13, marginTop: 4 }}>
                         {entry?.entry_type === 'behavior'
                           ? `${prettyCard(entry.card)} card • ${formatPoints(entry.points)}${entry.card === 'diamond' ? ' • +1 bonus spin' : ''}`
