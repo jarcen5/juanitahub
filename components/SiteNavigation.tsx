@@ -59,7 +59,16 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     icon: '📘',
     routes: ['/learning'],
     links: [
-      { href: '/learning', label: 'Learning Hub' },
+      { href: '/learning#week', label: 'This Week' },
+      { href: '/learning#review', label: 'Review' },
+      { href: '/learning#goals', label: 'Goals' },
+      { href: '/learning#my-week', label: 'My Week' },
+      { href: '/learning#library', label: 'Assignment Library' },
+      { href: '/learning#typing', label: 'Typing Lab' },
+      { href: '/learning#quizzes', label: 'Quiz Lab' },
+      { href: '/learning#writing', label: 'Writing Lab' },
+      { href: '/learning#reading', label: 'Reading Lab' },
+      { href: '/learning#notes', label: 'Notes' },
     ],
   },
   {
