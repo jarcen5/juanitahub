@@ -1,0 +1,1 @@
+drop policy if exists "admins can delete children" on public.children;;
