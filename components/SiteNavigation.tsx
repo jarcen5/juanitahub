@@ -275,6 +275,10 @@ export default function SiteNavigation() {
     definition.routes.some((route) => pathname === route || pathname.startsWith(route + '/')),
   )
   const workspaceLinks = workspace?.links.filter((item) => !item.adminOnly || access.role === 'admin') ?? []
+  const activeWorkspaceRouteHref = workspaceLinks
+    .filter((item) => item.href && !item.href.includes('#') && (pathname === item.href || pathname.startsWith(item.href + '/')))
+    .map((item) => item.href as string)
+    .sort((a, b) => b.length - a.length)[0] ?? null
 
   function currentItemHref(items: NavItem[]) {
     return items
@@ -437,7 +441,7 @@ export default function SiteNavigation() {
               const currentTab = locationHash || defaultTab
               const active = itemTab
                 ? pathname === itemBase && currentTab === itemTab
-                : pathname === item.href || pathname.startsWith(item.href + '/')
+                : activeWorkspaceRouteHref === item.href
 
               if (itemTab) {
                 return (
