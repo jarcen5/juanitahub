@@ -767,3 +767,229 @@ body:has(.jh-workspace-bar) .topbar{
     display:inline;
   }
 }
+
+
+/* Computer Lab device management */
+.lab-device-page{
+  display:grid;
+  gap:18px;
+}
+.lab-device-hero{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+}
+.lab-device-eyebrow{
+  display:inline-block;
+  margin-bottom:5px;
+  color:#3f6f8e;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.lab-device-stats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.lab-device-stats .stat{
+  display:grid;
+  gap:4px;
+}
+.lab-device-stats .stat small{
+  color:#89959e;
+  font-size:8.5px;
+}
+.lab-device-security-note{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:12px;
+  align-items:start;
+  padding:14px;
+  border-color:#d8e7df;
+  background:#f6fbf8;
+}
+.lab-device-security-note>span{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  background:#e5f5eb;
+  font-size:19px;
+}
+.lab-device-security-note strong{
+  color:#35644e;
+  font-size:10.5px;
+}
+.lab-device-security-note p{
+  margin:4px 0 0;
+  color:#708378;
+  font-size:9px;
+  line-height:1.5;
+}
+.lab-device-section{
+  display:grid;
+  gap:10px;
+}
+.lab-device-list{
+  display:grid;
+  gap:10px;
+}
+.lab-device-card{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:12px;
+  padding:14px;
+  border:1px solid #dfe8ed;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 5px 16px rgba(40,77,104,.04);
+}
+.lab-device-card.revoked{
+  background:#fafbfc;
+  opacity:.86;
+}
+.lab-device-icon{
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  border-radius:13px;
+  background:#eef6fb;
+  font-size:21px;
+}
+.lab-device-card.revoked .lab-device-icon{
+  background:#eef1f4;
+}
+.lab-device-main{
+  min-width:0;
+  display:grid;
+  gap:12px;
+}
+.lab-device-title-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.lab-device-title-row h3{
+  margin:5px 0 0;
+  color:#34556d;
+  font-size:14px;
+}
+.lab-device-status{
+  display:inline-flex;
+  align-items:center;
+  padding:4px 7px;
+  border-radius:999px;
+  font-size:7.5px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.lab-device-status.active{
+  background:#e7f6ed;
+  color:#367653;
+}
+.lab-device-status.revoked{
+  background:#eef1f4;
+  color:#697884;
+}
+.lab-device-use{
+  color:#648298;
+  font-size:8.5px;
+  font-weight:850;
+  white-space:nowrap;
+}
+.lab-device-facts{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.lab-device-facts>div{
+  display:grid;
+  gap:3px;
+  padding:9px 10px;
+  border:1px solid #e3eaee;
+  border-radius:10px;
+  background:#fbfdfe;
+}
+.lab-device-facts small{
+  color:#8a969e;
+  font-size:7.5px;
+  font-weight:850;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+}
+.lab-device-facts strong{
+  color:#4b6475;
+  font-size:8.8px;
+  overflow-wrap:anywhere;
+}
+.lab-device-actions{
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto auto;
+  gap:8px;
+  align-items:end;
+  padding-top:10px;
+  border-top:1px solid #e8edf0;
+}
+.lab-device-actions .field{
+  margin:0;
+}
+.lab-device-revoke{
+  min-height:42px;
+  padding:0 13px;
+  border:1px solid #e5c9cd;
+  border-radius:10px;
+  background:#fff8f8;
+  color:#a34d58;
+  font-weight:900;
+}
+.lab-device-revoke:hover:not(:disabled){
+  background:#fff0f1;
+  border-color:#dfb9bf;
+}
+.lab-device-revoke:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.revoked-section{
+  margin-top:2px;
+}
+@media(max-width:1000px){
+  .lab-device-stats{
+    grid-template-columns:1fr 1fr;
+  }
+  .lab-device-facts{
+    grid-template-columns:1fr 1fr;
+  }
+}
+@media(max-width:700px){
+  .lab-device-hero,
+  .lab-device-title-row{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .lab-device-card{
+    grid-template-columns:1fr;
+  }
+  .lab-device-actions{
+    grid-template-columns:1fr;
+  }
+  .lab-device-actions>button{
+    width:100%;
+  }
+  .lab-device-use{
+    white-space:normal;
+  }
+}
+@media(max-width:480px){
+  .lab-device-stats,
+  .lab-device-facts{
+    grid-template-columns:1fr;
+  }
+}
