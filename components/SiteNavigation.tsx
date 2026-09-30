@@ -110,6 +110,7 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     links: [
       { href: '/team', label: 'Team & Schedule' },
       { href: '/staff', label: 'Account Access', adminOnly: true },
+      { href: '/staff/lab-devices', label: 'Lab Devices', adminOnly: true },
     ],
   },
 ]
@@ -179,6 +180,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/team', label: 'Team & Scheduling', description: 'Staff, interns, volunteers, weekly schedules, and program assignments.' },
       { href: '/staff', label: 'Account Access', description: 'Approve Juanita Hub accounts and manage staff login access.', adminOnly: true },
+      { href: '/staff/lab-devices', label: 'Lab Devices', description: 'Manage activated Student Learning computers and revoke access.', adminOnly: true },
     ],
   },
 ]
