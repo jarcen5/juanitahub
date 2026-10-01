@@ -3,17 +3,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import PersonnelCostsPanel from '@/components/PersonnelCostsPanel'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
-type Program = { id: number; name: string; season_label: string | null; status: string }
 type Budget = {
   id: number
   name: string
   period_label: string | null
   starts_on: string | null
   ends_on: string | null
-  program_id: number | null
   allocated_amount: number
   notes: string | null
   active: boolean
@@ -21,33 +18,45 @@ type Budget = {
 type BudgetSummary = {
   budget_id: number
   allocated_amount: number
-  committed_amount: number
+  planned_amount: number
   spent_amount: number
-  available_amount: number
+  remaining_amount: number
 }
-type PurchaseStatus = 'planned' | 'awaiting_approval' | 'approved' | 'ordered' | 'received' | 'canceled'
-type PurchaseRequest = {
+type BudgetItem = {
   id: number
   budget_id: number
-  program_id: number | null
+  purchase_item_id: number | null
+  description: string
+  category: string
+  planned_amount: number
+  counts_toward_plan: boolean
+  notes: string | null
+  active: boolean
+}
+type BudgetSpend = {
+  id: number
+  budget_id: number
+  budget_item_id: number | null
+  purchase_item_id: number | null
+  description: string
+  category: string
+  amount: number
+  spent_on: string | null
+  notes: string | null
+}
+type PurchaseList = {
+  id: number
+  title: string
+  wishlist_url: string | null
+  budget_id: number | null
   vendor: string | null
-  status: PurchaseStatus
-  order_reference: string | null
+  status: string
   notes: string | null
   requested_by: string
-  submitted_at: string | null
-  approved_by: string | null
-  approved_at: string | null
-  ordered_by: string | null
-  ordered_at: string | null
-  received_by: string | null
-  received_at: string | null
-  canceled_by: string | null
-  canceled_at: string | null
   created_at: string
+  updated_at: string
 }
-type RequestTotal = { purchase_request_id: number; estimated_total: number; current_total: number }
-type RequestItem = {
+type PurchaseItem = {
   id: number
   purchase_request_id: number
   description: string
@@ -55,90 +64,112 @@ type RequestItem = {
   unit: string
   estimated_unit_cost: number
   actual_unit_cost: number | null
-  inventory_category_id: number | null
-  inventory_item_id: number | null
-  inventory_location_id: number | null
-  add_to_inventory: boolean
-  received_to_inventory_at: string | null
+  vendor: string | null
+  product_url: string | null
+  category_tag: string
+  item_status: 'need' | 'purchased' | 'received'
+  purchased_at: string | null
+  received_at: string | null
   notes: string | null
 }
-type InventoryItem = { id: number; name: string; unit: string; active: boolean }
-type InventoryLocation = { id: number; name: string; parent_location_id: number | null; active: boolean }
-type InventoryCategory = { id: number; name: string; active: boolean }
-type Staff = { user_id: string; display_name: string }
-type Audit = { id: number; purchase_request_id: number; action: string; old_status: string | null; new_status: string | null; changed_by: string | null; changed_at: string }
+type InventoryNeed = { item_id: number; requested_at: string }
+type InventoryItem = { id: number; name: string; unit: string; category_id: number | null }
+type InventoryCategory = { id: number; name: string }
 
-const statusLabels: Record<PurchaseStatus, string> = {
-  planned: 'Planned',
-  awaiting_approval: 'Awaiting approval',
-  approved: 'Approved',
-  ordered: 'Ordered',
-  received: 'Received',
-  canceled: 'Canceled',
-}
+const defaultCategories = [
+  'Personnel',
+  'Supplies',
+  'Snacks & Food',
+  'Field Trips',
+  'Rewards',
+  'Equipment',
+  'Reimbursements',
+  'Transportation & Supplies',
+  'Other',
+]
 
 function money(value: number) {
-  return value.toLocaleString(undefined, { style: 'currency', currency: 'USD' })
+  return Number(value || 0).toLocaleString(undefined, { style: 'currency', currency: 'USD' })
 }
 
-function dateLabel(value: string | null) {
-  if (!value) return 'Not set'
-  const [year, month, day] = value.slice(0, 10).split('-').map(Number)
+function shortDate(value: string | null) {
+  if (!value) return 'Date not recorded'
+  const raw = value.slice(0, 10)
+  const [year, month, day] = raw.split('-').map(Number)
   return new Date(year, month - 1, day).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function dateTimeLabel(value: string | null) {
-  if (!value) return 'Not yet'
-  return new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+function normalizeUrl(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  try {
+    const parsed = new URL(trimmed)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return undefined
+    return parsed.toString()
+  } catch {
+    return undefined
+  }
 }
 
 export default function PurchasingPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [budgets, setBudgets] = useState<Budget[]>([])
-  const [summaries, setSummaries] = useState<BudgetSummary[]>([])
-  const [programs, setPrograms] = useState<Program[]>([])
-  const [requests, setRequests] = useState<PurchaseRequest[]>([])
-  const [totals, setTotals] = useState<RequestTotal[]>([])
-  const [requestItems, setRequestItems] = useState<RequestItem[]>([])
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
-  const [inventoryLocations, setInventoryLocations] = useState<InventoryLocation[]>([])
-  const [inventoryCategories, setInventoryCategories] = useState<InventoryCategory[]>([])
-  const [staff, setStaff] = useState<Staff[]>([])
-  const [audit, setAudit] = useState<Audit[]>([])
+  const [tab, setTab] = useState<'purchases' | 'budgeting'>('purchases')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [tab, setTab] = useState<'budgets' | 'purchases' | 'personnel'>('budgets')
+
+  const [budgets, setBudgets] = useState<Budget[]>([])
+  const [budgetSummaries, setBudgetSummaries] = useState<BudgetSummary[]>([])
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([])
+  const [budgetSpends, setBudgetSpends] = useState<BudgetSpend[]>([])
+  const [purchaseLists, setPurchaseLists] = useState<PurchaseList[]>([])
+  const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([])
+  const [inventoryNeeds, setInventoryNeeds] = useState<InventoryNeed[]>([])
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([])
+  const [inventoryCategories, setInventoryCategories] = useState<InventoryCategory[]>([])
+
+  const [selectedListId, setSelectedListId] = useState<number | null>(null)
+  const [listTitle, setListTitle] = useState('')
+  const [listWishlist, setListWishlist] = useState('')
+  const [listBudget, setListBudget] = useState('')
+  const [listNotes, setListNotes] = useState('')
+  const [creatingList, setCreatingList] = useState(false)
+
+  const [editingPurchaseItemId, setEditingPurchaseItemId] = useState<number | null>(null)
+  const [itemDescription, setItemDescription] = useState('')
+  const [itemQuantity, setItemQuantity] = useState('1')
+  const [itemEstimated, setItemEstimated] = useState('')
+  const [itemActual, setItemActual] = useState('')
+  const [itemVendor, setItemVendor] = useState('')
+  const [itemUrl, setItemUrl] = useState('')
+  const [itemCategory, setItemCategory] = useState('Supplies')
+  const [itemNotes, setItemNotes] = useState('')
 
   const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [budgetItemDescription, setBudgetItemDescription] = useState('')
+  const [budgetItemCategory, setBudgetItemCategory] = useState('Supplies')
+  const [budgetItemPlanned, setBudgetItemPlanned] = useState('')
+  const [budgetItemNotes, setBudgetItemNotes] = useState('')
+  const [budgetItemCounts, setBudgetItemCounts] = useState(true)
+
+  const [spendItemId, setSpendItemId] = useState('')
+  const [spendDescription, setSpendDescription] = useState('')
+  const [spendCategory, setSpendCategory] = useState('Supplies')
+  const [spendAmount, setSpendAmount] = useState('')
+  const [spendDate, setSpendDate] = useState('')
+  const [spendNotes, setSpendNotes] = useState('')
+  const [spendOpen, setSpendOpen] = useState(false)
+
+  const [budgetEditorOpen, setBudgetEditorOpen] = useState(false)
+  const [editingBudgetId, setEditingBudgetId] = useState<number | null>(null)
   const [budgetName, setBudgetName] = useState('')
+  const [budgetAmount, setBudgetAmount] = useState('')
   const [budgetPeriod, setBudgetPeriod] = useState('')
   const [budgetStart, setBudgetStart] = useState('')
   const [budgetEnd, setBudgetEnd] = useState('')
-  const [budgetProgram, setBudgetProgram] = useState('')
-  const [budgetAllocated, setBudgetAllocated] = useState('')
   const [budgetNotes, setBudgetNotes] = useState('')
-
-  const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null)
-  const [requestBudget, setRequestBudget] = useState('')
-  const [requestProgram, setRequestProgram] = useState('')
-  const [requestVendor, setRequestVendor] = useState('')
-  const [requestNotes, setRequestNotes] = useState('')
-  const [orderReference, setOrderReference] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'open' | 'all' | PurchaseStatus>('open')
-
-  const [editingItemId, setEditingItemId] = useState<number | null>(null)
-  const [lineDescription, setLineDescription] = useState('')
-  const [lineQuantity, setLineQuantity] = useState('1')
-  const [lineUnit, setLineUnit] = useState('each')
-  const [lineEstimated, setLineEstimated] = useState('')
-  const [lineActual, setLineActual] = useState('')
-  const [lineCategory, setLineCategory] = useState('')
-  const [lineAddInventory, setLineAddInventory] = useState(false)
-  const [lineInventoryItem, setLineInventoryItem] = useState('')
-  const [lineInventoryLocation, setLineInventoryLocation] = useState('')
-  const [lineNotes, setLineNotes] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -155,558 +186,759 @@ export default function PurchasingPage() {
   async function loadData() {
     if (!session) return
     setLoading(true)
-    const profileResult = await supabase.from('staff_profiles').select('display_name,role,active').eq('user_id', session.user.id).maybeSingle()
-    const currentProfile = profileResult.data as Profile | null
-    setProfile(currentProfile)
+    setMessage('')
 
-    if (!currentProfile?.active || currentProfile.role !== 'admin') {
+    const profileResult = await supabase
+      .from('staff_profiles')
+      .select('display_name,role,active')
+      .eq('user_id', session.user.id)
+      .maybeSingle()
+
+    const nextProfile = profileResult.data as Profile | null
+    setProfile(nextProfile)
+    if (!nextProfile?.active) {
       setLoading(false)
       return
     }
 
-    const [budgetResult, summaryResult, programResult, requestResult, totalResult, itemResult, inventoryItemResult, locationResult, categoryResult, staffResult, auditResult] = await Promise.all([
-      supabase.from('budget_accounts').select('id,name,period_label,starts_on,ends_on,program_id,allocated_amount,notes,active').order('active', { ascending: false }).order('created_at', { ascending: false }),
-      supabase.from('budget_financial_summary').select('budget_id,allocated_amount,committed_amount,spent_amount,available_amount'),
-      supabase.from('programs').select('id,name,season_label,status').order('name'),
-      supabase.from('purchase_requests').select('id,budget_id,program_id,vendor,status,order_reference,notes,requested_by,submitted_at,approved_by,approved_at,ordered_by,ordered_at,received_by,received_at,canceled_by,canceled_at,created_at').order('created_at', { ascending: false }),
-      supabase.from('purchase_request_totals').select('purchase_request_id,estimated_total,current_total'),
-      supabase.from('purchase_request_items').select('id,purchase_request_id,description,quantity,unit,estimated_unit_cost,actual_unit_cost,inventory_category_id,inventory_item_id,inventory_location_id,add_to_inventory,received_to_inventory_at,notes').order('id'),
-      supabase.from('inventory_items').select('id,name,unit,active').eq('active', true).order('name'),
-      supabase.from('inventory_locations').select('id,name,parent_location_id,active').eq('active', true).order('name'),
-      supabase.from('inventory_categories').select('id,name,active').eq('active', true).order('name'),
-      supabase.from('staff_profiles').select('user_id,display_name').eq('active', true),
-      supabase.from('purchase_request_audit').select('id,purchase_request_id,action,old_status,new_status,changed_by,changed_at').order('changed_at', { ascending: false }).limit(500),
+    const [
+      budgetResult,
+      summaryResult,
+      budgetItemResult,
+      spendResult,
+      listResult,
+      purchaseItemResult,
+      restockResult,
+      inventoryItemResult,
+      inventoryCategoryResult,
+    ] = await Promise.all([
+      supabase.from('budget_accounts').select('id,name,period_label,starts_on,ends_on,allocated_amount,notes,active').order('active', { ascending: false }).order('created_at', { ascending: false }),
+      supabase.from('budget_simple_summary').select('budget_id,allocated_amount,planned_amount,spent_amount,remaining_amount'),
+      supabase.from('budget_items').select('id,budget_id,purchase_item_id,description,category,planned_amount,counts_toward_plan,notes,active').order('category').order('description'),
+      supabase.from('budget_spend_entries').select('id,budget_id,budget_item_id,purchase_item_id,description,category,amount,spent_on,notes').order('created_at', { ascending: false }),
+      supabase.from('purchase_requests').select('id,title,wishlist_url,budget_id,vendor,status,notes,requested_by,created_at,updated_at').neq('status', 'canceled').order('updated_at', { ascending: false }),
+      supabase.from('purchase_request_items').select('id,purchase_request_id,description,quantity,unit,estimated_unit_cost,actual_unit_cost,vendor,product_url,category_tag,item_status,purchased_at,received_at,notes').order('id'),
+      supabase.from('inventory_restock_requests').select('item_id,requested_at').order('requested_at', { ascending: false }),
+      supabase.from('inventory_items').select('id,name,unit,category_id').eq('active', true).order('name'),
+      supabase.from('inventory_categories').select('id,name').eq('active', true).order('name'),
     ])
 
-    setBudgets((budgetResult.data ?? []).map((row: any) => ({ ...row, allocated_amount: Number(row.allocated_amount) })) as Budget[])
-    setSummaries((summaryResult.data ?? []).map((row: any) => ({
+    setBudgets(((budgetResult.data ?? []) as any[]).map((row) => ({ ...row, allocated_amount: Number(row.allocated_amount) })) as Budget[])
+    setBudgetSummaries(((summaryResult.data ?? []) as any[]).map((row) => ({
       ...row,
       allocated_amount: Number(row.allocated_amount),
-      committed_amount: Number(row.committed_amount),
+      planned_amount: Number(row.planned_amount),
       spent_amount: Number(row.spent_amount),
-      available_amount: Number(row.available_amount),
+      remaining_amount: Number(row.remaining_amount),
     })) as BudgetSummary[])
-    setPrograms((programResult.data ?? []) as Program[])
-    setRequests((requestResult.data ?? []) as PurchaseRequest[])
-    setTotals((totalResult.data ?? []).map((row: any) => ({ ...row, estimated_total: Number(row.estimated_total), current_total: Number(row.current_total) })) as RequestTotal[])
-    setRequestItems((itemResult.data ?? []).map((row: any) => ({
+    setBudgetItems(((budgetItemResult.data ?? []) as any[]).map((row) => ({ ...row, planned_amount: Number(row.planned_amount) })) as BudgetItem[])
+    setBudgetSpends(((spendResult.data ?? []) as any[]).map((row) => ({ ...row, amount: Number(row.amount) })) as BudgetSpend[])
+    setPurchaseLists((listResult.data ?? []) as PurchaseList[])
+    setPurchaseItems(((purchaseItemResult.data ?? []) as any[]).map((row) => ({
       ...row,
       quantity: Number(row.quantity),
       estimated_unit_cost: Number(row.estimated_unit_cost),
       actual_unit_cost: row.actual_unit_cost == null ? null : Number(row.actual_unit_cost),
-    })) as RequestItem[])
+    })) as PurchaseItem[])
+    setInventoryNeeds((restockResult.data ?? []) as InventoryNeed[])
     setInventoryItems((inventoryItemResult.data ?? []) as InventoryItem[])
-    setInventoryLocations((locationResult.data ?? []) as InventoryLocation[])
-    setInventoryCategories((categoryResult.data ?? []) as InventoryCategory[])
-    setStaff((staffResult.data ?? []) as Staff[])
-    setAudit((auditResult.data ?? []) as Audit[])
+    setInventoryCategories((inventoryCategoryResult.data ?? []) as InventoryCategory[])
 
-    const error = profileResult.error?.message
-      ?? budgetResult.error?.message
-      ?? summaryResult.error?.message
-      ?? programResult.error?.message
-      ?? requestResult.error?.message
-      ?? totalResult.error?.message
-      ?? itemResult.error?.message
-      ?? inventoryItemResult.error?.message
-      ?? locationResult.error?.message
-      ?? categoryResult.error?.message
-      ?? staffResult.error?.message
-      ?? auditResult.error?.message
-      ?? ''
-    setMessage(error)
+    const error =
+      profileResult.error?.message ??
+      budgetResult.error?.message ??
+      summaryResult.error?.message ??
+      budgetItemResult.error?.message ??
+      spendResult.error?.message ??
+      listResult.error?.message ??
+      purchaseItemResult.error?.message ??
+      restockResult.error?.message ??
+      inventoryItemResult.error?.message ??
+      inventoryCategoryResult.error?.message ??
+      ''
+
+    if (error) setMessage(error)
+
+    const nextLists = (listResult.data ?? []) as PurchaseList[]
+    const nextBudgets = ((budgetResult.data ?? []) as any[]).map((row) => ({ ...row, allocated_amount: Number(row.allocated_amount) })) as Budget[]
+    setSelectedListId((current) => current && nextLists.some((list) => list.id === current) ? current : nextLists[0]?.id ?? null)
+    setSelectedBudgetId((current) => current && nextBudgets.some((budget) => budget.id === current) ? current : nextBudgets.find((budget) => budget.name === 'Summer 2026')?.id ?? nextBudgets[0]?.id ?? null)
     setLoading(false)
   }
 
-  const programMap = useMemo(() => new Map(programs.map((program) => [program.id, program])), [programs])
   const budgetMap = useMemo(() => new Map(budgets.map((budget) => [budget.id, budget])), [budgets])
-  const summaryMap = useMemo(() => new Map(summaries.map((summary) => [summary.budget_id, summary])), [summaries])
-  const totalMap = useMemo(() => new Map(totals.map((total) => [total.purchase_request_id, total])), [totals])
-  const staffMap = useMemo(() => new Map(staff.map((person) => [person.user_id, person.display_name])), [staff])
-  const inventoryItemMap = useMemo(() => new Map(inventoryItems.map((item) => [item.id, item])), [inventoryItems])
-  const inventoryLocationMap = useMemo(() => new Map(inventoryLocations.map((location) => [location.id, location])), [inventoryLocations])
+  const summaryMap = useMemo(() => new Map(budgetSummaries.map((summary) => [summary.budget_id, summary])), [budgetSummaries])
+  const inventoryMap = useMemo(() => new Map(inventoryItems.map((item) => [item.id, item])), [inventoryItems])
+  const inventoryCategoryMap = useMemo(() => new Map(inventoryCategories.map((category) => [category.id, category.name])), [inventoryCategories])
 
-  const locationLabel = (id: number) => {
-    const location = inventoryLocationMap.get(id)
-    if (!location) return 'Unknown location'
-    if (!location.parent_location_id) return location.name
-    const parent = inventoryLocationMap.get(location.parent_location_id)
-    return parent ? `${parent.name} → ${location.name}` : location.name
-  }
+  const categoryOptions = useMemo(() => {
+    const values = new Set(defaultCategories)
+    budgetItems.forEach((item) => values.add(item.category))
+    budgetSpends.forEach((entry) => values.add(entry.category))
+    purchaseItems.forEach((item) => values.add(item.category_tag))
+    return Array.from(values).filter(Boolean).sort((a, b) => a.localeCompare(b))
+  }, [budgetItems, budgetSpends, purchaseItems])
+
+  const selectedList = purchaseLists.find((list) => list.id === selectedListId) ?? null
+  const selectedListItems = purchaseItems.filter((item) => item.purchase_request_id === selectedListId)
+  const selectedListEstimated = selectedListItems.reduce((sum, item) => sum + item.quantity * item.estimated_unit_cost, 0)
+  const selectedListSpent = selectedListItems
+    .filter((item) => item.item_status !== 'need')
+    .reduce((sum, item) => sum + item.quantity * (item.actual_unit_cost ?? item.estimated_unit_cost), 0)
 
   const activeBudgets = budgets.filter((budget) => budget.active)
-  const totalAllocated = summaries.filter((summary) => budgetMap.get(summary.budget_id)?.active).reduce((sum, summary) => sum + summary.allocated_amount, 0)
-  const totalCommitted = summaries.filter((summary) => budgetMap.get(summary.budget_id)?.active).reduce((sum, summary) => sum + summary.committed_amount, 0)
-  const totalSpent = summaries.filter((summary) => budgetMap.get(summary.budget_id)?.active).reduce((sum, summary) => sum + summary.spent_amount, 0)
-  const totalAvailable = summaries.filter((summary) => budgetMap.get(summary.budget_id)?.active).reduce((sum, summary) => sum + summary.available_amount, 0)
-
   const selectedBudget = budgets.find((budget) => budget.id === selectedBudgetId) ?? null
-  const selectedRequest = requests.find((request) => request.id === selectedRequestId) ?? null
-  const selectedRequestItems = requestItems.filter((item) => item.purchase_request_id === selectedRequestId)
-  const selectedRequestAudit = audit.filter((entry) => entry.purchase_request_id === selectedRequestId)
-  const selectedTotal = selectedRequest ? totalMap.get(selectedRequest.id) : null
+  const selectedBudgetSummary = selectedBudget ? summaryMap.get(selectedBudget.id) ?? null : null
+  const selectedBudgetItems = budgetItems.filter((item) => item.budget_id === selectedBudgetId && item.active)
+  const selectedBudgetSpends = budgetSpends.filter((entry) => entry.budget_id === selectedBudgetId)
 
-  const filteredRequests = requests.filter((request) => {
-    if (statusFilter === 'all') return true
-    if (statusFilter === 'open') return !['received','canceled'].includes(request.status)
-    return request.status === statusFilter
-  })
+  const categoryRows = useMemo(() => {
+    const names = new Set<string>()
+    selectedBudgetItems.forEach((item) => names.add(item.category))
+    selectedBudgetSpends.forEach((entry) => names.add(entry.category))
+    return Array.from(names).sort((a, b) => a.localeCompare(b)).map((category) => ({
+      category,
+      planned: selectedBudgetItems.filter((item) => item.category === category && item.counts_toward_plan).reduce((sum, item) => sum + item.planned_amount, 0),
+      spent: selectedBudgetSpends.filter((entry) => entry.category === category).reduce((sum, entry) => sum + entry.amount, 0),
+    }))
+  }, [selectedBudgetItems, selectedBudgetSpends])
 
-  function resetBudgetForm() {
-    setSelectedBudgetId(null)
-    setBudgetName('')
-    setBudgetPeriod('')
-    setBudgetStart('')
-    setBudgetEnd('')
-    setBudgetProgram('')
-    setBudgetAllocated('')
-    setBudgetNotes('')
+  const maxCategorySpend = Math.max(1, ...categoryRows.map((row) => row.spent))
+  const visibleBudgetItems = selectedBudgetItems.filter((item) => categoryFilter === 'all' || item.category === categoryFilter)
+  const unplannedSpends = selectedBudgetSpends.filter((entry) => !entry.budget_item_id && (categoryFilter === 'all' || entry.category === categoryFilter))
+
+  const itemSpendMap = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const entry of selectedBudgetSpends) {
+      if (!entry.budget_item_id) continue
+      map.set(entry.budget_item_id, (map.get(entry.budget_item_id) ?? 0) + entry.amount)
+    }
+    return map
+  }, [selectedBudgetSpends])
+
+  const allPurchaseItems = purchaseItems.filter((item) => purchaseLists.some((list) => list.id === item.purchase_request_id))
+  const neededCount = allPurchaseItems.filter((item) => item.item_status === 'need').length
+  const purchaseEstimate = allPurchaseItems.reduce((sum, item) => sum + item.quantity * item.estimated_unit_cost, 0)
+  const purchaseSpent = allPurchaseItems
+    .filter((item) => item.item_status !== 'need')
+    .reduce((sum, item) => sum + item.quantity * (item.actual_unit_cost ?? item.estimated_unit_cost), 0)
+
+  function resetListForm() {
+    setCreatingList(false)
+    setListTitle('')
+    setListWishlist('')
+    setListBudget('')
+    setListNotes('')
   }
 
-  function editBudget(budget: Budget) {
-    setSelectedBudgetId(budget.id)
-    setBudgetName(budget.name)
-    setBudgetPeriod(budget.period_label ?? '')
-    setBudgetStart(budget.starts_on ?? '')
-    setBudgetEnd(budget.ends_on ?? '')
-    setBudgetProgram(budget.program_id ? String(budget.program_id) : '')
-    setBudgetAllocated(String(budget.allocated_amount))
-    setBudgetNotes(budget.notes ?? '')
+  function startNewList() {
+    setCreatingList(true)
+    setListTitle('')
+    setListWishlist('')
+    setListBudget('')
+    setListNotes('')
   }
 
-  async function saveBudget() {
-    if (!session || !profile || saving || !budgetName.trim()) return
-    const amount = Number(budgetAllocated)
-    if (!Number.isFinite(amount) || amount < 0) {
-      setMessage('Budget allocation must be zero or greater.')
-      return
-    }
-    if (budgetStart && budgetEnd && budgetEnd < budgetStart) {
-      setMessage('Budget end date cannot be earlier than its start date.')
-      return
-    }
-
-    setSaving(true)
-    setMessage('')
-    const payload = {
-      name: budgetName.trim(),
-      period_label: budgetPeriod.trim() || null,
-      starts_on: budgetStart || null,
-      ends_on: budgetEnd || null,
-      program_id: budgetProgram ? Number(budgetProgram) : null,
-      allocated_amount: amount,
-      notes: budgetNotes.trim() || null,
-      updated_by: session.user.id,
-    }
-
-    if (selectedBudget) {
-      const { error } = await supabase.from('budget_accounts').update(payload).eq('id', selectedBudget.id)
-      if (error) setMessage(error.message)
-      else {
-        setMessage('Budget updated.')
-        await loadData()
-      }
-    } else {
-      const { error } = await supabase.from('budget_accounts').insert({ ...payload, created_by: session.user.id })
-      if (error) setMessage(error.message)
-      else {
-        setMessage('Budget created.')
-        resetBudgetForm()
-        await loadData()
-      }
-    }
-    setSaving(false)
-  }
-
-  async function archiveBudget() {
-    if (!selectedBudget || !session || saving) return
-    const openRequests = requests.filter((request) => request.budget_id === selectedBudget.id && !['received','canceled'].includes(request.status))
-    if (openRequests.length) {
-      setMessage('Finish or cancel this budget’s open purchase requests before archiving it.')
-      return
-    }
-
-    const { count: openPersonnel, error: personnelError } = await supabase
-      .from('budget_personnel_costs')
-      .select('id', { count: 'exact', head: true })
-      .eq('budget_id', selectedBudget.id)
-      .not('status', 'in', '("paid","canceled")')
-
-    if (personnelError) {
-      setMessage(personnelError.message)
-      return
-    }
-    if ((openPersonnel ?? 0) > 0) {
-      setMessage('Finish or cancel this budget’s open personnel costs before archiving it.')
-      return
-    }
-
-    setSaving(true)
-    const { error } = await supabase.from('budget_accounts').update({ active: false, updated_by: session.user.id }).eq('id', selectedBudget.id)
-    if (error) setMessage(error.message)
-    else {
-      setMessage('Budget archived. Its purchase and personnel history is preserved.')
-      resetBudgetForm()
-      await loadData()
-    }
-    setSaving(false)
-  }
-
-  function resetRequestForm() {
-    setSelectedRequestId(null)
-    setRequestBudget('')
-    setRequestProgram('')
-    setRequestVendor('')
-    setRequestNotes('')
-    setOrderReference('')
-    resetLineForm()
-  }
-
-  function openRequest(request: PurchaseRequest) {
-    setSelectedRequestId(request.id)
-    setRequestBudget(String(request.budget_id))
-    setRequestProgram(request.program_id ? String(request.program_id) : '')
-    setRequestVendor(request.vendor ?? '')
-    setRequestNotes(request.notes ?? '')
-    setOrderReference(request.order_reference ?? '')
-    resetLineForm()
-    setTab('purchases')
-  }
-
-  async function createRequest() {
-    if (!session || saving || !requestBudget) return
-    const budget = budgetMap.get(Number(requestBudget))
-    if (!budget?.active) {
-      setMessage('Choose an active budget.')
+  async function createList() {
+    if (!session || saving || !listTitle.trim()) return
+    const wishlist = normalizeUrl(listWishlist)
+    if (wishlist === undefined) {
+      setMessage('Wishlist links must start with http:// or https://.')
       return
     }
     setSaving(true)
     setMessage('')
     const { data, error } = await supabase.from('purchase_requests').insert({
-      budget_id: Number(requestBudget),
-      program_id: requestProgram ? Number(requestProgram) : (budget.program_id ?? null),
-      vendor: requestVendor.trim() || null,
-      notes: requestNotes.trim() || null,
+      title: listTitle.trim(),
+      wishlist_url: wishlist,
+      budget_id: listBudget ? Number(listBudget) : null,
+      status: 'planned',
+      notes: listNotes.trim() || null,
       requested_by: session.user.id,
       updated_by: session.user.id,
     }).select('id').single()
-
-    if (error || !data) setMessage(error?.message ?? 'Could not create the purchase request.')
-    else {
-      setMessage('Purchase request created as Planned. Add line items before submitting it for approval.')
-      await loadData()
-      setSelectedRequestId(data.id)
-    }
     setSaving(false)
+    if (error || !data) {
+      setMessage(error?.message ?? 'Could not create the purchase list.')
+      return
+    }
+    setMessage('Purchase list created.')
+    resetListForm()
+    await loadData()
+    setSelectedListId(data.id)
   }
 
-  async function saveRequestDetails() {
-    if (!selectedRequest || !session || saving) return
-    if (['received','canceled'].includes(selectedRequest.status)) return
+  async function saveListDetails() {
+    if (!selectedList || saving) return
+    const wishlist = normalizeUrl(listWishlist)
+    if (wishlist === undefined) {
+      setMessage('Wishlist links must start with http:// or https://.')
+      return
+    }
     setSaving(true)
     const { error } = await supabase.from('purchase_requests').update({
-      vendor: requestVendor.trim() || null,
-      program_id: requestProgram ? Number(requestProgram) : null,
-      notes: requestNotes.trim() || null,
-      order_reference: orderReference.trim() || null,
-      updated_by: session.user.id,
-    }).eq('id', selectedRequest.id)
-    if (error) setMessage(error.message)
-    else {
-      setMessage('Purchase details saved.')
-      await loadData()
-    }
+      title: listTitle.trim() || selectedList.title,
+      wishlist_url: wishlist,
+      budget_id: listBudget ? Number(listBudget) : null,
+      notes: listNotes.trim() || null,
+    }).eq('id', selectedList.id)
     setSaving(false)
-  }
-
-  function resetLineForm() {
-    setEditingItemId(null)
-    setLineDescription('')
-    setLineQuantity('1')
-    setLineUnit('each')
-    setLineEstimated('')
-    setLineActual('')
-    setLineCategory('')
-    setLineAddInventory(false)
-    setLineInventoryItem('')
-    setLineInventoryLocation('')
-    setLineNotes('')
-  }
-
-  function editLine(item: RequestItem) {
-    setEditingItemId(item.id)
-    setLineDescription(item.description)
-    setLineQuantity(String(item.quantity))
-    setLineUnit(item.unit)
-    setLineEstimated(String(item.estimated_unit_cost))
-    setLineActual(item.actual_unit_cost == null ? '' : String(item.actual_unit_cost))
-    setLineCategory(item.inventory_category_id ? String(item.inventory_category_id) : '')
-    setLineAddInventory(item.add_to_inventory)
-    setLineInventoryItem(item.inventory_item_id ? String(item.inventory_item_id) : '')
-    setLineInventoryLocation(item.inventory_location_id ? String(item.inventory_location_id) : '')
-    setLineNotes(item.notes ?? '')
-  }
-
-  async function saveLineItem() {
-    if (!selectedRequest || saving || !lineDescription.trim()) return
-    const quantity = Number(lineQuantity)
-    const estimated = Number(lineEstimated || 0)
-    const actual = lineActual.trim() === '' ? null : Number(lineActual)
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setMessage('Line item quantity must be greater than zero.')
+    if (error) {
+      setMessage(error.message)
       return
     }
-    if (!Number.isFinite(estimated) || estimated < 0 || (actual != null && (!Number.isFinite(actual) || actual < 0))) {
-      setMessage('Costs must be zero or greater.')
-      return
-    }
-    if (lineAddInventory && (!lineInventoryItem || !lineInventoryLocation)) {
-      setMessage('Choose both an Inventory item and destination location when Add to Inventory is enabled.')
-      return
-    }
+    setMessage('Purchase list updated.')
+    await loadData()
+  }
 
+  function loadSelectedListEditor(list: PurchaseList) {
+    setSelectedListId(list.id)
+    setCreatingList(false)
+    setListTitle(list.title)
+    setListWishlist(list.wishlist_url ?? '')
+    setListBudget(list.budget_id ? String(list.budget_id) : '')
+    setListNotes(list.notes ?? '')
+    resetPurchaseItemForm()
+  }
+
+  async function archiveList() {
+    if (!selectedList || saving) return
+    if (!window.confirm('Archive this purchase list? Its items and any budget history will be preserved.')) return
+    setSaving(true)
+    const { error } = await supabase.from('purchase_requests').update({ status: 'canceled' }).eq('id', selectedList.id)
+    setSaving(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage('Purchase list archived.')
+    setSelectedListId(null)
+    await loadData()
+  }
+
+  function resetPurchaseItemForm() {
+    setEditingPurchaseItemId(null)
+    setItemDescription('')
+    setItemQuantity('1')
+    setItemEstimated('')
+    setItemActual('')
+    setItemVendor('')
+    setItemUrl('')
+    setItemCategory('Supplies')
+    setItemNotes('')
+  }
+
+  function editPurchaseItem(item: PurchaseItem) {
+    setEditingPurchaseItemId(item.id)
+    setItemDescription(item.description)
+    setItemQuantity(String(item.quantity))
+    setItemEstimated(String(item.estimated_unit_cost))
+    setItemActual(item.actual_unit_cost == null ? '' : String(item.actual_unit_cost))
+    setItemVendor(item.vendor ?? '')
+    setItemUrl(item.product_url ?? '')
+    setItemCategory(item.category_tag || 'Other')
+    setItemNotes(item.notes ?? '')
+  }
+
+  async function savePurchaseItem() {
+    if (!selectedList || saving || !itemDescription.trim()) return
+    const quantity = Number(itemQuantity)
+    const estimated = Number(itemEstimated || 0)
+    const actual = itemActual.trim() === '' ? null : Number(itemActual)
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(estimated) || estimated < 0 || (actual != null && (!Number.isFinite(actual) || actual < 0))) {
+      setMessage('Enter valid non-negative prices and a quantity greater than zero.')
+      return
+    }
+    const productUrl = normalizeUrl(itemUrl)
+    if (productUrl === undefined) {
+      setMessage('Item links must start with http:// or https://.')
+      return
+    }
     setSaving(true)
     setMessage('')
     const payload = {
-      description: lineDescription.trim(),
+      description: itemDescription.trim(),
       quantity,
-      unit: lineUnit.trim() || 'each',
+      unit: 'each',
       estimated_unit_cost: estimated,
       actual_unit_cost: actual,
-      inventory_category_id: lineCategory ? Number(lineCategory) : null,
-      inventory_item_id: lineAddInventory ? Number(lineInventoryItem) : null,
-      inventory_location_id: lineAddInventory ? Number(lineInventoryLocation) : null,
-      add_to_inventory: lineAddInventory,
-      notes: lineNotes.trim() || null,
+      vendor: itemVendor.trim() || null,
+      product_url: productUrl,
+      category_tag: itemCategory.trim() || 'Other',
+      notes: itemNotes.trim() || null,
     }
-
-    if (editingItemId) {
-      const { error } = await supabase.from('purchase_request_items').update(payload).eq('id', editingItemId)
-      if (error) setMessage(error.message)
-      else {
-        setMessage('Line item updated.')
-        resetLineForm()
-        await loadData()
-      }
-    } else {
-      const { error } = await supabase.from('purchase_request_items').insert({ ...payload, purchase_request_id: selectedRequest.id })
-      if (error) setMessage(error.message)
-      else {
-        setMessage('Line item added.')
-        resetLineForm()
-        await loadData()
-      }
-    }
+    const result = editingPurchaseItemId
+      ? await supabase.from('purchase_request_items').update(payload).eq('id', editingPurchaseItemId)
+      : await supabase.from('purchase_request_items').insert({ ...payload, purchase_request_id: selectedList.id, item_status: 'need' })
     setSaving(false)
-  }
-
-  async function deleteLineItem(id: number) {
-    if (!selectedRequest || saving || ['received','canceled'].includes(selectedRequest.status)) return
-    setSaving(true)
-    const { data, error } = await supabase.from('purchase_request_items').delete().eq('id', id).select('id').maybeSingle()
-    if (error) setMessage(error.message)
-    else if (!data) setMessage('The line item could not be removed.')
-    else {
-      if (editingItemId === id) resetLineForm()
-      setMessage('Line item removed.')
-      await loadData()
-    }
-    setSaving(false)
-  }
-
-  async function changeStatus(next: PurchaseStatus) {
-    if (!selectedRequest || !session || saving) return
-    if (next === 'awaiting_approval' && selectedRequestItems.length === 0) {
-      setMessage('Add at least one line item before submitting this request for approval.')
+    if (result.error) {
+      setMessage(result.error.message)
       return
     }
-    if (next === 'received') {
-      setSaving(true)
-      setMessage('')
-      const { data, error } = await supabase.rpc('receive_purchase_request', { p_request_id: selectedRequest.id })
-      if (error) setMessage(error.message)
-      else {
-        const inventoryCount = Number((data as any)?.inventory_items_received ?? 0)
-        setMessage(`Purchase received.${inventoryCount ? ` ${inventoryCount} line item${inventoryCount === 1 ? '' : 's'} added to Inventory.` : ''}`)
-        await loadData()
-      }
-      setSaving(false)
-      return
-    }
+    setMessage(editingPurchaseItemId ? 'Purchase item updated.' : 'Item added to the purchase list.')
+    resetPurchaseItemForm()
+    await loadData()
+  }
 
+  async function markPurchaseItem(item: PurchaseItem, nextStatus: 'purchased' | 'received') {
+    if (saving) return
     setSaving(true)
     setMessage('')
-    const { error } = await supabase.from('purchase_requests').update({ status: next, updated_by: session.user.id }).eq('id', selectedRequest.id)
-    if (error) setMessage(error.message)
-    else {
-      setMessage(`Purchase request marked ${statusLabels[next].toLowerCase()}.`)
-      await loadData()
-    }
+    const payload: Record<string, unknown> = { item_status: nextStatus }
+    if (nextStatus === 'purchased' && item.actual_unit_cost == null) payload.actual_unit_cost = item.estimated_unit_cost
+    const { error } = await supabase.from('purchase_request_items').update(payload).eq('id', item.id)
     setSaving(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage(nextStatus === 'purchased'
+      ? 'Marked purchased. If this list has a budget, the spend was recorded automatically.'
+      : 'Marked received.')
+    await loadData()
   }
 
-  const awaitingCount = requests.filter((request) => request.status === 'awaiting_approval').length
-  const orderedCount = requests.filter((request) => request.status === 'ordered').length
+  async function deletePurchaseItem(item: PurchaseItem) {
+    if (saving || !window.confirm('Remove "' + item.description + '" from this purchase list?')) return
+    setSaving(true)
+    const { error } = await supabase.from('purchase_request_items').delete().eq('id', item.id)
+    setSaving(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage('Item removed.')
+    if (editingPurchaseItemId === item.id) resetPurchaseItemForm()
+    await loadData()
+  }
 
-  if (loading && !profile) return <main className="login-wrap"><div className="card login-card">Loading Budgets & Purchasing…</div></main>
-  if (!session) return <main className="login-wrap"><div className="card login-card"><h1>Budgets & Purchasing</h1><p className="subtle">Sign in to Juanita Hub to continue.</p></div></main>
-  if (!profile?.active || profile.role !== 'admin') return <main className="login-wrap"><div className="card login-card"><h1>Budgets & Purchasing</h1><p className="subtle">Admin access is required for financial information.</p></div></main>
+  async function addInventoryNeed(need: InventoryNeed) {
+    if (!selectedList || saving) {
+      setMessage('Choose or create a purchase list first.')
+      return
+    }
+    const inventory = inventoryMap.get(need.item_id)
+    if (!inventory) return
+    setSaving(true)
+    const category = inventory.category_id ? inventoryCategoryMap.get(inventory.category_id) ?? 'Supplies' : 'Supplies'
+    const { error } = await supabase.from('purchase_request_items').insert({
+      purchase_request_id: selectedList.id,
+      description: inventory.name,
+      quantity: 1,
+      unit: inventory.unit || 'each',
+      estimated_unit_cost: 0,
+      category_tag: category,
+      item_status: 'need',
+      notes: 'Added from Inventory Needs purchase.',
+    })
+    if (!error) await supabase.from('inventory_restock_requests').delete().eq('item_id', need.item_id)
+    setSaving(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage(inventory.name + ' was added to ' + selectedList.title + '.')
+    await loadData()
+  }
 
-  return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="brand">Juanita Hub<small>Budgets & Purchasing</small></div>
-        <div className="toolbar"><span>{profile.display_name} <span className="badge">admin</span></span></div>
-      </header>
+  async function addBudgetItem() {
+    if (!session || !selectedBudget || saving || !budgetItemDescription.trim()) return
+    const planned = Number(budgetItemPlanned || 0)
+    if (!Number.isFinite(planned) || planned < 0) {
+      setMessage('Planned amount must be zero or greater.')
+      return
+    }
+    setSaving(true)
+    const { error } = await supabase.from('budget_items').insert({
+      budget_id: selectedBudget.id,
+      description: budgetItemDescription.trim(),
+      category: budgetItemCategory.trim() || 'Other',
+      planned_amount: planned,
+      counts_toward_plan: budgetItemCounts,
+      notes: budgetItemNotes.trim() || null,
+      created_by: session.user.id,
+      updated_by: session.user.id,
+    })
+    setSaving(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setBudgetItemDescription('')
+    setBudgetItemPlanned('')
+    setBudgetItemNotes('')
+    setBudgetItemCounts(true)
+    setMessage('Budget item added.')
+    await loadData()
+  }
 
-      <main className="main purchasing-page">
-        <section className="hero purchasing-hero">
-          <div><span className="purchasing-kicker">Financial operations</span><h1>Budgets & Purchasing</h1><p className="subtle">Plan purchases, approve spending, track committed funds, receive orders, and send supplies directly into Inventory.</p></div>
-          <button className="primary" onClick={() => { resetRequestForm(); setTab('purchases') }}>+ New purchase request</button>
-        </section>
+  function openSpendForItem(item: BudgetItem) {
+    setSpendItemId(String(item.id))
+    setSpendDescription(item.description)
+    setSpendCategory(item.category)
+    setSpendAmount('')
+    setSpendDate('')
+    setSpendNotes('')
+    setSpendOpen(true)
+  }
 
-        {message && <div className="notice">{message}</div>}
+  function openGeneralSpend() {
+    setSpendItemId('')
+    setSpendDescription('')
+    setSpendCategory(categoryFilter !== 'all' ? categoryFilter : 'Supplies')
+    setSpendAmount('')
+    setSpendDate('')
+    setSpendNotes('')
+    setSpendOpen(true)
+  }
 
+  async function recordSpend() {
+    if (!session || !selectedBudget || saving || !spendDescription.trim()) return
+    const amount = Number(spendAmount)
+    if (!Number.isFinite(amount) || amount < 0) {
+      setMessage('Spent amount must be zero or greater.')
+      return
+    }
+    setSaving(true)
+    const { error } = await supabase.from('budget_spend_entries').insert({
+      budget_id: selectedBudget.id,
+      budget_item_id: spendItemId ? Number(spendItemId) : null,
+      description: spendDescription.trim(),
+      category: spendCategory.trim() || 'Other',
+      amount,
+      spent_on: spendDate || null,
+      notes: spendNotes.trim() || null,
+      created_by: session.user.id,
+      updated_by: session.user.id,
+    })
+    setSaving(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setSpendOpen(false)
+    setMessage('Spending recorded.')
+    await loadData()
+  }
+
+  async function archiveBudgetItem(item: BudgetItem) {
+    if (saving || item.purchase_item_id) return
+    setSaving(true)
+    const { error } = await supabase.from('budget_items').update({ active: false }).eq('id', item.id)
+    setSaving(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage('Budget item hidden. Its spending history remains in the budget.')
+    await loadData()
+  }
+
+  function startNewBudget() {
+    if (profile?.role !== 'admin') return
+    setEditingBudgetId(null)
+    setBudgetName('')
+    setBudgetAmount('')
+    setBudgetPeriod('')
+    setBudgetStart('')
+    setBudgetEnd('')
+    setBudgetNotes('')
+    setBudgetEditorOpen(true)
+  }
+
+  function editBudget(budget: Budget) {
+    if (profile?.role !== 'admin') return
+    setEditingBudgetId(budget.id)
+    setBudgetName(budget.name)
+    setBudgetAmount(String(budget.allocated_amount))
+    setBudgetPeriod(budget.period_label ?? '')
+    setBudgetStart(budget.starts_on ?? '')
+    setBudgetEnd(budget.ends_on ?? '')
+    setBudgetNotes(budget.notes ?? '')
+    setBudgetEditorOpen(true)
+  }
+
+  async function saveBudget() {
+    if (!session || profile?.role !== 'admin' || saving || !budgetName.trim()) return
+    const amount = Number(budgetAmount)
+    if (!Number.isFinite(amount) || amount < 0) {
+      setMessage('Budget amount must be zero or greater.')
+      return
+    }
+    if (budgetStart && budgetEnd && budgetEnd < budgetStart) {
+      setMessage('Budget end date cannot be before its start date.')
+      return
+    }
+    setSaving(true)
+    const payload = {
+      name: budgetName.trim(),
+      allocated_amount: amount,
+      period_label: budgetPeriod.trim() || null,
+      starts_on: budgetStart || null,
+      ends_on: budgetEnd || null,
+      notes: budgetNotes.trim() || null,
+      updated_by: session.user.id,
+    }
+    const result = editingBudgetId
+      ? await supabase.from('budget_accounts').update(payload).eq('id', editingBudgetId)
+      : await supabase.from('budget_accounts').insert({ ...payload, active: true, created_by: session.user.id })
+    setSaving(false)
+    if (result.error) {
+      setMessage(result.error.message)
+      return
+    }
+    setBudgetEditorOpen(false)
+    setMessage(editingBudgetId ? 'Budget updated.' : 'Budget created.')
+    await loadData()
+  }
+
+  if (loading && !session) return <main className="login-wrap"><div className="card login-card">Loading Purchasing…</div></main>
+  if (!session) return <main className="login-wrap"><section className="card login-card"><h1>Purchasing</h1><p className="subtle">Sign in through Juanita Hub first.</p></section></main>
+  if (!profile?.active) return <main className="login-wrap"><section className="card login-card"><h1>Purchasing</h1><div className="notice">Your staff account must be active.</div></section></main>
+
+  const spentPercent = selectedBudgetSummary && selectedBudgetSummary.allocated_amount > 0
+    ? Math.min(100, Math.max(0, selectedBudgetSummary.spent_amount / selectedBudgetSummary.allocated_amount * 100))
+    : 0
+
+  return <div className="shell">
+    <header className="topbar">
+      <div className="brand">Juanita Hub<small>Purchases & budgeting</small></div>
+      <div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span></div>
+    </header>
+
+    <main className="main purchasing-page">
+      <section className="hero purchasing-hero">
+        <div><span className="purchasing-kicker">Operations</span><h1>Purchases & Budgeting</h1><p className="subtle">Keep everyday purchase lists simple, and track program budgets only when you actually have one.</p></div>
+        {tab === 'purchases'
+          ? <button className="primary" onClick={startNewList}>+ New purchase list</button>
+          : profile.role === 'admin' ? <button className="primary" onClick={startNewBudget}>+ New budget</button> : null}
+      </section>
+
+      {message && <div className="notice">{message}</div>}
+
+      <nav className="purchasing-tabs" aria-label="Purchasing sections">
+        <button className={tab === 'purchases' ? 'active' : ''} onClick={() => setTab('purchases')}>Purchases</button>
+        <button className={tab === 'budgeting' ? 'active' : ''} onClick={() => setTab('budgeting')}>Budgeting</button>
+      </nav>
+
+      {tab === 'purchases' && <>
         <section className="grid stats purchasing-stats">
-          <div className="card stat"><span className="subtle">Allocated</span><strong>{money(totalAllocated)}</strong></div>
-          <div className="card stat"><span className="subtle">Committed</span><strong>{money(totalCommitted)}</strong></div>
-          <div className="card stat"><span className="subtle">Spent</span><strong>{money(totalSpent)}</strong></div>
-          <div className={`card stat ${totalAvailable < 0 ? 'purchasing-negative' : ''}`}><span className="subtle">Available</span><strong>{money(totalAvailable)}</strong></div>
+          <div className="card stat"><span className="subtle">Purchase lists</span><strong>{purchaseLists.length}</strong></div>
+          <div className="card stat"><span className="subtle">Items still needed</span><strong>{neededCount}</strong></div>
+          <div className="card stat"><span className="subtle">Estimated total</span><strong>{money(purchaseEstimate)}</strong></div>
+          <div className="card stat"><span className="subtle">Purchased so far</span><strong>{money(purchaseSpent)}</strong></div>
         </section>
 
-        <div className="purchasing-tabs">
-          <button className={tab === 'budgets' ? 'active' : ''} onClick={() => setTab('budgets')}>Budgets</button>
-          <button className={tab === 'purchases' ? 'active' : ''} onClick={() => setTab('purchases')}>Purchase Requests <span>{awaitingCount + orderedCount}</span></button>
-          <button className={tab === 'personnel' ? 'active' : ''} onClick={() => setTab('personnel')}>Personnel Costs</button>
-        </div>
-
-        {tab === 'budgets' && <section className="purchasing-budget-layout">
-          <div className="purchasing-budget-list">
-            {activeBudgets.length === 0 && <section className="card purchasing-empty"><strong>No budgets yet.</strong><span>Create the first budget to begin tracking planned, committed, and spent funds.</span></section>}
-            {activeBudgets.map((budget) => {
-              const summary = summaryMap.get(budget.id) ?? { budget_id: budget.id, allocated_amount: budget.allocated_amount, committed_amount: 0, spent_amount: 0, available_amount: budget.allocated_amount }
-              const percent = budget.allocated_amount > 0 ? Math.min(100, Math.max(0, ((summary.spent_amount + summary.committed_amount) / budget.allocated_amount) * 100)) : 0
-              return <button className={`card purchasing-budget-card ${selectedBudgetId === budget.id ? 'selected' : ''}`} key={budget.id} onClick={() => editBudget(budget)}>
-                <div className="purchasing-budget-heading"><div><h3>{budget.name}</h3><span>{budget.period_label || [dateLabel(budget.starts_on), dateLabel(budget.ends_on)].join(' – ')}</span></div><strong>{money(summary.available_amount)}<small>available</small></strong></div>
-                <div className="purchasing-budget-bar"><span style={{ width: `${percent}%` }} /></div>
-                <div className="purchasing-budget-metrics"><span><b>{money(summary.allocated_amount)}</b> allocated</span><span><b>{money(summary.committed_amount)}</b> committed</span><span><b>{money(summary.spent_amount)}</b> spent</span></div>
-                {budget.program_id && <div className="purchasing-program-chip">{programMap.get(budget.program_id)?.name ?? 'Program budget'}</div>}
+        {inventoryNeeds.length > 0 && <section className="card purchasing-inventory-needs">
+          <div className="purchasing-section-heading">
+            <div><span className="purchasing-kicker">From Inventory</span><h2>Needs purchase</h2><p>These items were checked in Inventory. Add them to the selected purchase list when you are ready.</p></div>
+            <span className="purchasing-count-pill">{inventoryNeeds.length}</span>
+          </div>
+          <div className="purchasing-need-chips">
+            {inventoryNeeds.map((need) => {
+              const item = inventoryMap.get(need.item_id)
+              if (!item) return null
+              return <button className="purchasing-need-chip" key={need.item_id} disabled={saving || !selectedList} onClick={() => void addInventoryNeed(need)}>
+                <span>＋</span><strong>{item.name}</strong><small>{selectedList ? 'Add to ' + selectedList.title : 'Choose a list first'}</small>
               </button>
             })}
           </div>
-
-          <aside className="card purchasing-editor">
-            <div className="purchasing-panel-heading"><div><span className="purchasing-kicker">{selectedBudget ? 'Budget details' : 'New budget'}</span><h2>{selectedBudget?.name ?? 'Create a budget'}</h2></div>{selectedBudget && <button className="ghost" onClick={resetBudgetForm}>New</button>}</div>
-            <div className="purchasing-form">
-              <label className="field"><span>Budget name *</span><input value={budgetName} onChange={(event) => setBudgetName(event.target.value)} placeholder="Summer Program 2027" /></label>
-              <div className="purchasing-form-grid">
-                <label className="field"><span>Period label</span><input value={budgetPeriod} onChange={(event) => setBudgetPeriod(event.target.value)} placeholder="FY 2027, Summer 2027…" /></label>
-                <label className="field"><span>Allocated amount</span><input type="number" min="0" step="0.01" value={budgetAllocated} onChange={(event) => setBudgetAllocated(event.target.value)} /></label>
-                <label className="field"><span>Starts</span><input type="date" value={budgetStart} onChange={(event) => setBudgetStart(event.target.value)} /></label>
-                <label className="field"><span>Ends</span><input type="date" value={budgetEnd} onChange={(event) => setBudgetEnd(event.target.value)} /></label>
-                <label className="field full"><span>Program</span><select value={budgetProgram} onChange={(event) => setBudgetProgram(event.target.value)}><option value="">General center budget</option>{programs.filter((program) => !['archived','completed'].includes(program.status)).map((program) => <option key={program.id} value={program.id}>{program.name}{program.season_label ? ` • ${program.season_label}` : ''}</option>)}</select></label>
-              </div>
-              <label className="field"><span>Notes</span><textarea rows={4} value={budgetNotes} onChange={(event) => setBudgetNotes(event.target.value)} /></label>
-              <button className="primary" disabled={saving || !budgetName.trim()} onClick={() => void saveBudget()}>{saving ? 'Saving…' : selectedBudget ? 'Save budget' : 'Create budget'}</button>
-              {selectedBudget && <button className="ghost danger-button" disabled={saving} onClick={() => void archiveBudget()}>Archive budget</button>}
-            </div>
-          </aside>
         </section>}
 
-        {tab === 'personnel' && <PersonnelCostsPanel budgets={budgets} programs={programs} onChanged={() => void loadData()} />}
-
-        {tab === 'purchases' && <section className="purchasing-request-layout">
-          <aside className="card purchasing-request-list">
-            <div className="purchasing-list-heading"><div><span className="purchasing-kicker">Requests</span><h2>Purchases</h2></div><button className="ghost" onClick={resetRequestForm}>New</button></div>
-            <select className="purchasing-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as any)}><option value="open">Open requests</option><option value="all">All requests</option>{Object.entries(statusLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select>
-            <div className="purchasing-request-list-items">
-              {filteredRequests.map((request) => {
-                const total = totalMap.get(request.id)
-                return <button key={request.id} className={selectedRequestId === request.id ? 'active' : ''} onClick={() => openRequest(request)}>
-                  <span><strong>Request #{request.id}</strong><small>{request.vendor || 'Vendor not set'} • {budgetMap.get(request.budget_id)?.name ?? 'Budget'}</small></span>
-                  <span><em className={`purchase-status ${request.status}`}>{statusLabels[request.status]}</em><b>{money(total?.current_total ?? 0)}</b></span>
+        <section className="purchasing-lists-layout">
+          <aside className="card purchasing-lists">
+            <div className="purchasing-section-heading compact"><div><span className="purchasing-kicker">Lists</span><h2>Purchase lists</h2></div><button className="ghost compact-button" onClick={startNewList}>New</button></div>
+            <div className="purchasing-list-stack">
+              {purchaseLists.map((list) => {
+                const items = purchaseItems.filter((item) => item.purchase_request_id === list.id)
+                const estimate = items.reduce((sum, item) => sum + item.quantity * item.estimated_unit_cost, 0)
+                const needed = items.filter((item) => item.item_status === 'need').length
+                return <button className={selectedListId === list.id && !creatingList ? 'active' : ''} key={list.id} onClick={() => loadSelectedListEditor(list)}>
+                  <span><strong>{list.title}</strong><small>{list.budget_id ? budgetMap.get(list.budget_id)?.name ?? 'Budget' : 'No budget'} • {items.length} items</small></span>
+                  <span><b>{money(estimate)}</b><small>{needed} needed</small></span>
                 </button>
               })}
-              {filteredRequests.length === 0 && <div className="purchasing-empty small">No purchase requests match this view.</div>}
+              {purchaseLists.length === 0 && <div className="purchasing-empty small">No purchase lists yet.</div>}
             </div>
           </aside>
 
-          <div className="purchasing-request-workspace">
-            {!selectedRequest ? <section className="card purchasing-new-request">
-              <div className="purchasing-panel-heading"><div><span className="purchasing-kicker">Start a purchase</span><h2>New purchase request</h2></div></div>
-              <div className="purchasing-form">
-                <label className="field"><span>Budget *</span><select value={requestBudget} onChange={(event) => { const id = event.target.value; setRequestBudget(id); const budget = budgetMap.get(Number(id)); if (budget?.program_id) setRequestProgram(String(budget.program_id)) }}><option value="">Choose a budget…</option>{activeBudgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name} • {money(summaryMap.get(budget.id)?.available_amount ?? budget.allocated_amount)} available</option>)}</select></label>
-                <div className="purchasing-form-grid">
-                  <label className="field"><span>Vendor / store</span><input value={requestVendor} onChange={(event) => setRequestVendor(event.target.value)} placeholder="Amazon, Staples, Target…" /></label>
-                  <label className="field"><span>Program</span><select value={requestProgram} onChange={(event) => setRequestProgram(event.target.value)}><option value="">General center use</option>{programs.filter((program) => !['archived','completed'].includes(program.status)).map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
-                </div>
-                <label className="field"><span>Notes</span><textarea rows={4} value={requestNotes} onChange={(event) => setRequestNotes(event.target.value)} placeholder="What is this purchase for?" /></label>
-                <button className="primary" disabled={saving || !requestBudget} onClick={() => void createRequest()}>{saving ? 'Creating…' : 'Create planned request'}</button>
+          <section className="purchasing-list-workspace">
+            {creatingList || !selectedList ? <div className="card purchasing-simple-editor">
+              <div className="purchasing-section-heading"><div><span className="purchasing-kicker">New list</span><h2>Create a purchase list</h2><p>For afterschool, leave Budget set to No budget.</p></div></div>
+              <div className="purchasing-form-grid">
+                <label className="field full"><span>List name *</span><input value={listTitle} onChange={(event) => setListTitle(event.target.value)} placeholder="Afterschool Needs, Summer Supplies…" /></label>
+                <label className="field"><span>Budget (optional)</span><select value={listBudget} onChange={(event) => setListBudget(event.target.value)}><option value="">No budget</option>{activeBudgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name}</option>)}</select></label>
+                <label className="field"><span>Wishlist link (optional)</span><input type="url" value={listWishlist} onChange={(event) => setListWishlist(event.target.value)} placeholder="https://www.amazon.com/…" /></label>
+                <label className="field full"><span>Notes</span><textarea rows={3} value={listNotes} onChange={(event) => setListNotes(event.target.value)} placeholder="What is this list for?" /></label>
               </div>
-            </section> : <section className="card purchasing-request-detail">
-              <div className="purchasing-request-header">
-                <div><span className="purchasing-kicker">Purchase request #{selectedRequest.id}</span><h2>{selectedRequest.vendor || 'Vendor not set'}</h2><p>{budgetMap.get(selectedRequest.budget_id)?.name ?? 'Budget'}{selectedRequest.program_id ? ` • ${programMap.get(selectedRequest.program_id)?.name ?? 'Program'}` : ''}</p></div>
-                <div><em className={`purchase-status ${selectedRequest.status}`}>{statusLabels[selectedRequest.status]}</em><strong>{money(selectedTotal?.current_total ?? 0)}</strong></div>
+              <div className="purchasing-editor-actions"><button className="primary" disabled={saving || !listTitle.trim()} onClick={() => void createList()}>{saving ? 'Creating…' : 'Create list'}</button>{creatingList && <button className="ghost" onClick={resetListForm}>Cancel</button>}</div>
+            </div> : <div className="card purchasing-list-detail">
+              <div className="purchasing-list-header">
+                <div><span className="purchasing-kicker">{selectedList.budget_id ? 'Budget-linked list' : 'Everyday purchase list'}</span><h2>{selectedList.title}</h2><p>{selectedList.budget_id ? (budgetMap.get(selectedList.budget_id)?.name ?? 'Budget') : 'No budget required'}</p></div>
+                <div className="purchasing-list-total"><strong>{money(selectedListEstimated)}</strong><small>estimated</small><span>{money(selectedListSpent)} purchased</span></div>
               </div>
 
-              {!['received','canceled'].includes(selectedRequest.status) && <div className="purchasing-request-fields">
-                <label className="field"><span>Vendor / store</span><input value={requestVendor} onChange={(event) => setRequestVendor(event.target.value)} /></label>
-                <label className="field"><span>Program</span><select value={requestProgram} onChange={(event) => setRequestProgram(event.target.value)}><option value="">General center use</option>{programs.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
-                <label className="field"><span>Order / confirmation #</span><input value={orderReference} onChange={(event) => setOrderReference(event.target.value)} /></label>
-                <label className="field full"><span>Notes</span><textarea rows={2} value={requestNotes} onChange={(event) => setRequestNotes(event.target.value)} /></label>
-                <button className="ghost" disabled={saving} onClick={() => void saveRequestDetails()}>Save details</button>
-              </div>}
+              <div className="purchasing-list-settings">
+                <label className="field"><span>List name</span><input value={listTitle} onChange={(event) => setListTitle(event.target.value)} /></label>
+                <label className="field"><span>Budget</span><select value={listBudget} onChange={(event) => setListBudget(event.target.value)}><option value="">No budget</option>{activeBudgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name}</option>)}</select></label>
+                <label className="field"><span>Wishlist link</span><input type="url" value={listWishlist} onChange={(event) => setListWishlist(event.target.value)} placeholder="Paste Amazon or another wishlist link" /></label>
+                <label className="field full"><span>Notes</span><input value={listNotes} onChange={(event) => setListNotes(event.target.value)} /></label>
+                <div className="purchasing-list-settings-actions"><button className="ghost compact-button" disabled={saving} onClick={() => void saveListDetails()}>Save list details</button>{selectedList.wishlist_url && <a className="ghost compact-button" href={selectedList.wishlist_url} target="_blank" rel="noopener noreferrer">Open wishlist ↗</a>}<button className="ghost compact-button danger-button" disabled={saving} onClick={() => void archiveList()}>Archive list</button></div>
+              </div>
 
-              <div className="purchasing-line-items">
-                <div className="purchasing-panel-heading compact"><div><span className="purchasing-kicker">What is being purchased</span><h3>Line items</h3></div><strong>{money(selectedTotal?.estimated_total ?? 0)} estimated</strong></div>
-                {selectedRequestItems.length === 0 && <div className="purchasing-empty small">No items added yet.</div>}
-                {selectedRequestItems.map((item) => <article key={item.id}>
-                  <div><strong>{item.description}</strong><span>{item.quantity} {item.unit} × {money(item.actual_unit_cost ?? item.estimated_unit_cost)}{item.actual_unit_cost != null ? ' actual' : ' estimated'}</span>{item.add_to_inventory && <small>📦 Receive to {inventoryItemMap.get(item.inventory_item_id ?? -1)?.name ?? 'Inventory'} • {item.inventory_location_id ? locationLabel(item.inventory_location_id) : ''}</small>}{item.notes && <small>{item.notes}</small>}</div>
-                  <div><b>{money(item.quantity * (item.actual_unit_cost ?? item.estimated_unit_cost))}</b>{!['received','canceled'].includes(selectedRequest.status) && <span><button className="ghost" onClick={() => editLine(item)}>Edit</button><button className="ghost danger-button" onClick={() => void deleteLineItem(item.id)}>Remove</button></span>}</div>
+              <div className="purchasing-item-list">
+                <div className="purchasing-section-heading compact"><div><span className="purchasing-kicker">Items</span><h3>{selectedListItems.length} item{selectedListItems.length === 1 ? '' : 's'}</h3></div></div>
+                {selectedListItems.map((item) => <article className={'purchasing-item ' + item.item_status} key={item.id}>
+                  <div className="purchasing-item-main">
+                    <div className="purchasing-item-title"><strong>{item.description}</strong><span className={'purchasing-item-status ' + item.item_status}>{item.item_status === 'need' ? 'Need' : item.item_status === 'purchased' ? 'Purchased' : 'Received'}</span></div>
+                    <div className="purchasing-item-meta">
+                      <span>{item.quantity} × {money(item.actual_unit_cost ?? item.estimated_unit_cost)}</span>
+                      {item.vendor && <span>{item.vendor}</span>}
+                      <span>{item.category_tag}</span>
+                      {item.product_url && <a href={item.product_url} target="_blank" rel="noopener noreferrer">Item link ↗</a>}
+                    </div>
+                    {item.notes && <p>{item.notes}</p>}
+                  </div>
+                  <div className="purchasing-item-price"><strong>{money(item.quantity * (item.actual_unit_cost ?? item.estimated_unit_cost))}</strong><small>{item.actual_unit_cost != null ? 'actual' : 'estimated'}</small></div>
+                  <div className="purchasing-item-actions">
+                    {item.item_status === 'need' && <button className="primary compact-button" disabled={saving} onClick={() => void markPurchaseItem(item, 'purchased')}>Mark purchased</button>}
+                    {item.item_status === 'purchased' && <button className="primary compact-button" disabled={saving} onClick={() => void markPurchaseItem(item, 'received')}>Mark received</button>}
+                    <button className="ghost compact-button" onClick={() => editPurchaseItem(item)}>Edit</button>
+                    <button className="ghost compact-button danger-button" disabled={saving} onClick={() => void deletePurchaseItem(item)}>Remove</button>
+                  </div>
                 </article>)}
+                {selectedListItems.length === 0 && <div className="purchasing-empty">Add the first item below, or bring an item over from Inventory.</div>}
               </div>
 
-              {!['received','canceled'].includes(selectedRequest.status) && <div className="purchasing-line-editor">
-                <div className="purchasing-panel-heading compact"><div><span className="purchasing-kicker">{editingItemId ? 'Update item' : 'Add item'}</span><h3>{editingItemId ? 'Edit line item' : 'New line item'}</h3></div>{editingItemId && <button className="ghost" onClick={resetLineForm}>Cancel</button>}</div>
+              <div className="purchasing-item-editor">
+                <div className="purchasing-section-heading compact"><div><span className="purchasing-kicker">{editingPurchaseItemId ? 'Edit item' : 'Add item'}</span><h3>{editingPurchaseItemId ? itemDescription || 'Purchase item' : 'New purchase item'}</h3></div>{editingPurchaseItemId && <button className="ghost compact-button" onClick={resetPurchaseItemForm}>Cancel edit</button>}</div>
                 <div className="purchasing-form-grid">
-                  <label className="field full"><span>Description *</span><input value={lineDescription} onChange={(event) => setLineDescription(event.target.value)} placeholder="Construction paper, field trip tickets…" /></label>
-                  <label className="field"><span>Quantity</span><input type="number" min="0.01" step="0.01" value={lineQuantity} onChange={(event) => setLineQuantity(event.target.value)} /></label>
-                  <label className="field"><span>Unit</span><input value={lineUnit} onChange={(event) => setLineUnit(event.target.value)} /></label>
-                  <label className="field"><span>Estimated unit cost</span><input type="number" min="0" step="0.01" value={lineEstimated} onChange={(event) => setLineEstimated(event.target.value)} /></label>
-                  <label className="field"><span>Actual unit cost</span><input type="number" min="0" step="0.01" value={lineActual} onChange={(event) => setLineActual(event.target.value)} placeholder="Fill in when known" /></label>
-                  <label className="field"><span>Inventory category</span><select value={lineCategory} onChange={(event) => setLineCategory(event.target.value)}><option value="">None</option>{inventoryCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-                  <label className="field full purchasing-inventory-check"><input type="checkbox" checked={lineAddInventory} onChange={(event) => setLineAddInventory(event.target.checked)} /><span><strong>Add this quantity to Inventory when the order is received</strong><small>Link it to an existing Inventory item and storage location.</small></span></label>
-                  {lineAddInventory && <><label className="field"><span>Inventory item</span><select value={lineInventoryItem} onChange={(event) => { setLineInventoryItem(event.target.value); const item = inventoryItemMap.get(Number(event.target.value)); if (item) setLineUnit(item.unit) }}><option value="">Choose item…</option>{inventoryItems.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="field"><span>Destination location</span><select value={lineInventoryLocation} onChange={(event) => setLineInventoryLocation(event.target.value)}><option value="">Choose location…</option>{inventoryLocations.map((location) => <option key={location.id} value={location.id}>{locationLabel(location.id)}</option>)}</select></label></>}
-                  <label className="field full"><span>Line notes</span><input value={lineNotes} onChange={(event) => setLineNotes(event.target.value)} /></label>
+                  <label className="field full"><span>Item *</span><input value={itemDescription} onChange={(event) => setItemDescription(event.target.value)} placeholder="Construction paper, printer ink, field trip tickets…" /></label>
+                  <label className="field"><span>Quantity</span><input type="number" min="0.01" step="0.01" value={itemQuantity} onChange={(event) => setItemQuantity(event.target.value)} /></label>
+                  <label className="field"><span>Estimated price each</span><input type="number" min="0" step="0.01" value={itemEstimated} onChange={(event) => setItemEstimated(event.target.value)} /></label>
+                  <label className="field"><span>Actual price each (optional)</span><input type="number" min="0" step="0.01" value={itemActual} onChange={(event) => setItemActual(event.target.value)} placeholder="Fill in when known" /></label>
+                  <label className="field"><span>Store / site</span><input value={itemVendor} onChange={(event) => setItemVendor(event.target.value)} placeholder="Amazon, Target, Staples…" /></label>
+                  <label className="field"><span>Category tag</span><input list="purchasing-categories" value={itemCategory} onChange={(event) => setItemCategory(event.target.value)} /></label>
+                  <label className="field"><span>Item link</span><input type="url" value={itemUrl} onChange={(event) => setItemUrl(event.target.value)} placeholder="https://…" /></label>
+                  <label className="field full"><span>Notes</span><input value={itemNotes} onChange={(event) => setItemNotes(event.target.value)} /></label>
                 </div>
-                <button className="primary" disabled={saving || !lineDescription.trim()} onClick={() => void saveLineItem()}>{saving ? 'Saving…' : editingItemId ? 'Save line item' : 'Add line item'}</button>
-              </div>}
+                <button className="primary" disabled={saving || !itemDescription.trim()} onClick={() => void savePurchaseItem()}>{saving ? 'Saving…' : editingPurchaseItemId ? 'Save item' : 'Add item'}</button>
+              </div>
+            </div>}
+          </section>
+        </section>
+      </>}
 
-              <div className="purchasing-lifecycle">
-                <div className="purchasing-panel-heading compact"><div><span className="purchasing-kicker">Workflow</span><h3>Purchase status</h3></div></div>
-                <div className="purchasing-timeline">
-                  <span className="done"><b>Planned</b><small>{dateTimeLabel(selectedRequest.created_at)} • {staffMap.get(selectedRequest.requested_by) ?? 'Admin'}</small></span>
-                  <span className={selectedRequest.submitted_at ? 'done' : ''}><b>Submitted</b><small>{dateTimeLabel(selectedRequest.submitted_at)}</small></span>
-                  <span className={selectedRequest.approved_at ? 'done' : ''}><b>Approved</b><small>{dateTimeLabel(selectedRequest.approved_at)}{selectedRequest.approved_by ? ` • ${staffMap.get(selectedRequest.approved_by) ?? 'Admin'}` : ''}</small></span>
-                  <span className={selectedRequest.ordered_at ? 'done' : ''}><b>Ordered</b><small>{dateTimeLabel(selectedRequest.ordered_at)}{selectedRequest.ordered_by ? ` • ${staffMap.get(selectedRequest.ordered_by) ?? 'Admin'}` : ''}</small></span>
-                  <span className={selectedRequest.received_at ? 'done' : ''}><b>Received</b><small>{dateTimeLabel(selectedRequest.received_at)}{selectedRequest.received_by ? ` • ${staffMap.get(selectedRequest.received_by) ?? 'Admin'}` : ''}</small></span>
-                </div>
+      {tab === 'budgeting' && <>
+        <section className="purchasing-budget-picker card">
+          <div><span className="purchasing-kicker">Program budgets</span><h2>{selectedBudget?.name ?? 'Choose a budget'}</h2><p>{selectedBudget?.period_label ?? 'Budgets are optional and are mainly useful for programs like summer.'}</p></div>
+          <div className="purchasing-budget-picker-actions">
+            <select value={selectedBudgetId ?? ''} onChange={(event) => { setSelectedBudgetId(Number(event.target.value)); setCategoryFilter('all') }}>{activeBudgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name}</option>)}</select>
+            {profile.role === 'admin' && selectedBudget && <button className="ghost" onClick={() => editBudget(selectedBudget)}>Budget settings</button>}
+          </div>
+        </section>
 
-                <div className="purchasing-status-actions">
-                  {selectedRequest.status === 'planned' && <><button className="primary" disabled={saving || selectedRequestItems.length === 0} onClick={() => void changeStatus('awaiting_approval')}>Submit for approval</button><button className="ghost danger-button" disabled={saving} onClick={() => void changeStatus('canceled')}>Cancel request</button></>}
-                  {selectedRequest.status === 'awaiting_approval' && <><button className="ghost" disabled={saving} onClick={() => void changeStatus('planned')}>Return to planned</button><button className="primary" disabled={saving} onClick={() => void changeStatus('approved')}>Approve request</button><button className="ghost danger-button" disabled={saving} onClick={() => void changeStatus('canceled')}>Decline / cancel</button></>}
-                  {selectedRequest.status === 'approved' && <><button className="primary" disabled={saving} onClick={() => void changeStatus('ordered')}>Mark ordered</button><button className="ghost danger-button" disabled={saving} onClick={() => void changeStatus('canceled')}>Cancel request</button></>}
-                  {selectedRequest.status === 'ordered' && <><button className="primary" disabled={saving} onClick={() => void changeStatus('received')}>Mark received</button><button className="ghost danger-button" disabled={saving} onClick={() => void changeStatus('canceled')}>Cancel order</button></>}
-                  {selectedRequest.status === 'received' && <div className="purchasing-complete-note">✓ Purchase received and counted as spent.</div>}
-                  {selectedRequest.status === 'canceled' && <div className="purchasing-canceled-note">Canceled requests do not count against the budget.</div>}
-                </div>
+        {selectedBudget && selectedBudgetSummary ? <>
+          <section className="grid stats purchasing-budget-stats">
+            <div className="card stat"><span className="subtle">Total budget</span><strong>{money(selectedBudgetSummary.allocated_amount)}</strong></div>
+            <div className="card stat"><span className="subtle">Planned</span><strong>{money(selectedBudgetSummary.planned_amount)}</strong></div>
+            <div className="card stat"><span className="subtle">Spent so far</span><strong>{money(selectedBudgetSummary.spent_amount)}</strong></div>
+            <div className={'card stat ' + (selectedBudgetSummary.remaining_amount < 0 ? 'purchasing-negative' : '')}><span className="subtle">Budget remaining</span><strong>{money(selectedBudgetSummary.remaining_amount)}</strong></div>
+          </section>
+
+          <section className="purchasing-budget-visuals">
+            <article className="card purchasing-donut-card">
+              <div className="purchasing-section-heading compact"><div><span className="purchasing-kicker">Budget use</span><h2>Spent vs. remaining</h2></div></div>
+              <div className="purchasing-donut-wrap">
+                <div className="purchasing-donut" style={{ background: 'conic-gradient(#2376c9 ' + spentPercent + '%, #e8eff4 ' + spentPercent + '%)' }}><div><strong>{Math.round(spentPercent)}%</strong><span>spent</span></div></div>
+                <div className="purchasing-donut-legend"><span><i className="spent" />Spent <strong>{money(selectedBudgetSummary.spent_amount)}</strong></span><span><i className="remaining" />Remaining <strong>{money(selectedBudgetSummary.remaining_amount)}</strong></span></div>
+              </div>
+            </article>
+
+            <article className="card purchasing-category-chart">
+              <div className="purchasing-section-heading compact"><div><span className="purchasing-kicker">Where it went</span><h2>Spending by category</h2></div></div>
+              <div className="purchasing-category-bars">
+                {categoryRows.map((row) => <div key={row.category}>
+                  <div><span>{row.category}</span><strong>{money(row.spent)}</strong></div>
+                  <div className="purchasing-bar-track"><span style={{ width: Math.max(2, row.spent / maxCategorySpend * 100) + '%' }} /></div>
+                  <small>{money(row.planned)} planned</small>
+                </div>)}
+              </div>
+            </article>
+          </section>
+
+          <section className="purchasing-budget-tools">
+            <article className="card purchasing-budget-list-card">
+              <div className="purchasing-section-heading">
+                <div><span className="purchasing-kicker">Budget list</span><h2>Everything in the budget</h2><p>Add items, organize them with category tags, and record payments as money is actually spent.</p></div>
+                <div className="purchasing-budget-list-actions"><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="all">All categories</option>{categoryRows.map((row) => <option key={row.category} value={row.category}>{row.category}</option>)}</select><button className="primary compact-button" onClick={openGeneralSpend}>+ Record spending</button></div>
               </div>
 
-              {selectedRequestAudit.length > 0 && <details className="purchasing-audit"><summary>Status history</summary>{selectedRequestAudit.map((entry) => <p key={entry.id}><strong>{entry.new_status ? statusLabels[entry.new_status as PurchaseStatus] ?? entry.new_status : entry.action}</strong><span>{dateTimeLabel(entry.changed_at)} • {entry.changed_by ? staffMap.get(entry.changed_by) ?? 'Admin' : 'System'}</span></p>)}</details>}
-            </section>}
+              <div className="purchasing-budget-table">
+                <div className="purchasing-budget-table-head"><span>Item</span><span>Planned</span><span>Spent</span><span>Difference</span><span></span></div>
+                {visibleBudgetItems.map((item) => {
+                  const spent = itemSpendMap.get(item.id) ?? 0
+                  const difference = item.planned_amount - spent
+                  return <div className="purchasing-budget-row" key={item.id}>
+                    <span className="purchasing-budget-item-name"><strong>{item.description}</strong><small>{item.category}{!item.counts_toward_plan ? ' • Reference only' : ''}{item.purchase_item_id ? ' • From Purchases' : ''}</small>{item.notes && <em>{item.notes}</em>}</span>
+                    <span data-label="Planned"><strong>{money(item.planned_amount)}</strong></span>
+                    <span data-label="Spent"><strong>{money(spent)}</strong></span>
+                    <span className={difference < 0 ? 'negative' : ''} data-label="Difference"><strong>{money(difference)}</strong></span>
+                    <span className="purchasing-budget-row-actions"><button className="ghost compact-button" onClick={() => openSpendForItem(item)}>Record spend</button>{!item.purchase_item_id && <button className="ghost compact-button" disabled={saving} onClick={() => void archiveBudgetItem(item)}>Hide</button>}</span>
+                  </div>
+                })}
+              </div>
+
+              {unplannedSpends.length > 0 && <div className="purchasing-unplanned">
+                <div className="purchasing-section-heading compact"><div><span className="purchasing-kicker">Unplanned spending</span><h3>Spent without a planned line</h3></div></div>
+                {unplannedSpends.map((entry) => <div className="purchasing-unplanned-row" key={entry.id}><span><strong>{entry.description}</strong><small>{entry.category} • {shortDate(entry.spent_on)}</small></span><strong>{money(entry.amount)}</strong></div>)}
+              </div>}
+            </article>
+
+            <aside className="card purchasing-budget-add">
+              <div className="purchasing-section-heading compact"><div><span className="purchasing-kicker">Add to plan</span><h2>New budget item</h2></div></div>
+              <label className="field"><span>Item *</span><input value={budgetItemDescription} onChange={(event) => setBudgetItemDescription(event.target.value)} placeholder="Intern pay, snacks, trip tickets…" /></label>
+              <label className="field"><span>Category tag</span><input list="purchasing-categories" value={budgetItemCategory} onChange={(event) => setBudgetItemCategory(event.target.value)} /></label>
+              <label className="field"><span>Planned amount</span><input type="number" min="0" step="0.01" value={budgetItemPlanned} onChange={(event) => setBudgetItemPlanned(event.target.value)} /></label>
+              <label className="field"><span>Notes</span><textarea rows={3} value={budgetItemNotes} onChange={(event) => setBudgetItemNotes(event.target.value)} /></label>
+              <label className="purchasing-check"><input type="checkbox" checked={budgetItemCounts} onChange={(event) => setBudgetItemCounts(event.target.checked)} /><span><strong>Count this in the planned total</strong><small>Turn this off for an idea/reference item you do not want included yet.</small></span></label>
+              <button className="primary" disabled={saving || !budgetItemDescription.trim()} onClick={() => void addBudgetItem()}>{saving ? 'Adding…' : 'Add budget item'}</button>
+            </aside>
+          </section>
+        </> : <div className="card purchasing-empty">No active budgets yet. An admin can create one when a program has a fixed budget.</div>}
+      </>}
+
+      {spendOpen && selectedBudget && <div className="purchasing-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setSpendOpen(false) }}>
+        <section className="card purchasing-modal" role="dialog" aria-modal="true" aria-labelledby="record-spend-title">
+          <div className="purchasing-section-heading"><div><span className="purchasing-kicker">Actual spending</span><h2 id="record-spend-title">Record money spent</h2><p>{selectedBudget.name}</p></div><button className="ghost" onClick={() => setSpendOpen(false)}>Close</button></div>
+          <div className="purchasing-form-grid">
+            <label className="field full"><span>Description *</span><input value={spendDescription} onChange={(event) => setSpendDescription(event.target.value)} /></label>
+            <label className="field"><span>Budget item (optional)</span><select value={spendItemId} onChange={(event) => { const value = event.target.value; setSpendItemId(value); const item = selectedBudgetItems.find((entry) => entry.id === Number(value)); if (item) { setSpendDescription(item.description); setSpendCategory(item.category) } }}><option value="">Unplanned / general spend</option>{selectedBudgetItems.filter((item) => !item.purchase_item_id).map((item) => <option key={item.id} value={item.id}>{item.description}</option>)}</select></label>
+            <label className="field"><span>Category</span><input list="purchasing-categories" value={spendCategory} onChange={(event) => setSpendCategory(event.target.value)} /></label>
+            <label className="field"><span>Amount *</span><input type="number" min="0" step="0.01" value={spendAmount} onChange={(event) => setSpendAmount(event.target.value)} /></label>
+            <label className="field"><span>Date (optional)</span><input type="date" value={spendDate} onChange={(event) => setSpendDate(event.target.value)} /></label>
+            <label className="field full"><span>Notes</span><textarea rows={3} value={spendNotes} onChange={(event) => setSpendNotes(event.target.value)} /></label>
           </div>
-        </section>}
-      </main>
-    </div>
-  )
+          <button className="primary" disabled={saving || !spendDescription.trim() || !spendAmount} onClick={() => void recordSpend()}>{saving ? 'Recording…' : 'Record spending'}</button>
+        </section>
+      </div>}
+
+      {budgetEditorOpen && profile.role === 'admin' && <div className="purchasing-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setBudgetEditorOpen(false) }}>
+        <section className="card purchasing-modal" role="dialog" aria-modal="true" aria-labelledby="budget-editor-title">
+          <div className="purchasing-section-heading"><div><span className="purchasing-kicker">Admin</span><h2 id="budget-editor-title">{editingBudgetId ? 'Budget settings' : 'Create budget'}</h2><p>Only admins set the total program budget.</p></div><button className="ghost" onClick={() => setBudgetEditorOpen(false)}>Close</button></div>
+          <div className="purchasing-form-grid">
+            <label className="field full"><span>Budget name *</span><input value={budgetName} onChange={(event) => setBudgetName(event.target.value)} placeholder="Summer 2027" /></label>
+            <label className="field"><span>Total budget</span><input type="number" min="0" step="0.01" value={budgetAmount} onChange={(event) => setBudgetAmount(event.target.value)} /></label>
+            <label className="field"><span>Period label</span><input value={budgetPeriod} onChange={(event) => setBudgetPeriod(event.target.value)} placeholder="Summer 2027" /></label>
+            <label className="field"><span>Starts</span><input type="date" value={budgetStart} onChange={(event) => setBudgetStart(event.target.value)} /></label>
+            <label className="field"><span>Ends</span><input type="date" value={budgetEnd} onChange={(event) => setBudgetEnd(event.target.value)} /></label>
+            <label className="field full"><span>Notes</span><textarea rows={3} value={budgetNotes} onChange={(event) => setBudgetNotes(event.target.value)} /></label>
+          </div>
+          <button className="primary" disabled={saving || !budgetName.trim()} onClick={() => void saveBudget()}>{saving ? 'Saving…' : editingBudgetId ? 'Save budget' : 'Create budget'}</button>
+        </section>
+      </div>}
+
+      <datalist id="purchasing-categories">{categoryOptions.map((category) => <option value={category} key={category} />)}</datalist>
+    </main>
+  </div>
 }
