@@ -5,8 +5,9 @@ import type { Session } from '@supabase/supabase-js'
 import HistoryEntryList from '@/components/HistoryEntryList'
 import { supabase } from '@/lib/supabase'
 
+type CardName='diamond'|'green'|'yellow'|'orange'|'red'
 type Child={id:number;first_name:string;last_name:string|null;active:boolean;is_demo:boolean}
-type Entry={id:number;child_id:number;entry_date:string;entry_type:'behavior'|'status';card:string|null;day_status:string|null;points:number;note:string|null;recorded_by:string}
+type Entry={id:number;child_id:number;entry_date:string;entry_type:'behavior'|'status';card:CardName|null;day_status:string|null;points:number;note:string|null;recorded_by:string}
 type GoalBonus={id:number;child_id:number;points:number;awarded_on:string;note:string|null}
 type Profile={display_name:string;role:'staff'|'admin';active:boolean}
 type Settings={wheel_rule_mode:'pending'|'points_per_spin'|'tiers';points_per_spin:number|null}
