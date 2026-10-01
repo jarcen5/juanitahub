@@ -35,6 +35,7 @@ type Transaction = {
   recorded_at: string
 }
 type Staff = { user_id: string; display_name: string }
+type RestockRequest = { item_id: number; requested_by: string; requested_at: string }
 
 const conditionLabels: Record<Condition, string> = {
   new: 'New',
@@ -71,13 +72,17 @@ export default function InventoryPage() {
   const [stock, setStock] = useState<Stock[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [staff, setStaff] = useState<Staff[]>([])
+  const [restockRequests, setRestockRequests] = useState<RestockRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [tab, setTab] = useState<'items' | 'history' | 'setup'>('items')
   const [search, setSearch] = useState('')
-  const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all')
+  const [stockFilter, setStockFilter] = useState<'all' | 'needs' | 'low' | 'out'>('all')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'all' | ItemType>('all')
+  const [locationFilter, setLocationFilter] = useState('')
+  const [editorOpen, setEditorOpen] = useState(false)
 
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null)
   const [itemName, setItemName] = useState('')
@@ -126,13 +131,14 @@ export default function InventoryPage() {
       return
     }
 
-    const [categoryResult, locationResult, itemResult, stockResult, transactionResult, staffResult] = await Promise.all([
+    const [categoryResult, locationResult, itemResult, stockResult, transactionResult, staffResult, restockResult] = await Promise.all([
       supabase.from('inventory_categories').select('id,name,description,active').order('name'),
       supabase.from('inventory_locations').select('id,name,parent_location_id,description,active').order('name'),
       supabase.from('inventory_items').select('id,name,category_id,item_type,unit,minimum_stock,condition,notes,active').order('name'),
       supabase.from('inventory_stock').select('item_id,location_id,quantity'),
       supabase.from('inventory_transactions').select('id,item_id,location_id,related_location_id,transaction_type,quantity_change,balance_after,notes,recorded_by,recorded_at').order('recorded_at', { ascending: false }).limit(500),
       supabase.from('staff_profiles').select('user_id,display_name').eq('active', true),
+      supabase.from('inventory_restock_requests').select('item_id,requested_by,requested_at').order('requested_at', { ascending: false }),
     ])
 
     setCategories((categoryResult.data ?? []) as Category[])
@@ -141,6 +147,7 @@ export default function InventoryPage() {
     setStock((stockResult.data ?? []).map((row: any) => ({ ...row, quantity: Number(row.quantity) })) as Stock[])
     setTransactions((transactionResult.data ?? []).map((row: any) => ({ ...row, quantity_change: Number(row.quantity_change), balance_after: Number(row.balance_after) })) as Transaction[])
     setStaff((staffResult.data ?? []) as Staff[])
+    setRestockRequests((restockResult.data ?? []) as RestockRequest[])
     setMessage(
       profileResult.error?.message
       ?? categoryResult.error?.message
@@ -149,6 +156,7 @@ export default function InventoryPage() {
       ?? stockResult.error?.message
       ?? transactionResult.error?.message
       ?? staffResult.error?.message
+      ?? restockResult.error?.message
       ?? '',
     )
     setLoading(false)
@@ -158,6 +166,7 @@ export default function InventoryPage() {
   const locationMap = useMemo(() => new Map(locations.map((location) => [location.id, location])), [locations])
   const itemMap = useMemo(() => new Map(items.map((item) => [item.id, item])), [items])
   const staffMap = useMemo(() => new Map(staff.map((person) => [person.user_id, person.display_name])), [staff])
+  const restockItemIds = useMemo(() => new Set(restockRequests.map((request) => request.item_id)), [restockRequests])
 
   const locationLabel = (id: number) => {
     const location = locationMap.get(id)
@@ -185,15 +194,18 @@ export default function InventoryPage() {
 
   const lowStockCount = useMemo(() => items.filter((item) => item.active && item.minimum_stock > 0 && (totalByItem.get(item.id) ?? 0) <= item.minimum_stock).length, [items, totalByItem])
   const outOfStockCount = useMemo(() => items.filter((item) => item.active && (totalByItem.get(item.id) ?? 0) <= 0).length, [items, totalByItem])
-  const durableCount = items.filter((item) => item.active && item.item_type === 'durable').length
+  const needsPurchaseCount = useMemo(() => items.filter((item) => item.active && restockItemIds.has(item.id)).length, [items, restockItemIds])
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase()
     return items
       .filter((item) => item.active)
       .filter((item) => !categoryFilter || String(item.category_id ?? '') === categoryFilter)
+      .filter((item) => typeFilter === 'all' || item.item_type === typeFilter)
+      .filter((item) => !locationFilter || (stockByItem.get(item.id) ?? []).some((row) => String(row.location_id) === locationFilter && row.quantity > 0))
       .filter((item) => {
         const total = totalByItem.get(item.id) ?? 0
+        if (stockFilter === 'needs') return restockItemIds.has(item.id)
         if (stockFilter === 'low') return item.minimum_stock > 0 && total <= item.minimum_stock
         if (stockFilter === 'out') return total <= 0
         return true
@@ -201,9 +213,10 @@ export default function InventoryPage() {
       .filter((item) => !term
         || item.name.toLowerCase().includes(term)
         || (categoryMap.get(item.category_id ?? -1)?.name ?? '').toLowerCase().includes(term)
-        || (item.notes ?? '').toLowerCase().includes(term))
+        || (item.notes ?? '').toLowerCase().includes(term)
+        || (stockByItem.get(item.id) ?? []).some((row) => locationLabel(row.location_id).toLowerCase().includes(term)))
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [items, search, categoryFilter, stockFilter, totalByItem, categoryMap])
+  }, [items, search, categoryFilter, typeFilter, locationFilter, stockFilter, totalByItem, categoryMap, stockByItem, restockItemIds, locationMap])
 
   const selectedItem = items.find((item) => item.id === selectedItemId) ?? null
 
@@ -234,7 +247,28 @@ export default function InventoryPage() {
     setAdjustDestination('')
     setAdjustQuantity('')
     setAdjustNotes('')
+    setEditorOpen(true)
     setTab('items')
+  }
+
+  async function toggleRestock(itemId: number, needed: boolean) {
+    if (!session || !profile?.active || saving) return
+    setSaving(true)
+    setMessage('')
+    const result = needed
+      ? await supabase.from('inventory_restock_requests').insert({ item_id: itemId, requested_by: session.user.id })
+      : await supabase.from('inventory_restock_requests').delete().eq('item_id', itemId)
+    setSaving(false)
+    if (result.error) {
+      if (needed && result.error.code === '23505') {
+        await loadData()
+        return
+      }
+      setMessage(result.error.message)
+      return
+    }
+    setMessage(needed ? 'Added to the Needs purchase list.' : 'Removed from the Needs purchase list.')
+    await loadData()
   }
 
   async function saveItem() {
@@ -264,6 +298,7 @@ export default function InventoryPage() {
       else {
         setMessage('Inventory item updated.')
         await loadData()
+        setEditorOpen(false)
       }
       setSaving(false)
       return
@@ -303,6 +338,7 @@ export default function InventoryPage() {
 
     setMessage('Inventory item created.')
     resetItemForm()
+    setEditorOpen(false)
     await loadData()
     setSaving(false)
   }
@@ -358,6 +394,7 @@ export default function InventoryPage() {
     else {
       setMessage('Inventory item archived. Its history is preserved.')
       resetItemForm()
+      setEditorOpen(false)
       await loadData()
     }
     setSaving(false)
@@ -416,63 +453,69 @@ export default function InventoryPage() {
 
       <main className="main inventory-page">
         <section className="hero inventory-hero">
-          <div><span className="inventory-kicker">Center supplies</span><h1>Inventory</h1><p className="subtle">Know what the center has, where it is, what is running low, and how quantities changed.</p></div>
-          {profile.role === 'admin' && <button className="primary" onClick={() => { resetItemForm(); setTab('items') }}>+ New item</button>}
+          <div><span className="inventory-kicker">Center supplies</span><h1>Inventory</h1><p className="subtle">A simple list of what we have, where it lives, how much is left, and what needs to be purchased.</p></div>
+          {profile.role === 'admin' && <button className="primary" onClick={() => { resetItemForm(); setEditorOpen(true); setTab('items') }}>+ Add item</button>}
         </section>
 
         {message && <div className="notice">{message}</div>}
 
         <section className="grid stats inventory-stats">
-          <div className="card stat"><span className="subtle">Active items</span><strong>{items.filter((item) => item.active).length}</strong></div>
+          <div className="card stat"><span className="subtle">Items</span><strong>{items.filter((item) => item.active).length}</strong></div>
+          <button className="card stat inventory-stat-button" onClick={() => { setStockFilter('needs'); setTab('items') }}><span className="subtle">Needs purchase</span><strong>{needsPurchaseCount}</strong></button>
           <button className="card stat inventory-stat-button" onClick={() => { setStockFilter('low'); setTab('items') }}><span className="subtle">Low stock</span><strong>{lowStockCount}</strong></button>
           <button className="card stat inventory-stat-button" onClick={() => { setStockFilter('out'); setTab('items') }}><span className="subtle">Out of stock</span><strong>{outOfStockCount}</strong></button>
-          <div className="card stat"><span className="subtle">Durable items</span><strong>{durableCount}</strong></div>
         </section>
 
         <div className="inventory-tabs">
           <button className={tab === 'items' ? 'active' : ''} onClick={() => setTab('items')}>Items</button>
           <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>History</button>
-          <button className={tab === 'setup' ? 'active' : ''} onClick={() => setTab('setup')}>Categories & Locations</button>
+          <button className={tab === 'setup' ? 'active' : ''} onClick={() => setTab('setup')}>Tags & Locations</button>
         </div>
 
-        {tab === 'items' && <section className="inventory-layout">
+        {tab === 'items' && <section className={`inventory-layout ${profile.role === 'admin' && editorOpen ? '' : 'inventory-layout-single'}`}>
           <div className="inventory-list-column">
-            <section className="card inventory-filter-card">
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search inventory…" />
+            {profile.role !== 'admin' && <section className="card inventory-staff-helper"><strong>Keep the list current.</strong><span>Anyone on staff can mark an item “Needs purchase.” Admins manage item details and quantities.</span></section>}
+            <section className="card inventory-filter-card inventory-simple-filters">
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search items, tags, or locations…" />
+              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as typeof typeFilter)}><option value="all">All types</option><option value="consumable">Consumable</option><option value="durable">Durable</option></select>
               <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="">All categories</option>{categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
-              <div className="inventory-segmented"><button className={stockFilter === 'all' ? 'active' : ''} onClick={() => setStockFilter('all')}>All</button><button className={stockFilter === 'low' ? 'active' : ''} onClick={() => setStockFilter('low')}>Low</button><button className={stockFilter === 'out' ? 'active' : ''} onClick={() => setStockFilter('out')}>Out</button></div>
+              <select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}><option value="">All locations</option>{locations.filter((location) => location.active).map((location) => <option key={location.id} value={location.id}>{locationLabel(location.id)}</option>)}</select>
+              <div className="inventory-segmented"><button className={stockFilter === 'all' ? 'active' : ''} onClick={() => setStockFilter('all')}>All</button><button className={stockFilter === 'needs' ? 'active' : ''} onClick={() => setStockFilter('needs')}>Needs purchase</button><button className={stockFilter === 'low' ? 'active' : ''} onClick={() => setStockFilter('low')}>Low</button><button className={stockFilter === 'out' ? 'active' : ''} onClick={() => setStockFilter('out')}>Out</button></div>
             </section>
 
             <div className="inventory-item-list">
-              {filteredItems.length === 0 && <section className="card inventory-empty"><strong>No inventory items match this view.</strong><span>{items.length === 0 ? 'Use New item to add the center’s first supply or piece of equipment.' : 'Try changing the filters.'}</span></section>}
+              {filteredItems.length === 0 && <section className="card inventory-empty"><strong>No inventory items match this view.</strong><span>{items.length === 0 ? 'Use Add item to create the center’s first inventory item.' : 'Try changing the filters.'}</span></section>}
               {filteredItems.map((item) => {
                 const total = totalByItem.get(item.id) ?? 0
                 const low = item.minimum_stock > 0 && total <= item.minimum_stock
+                const needsPurchase = restockItemIds.has(item.id)
                 const itemStock = (stockByItem.get(item.id) ?? []).filter((row) => row.quantity > 0)
-                return <button className={`card inventory-item-card ${selectedItemId === item.id ? 'selected' : ''} ${low ? 'low' : ''}`} key={item.id} onClick={() => editItem(item)}>
+                return <article className={`card inventory-item-card ${selectedItemId === item.id ? 'selected' : ''} ${low ? 'low' : ''} ${needsPurchase ? 'needs-purchase' : ''}`} key={item.id}>
                   <div className="inventory-item-heading"><div><span className={`inventory-type ${item.item_type}`}>{item.item_type}</span><h3>{item.name}</h3></div><strong className={total <= 0 ? 'zero' : low ? 'low' : ''}>{formatQuantity(total)} <small>{item.unit}</small></strong></div>
-                  <div className="inventory-item-meta"><span>{categoryMap.get(item.category_id ?? -1)?.name ?? 'Uncategorized'}</span>{item.item_type === 'durable' && <span>{conditionLabels[item.condition]}</span>}{low && <span className="inventory-low-label">{total <= 0 ? 'Out of stock' : `Low • min ${formatQuantity(item.minimum_stock)}`}</span>}</div>
-                  <div className="inventory-location-chips">{itemStock.length ? itemStock.slice(0, 3).map((row) => <span key={row.location_id}>{locationLabel(row.location_id)} • {formatQuantity(row.quantity)}</span>) : <span>No stock on hand</span>}{itemStock.length > 3 && <span>+{itemStock.length - 3} locations</span>}</div>
-                </button>
+                  <div className="inventory-item-meta"><span>{categoryMap.get(item.category_id ?? -1)?.name ?? 'Uncategorized'}</span>{item.item_type === 'durable' && <span>{conditionLabels[item.condition]}</span>}{low && <span className="inventory-low-label">{total <= 0 ? 'Out of stock' : `Low • min ${formatQuantity(item.minimum_stock)}`}</span>}{needsPurchase && <span className="inventory-purchase-label">Needs purchase</span>}</div>
+                  <div className="inventory-location-chips">{itemStock.length ? itemStock.slice(0, 4).map((row) => <span key={row.location_id}>{locationLabel(row.location_id)} • {formatQuantity(row.quantity)}</span>) : <span>No stock on hand</span>}{itemStock.length > 4 && <span>+{itemStock.length - 4} locations</span>}</div>
+                  <div className="inventory-item-actions">
+                    <label className="inventory-restock-check"><input type="checkbox" checked={needsPurchase} disabled={saving} onChange={(event) => void toggleRestock(item.id, event.target.checked)} /><span>Needs purchase</span></label>
+                    {profile.role === 'admin' && <button className="ghost compact-button" type="button" onClick={() => editItem(item)}>Edit / quantity</button>}
+                  </div>
+                </article>
               })}
             </div>
           </div>
 
-          {profile.role === 'admin' ? <aside className="card inventory-editor">
-            <div className="inventory-panel-heading"><div><span className="inventory-kicker">{selectedItem ? 'Item details' : 'New inventory item'}</span><h2>{selectedItem?.name ?? 'Create an item'}</h2></div>{selectedItem && <button className="ghost" onClick={resetItemForm}>New</button>}</div>
+          {profile.role === 'admin' && editorOpen && <aside className="card inventory-editor">
+            <div className="inventory-panel-heading"><div><span className="inventory-kicker">{selectedItem ? 'Item details' : 'New inventory item'}</span><h2>{selectedItem?.name ?? 'Add an item'}</h2></div><button className="ghost" onClick={() => { setEditorOpen(false); resetItemForm() }}>Close</button></div>
             <div className="inventory-form">
               <label className="field"><span>Name *</span><input value={itemName} onChange={(event) => setItemName(event.target.value)} placeholder="Construction paper" /></label>
               <div className="inventory-form-grid">
-                <label className="field"><span>Category</span><select value={itemCategory} onChange={(event) => setItemCategory(event.target.value)}><option value="">Uncategorized</option>{categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+                <label className="field"><span>Category tag</span><select value={itemCategory} onChange={(event) => setItemCategory(event.target.value)}><option value="">Uncategorized</option>{categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                 <label className="field"><span>Type</span><select value={itemType} onChange={(event) => { const value = event.target.value as ItemType; setItemType(value); if (value === 'consumable') setItemCondition('not_applicable'); else if (itemCondition === 'not_applicable') setItemCondition('good') }}><option value="consumable">Consumable</option><option value="durable">Durable</option></select></label>
                 <label className="field"><span>Unit</span><input value={itemUnit} onChange={(event) => setItemUnit(event.target.value)} placeholder="each, packs, boxes…" /></label>
-                <label className="field"><span>Low-stock level</span><input type="number" min="0" step="0.01" value={itemMin} onChange={(event) => setItemMin(event.target.value)} /></label>
-                {itemType === 'durable' && <label className="field"><span>Condition</span><select value={itemCondition} onChange={(event) => setItemCondition(event.target.value as Condition)}>{(['new','good','fair','needs_repair','damaged','retired'] as Condition[]).map((condition) => <option key={condition} value={condition}>{conditionLabels[condition]}</option>)}</select></label>}
-                {!selectedItem && <><label className="field"><span>Initial location</span><select value={initialLocation} onChange={(event) => setInitialLocation(event.target.value)}><option value="">Choose location…</option>{locations.filter((location) => location.active).map((location) => <option key={location.id} value={location.id}>{locationLabel(location.id)}</option>)}</select></label><label className="field"><span>Initial quantity</span><input type="number" min="0" step="0.01" value={initialQuantity} onChange={(event) => setInitialQuantity(event.target.value)} /></label></>}
+                {!selectedItem && <><label className="field"><span>Location</span><select value={initialLocation} onChange={(event) => setInitialLocation(event.target.value)}><option value="">Choose location…</option>{locations.filter((location) => location.active).map((location) => <option key={location.id} value={location.id}>{locationLabel(location.id)}</option>)}</select></label><label className="field"><span>Quantity</span><input type="number" min="0" step="0.01" value={initialQuantity} onChange={(event) => setInitialQuantity(event.target.value)} /></label></>}
               </div>
-              <label className="field"><span>Notes</span><textarea rows={3} value={itemNotes} onChange={(event) => setItemNotes(event.target.value)} placeholder="Size, brand, model, storage note…" /></label>
-              {locations.filter((location) => location.active).length === 0 && !selectedItem && <div className="inventory-helper-warning">Add at least one location under Categories & Locations before entering starting stock.</div>}
-              <button className="primary" disabled={saving || !itemName.trim()} onClick={() => void saveItem()}>{saving ? 'Saving…' : selectedItem ? 'Save item details' : 'Create item'}</button>
+              <details className="inventory-advanced"><summary>Advanced details</summary><div className="inventory-form-grid"><label className="field"><span>Low-stock warning level</span><input type="number" min="0" step="0.01" value={itemMin} onChange={(event) => setItemMin(event.target.value)} /></label>{itemType === 'durable' && <label className="field"><span>Condition</span><select value={itemCondition} onChange={(event) => setItemCondition(event.target.value as Condition)}>{(['new','good','fair','needs_repair','damaged','retired'] as Condition[]).map((condition) => <option key={condition} value={condition}>{conditionLabels[condition]}</option>)}</select></label>}</div><label className="field"><span>Notes</span><textarea rows={3} value={itemNotes} onChange={(event) => setItemNotes(event.target.value)} placeholder="Size, brand, model, storage note…" /></label></details>
+              {locations.filter((location) => location.active).length === 0 && !selectedItem && <div className="inventory-helper-warning">Add at least one location under Tags & Locations before entering starting stock.</div>}
+              <button className="primary" disabled={saving || !itemName.trim()} onClick={() => void saveItem()}>{saving ? 'Saving…' : selectedItem ? 'Save item' : 'Add item'}</button>
             </div>
 
             {selectedItem && <div className="inventory-adjustment">
@@ -487,7 +530,7 @@ export default function InventoryPage() {
               <button className="primary" disabled={saving || !adjustLocation || !adjustQuantity} onClick={() => void adjustStock()}>{saving ? 'Updating…' : 'Record adjustment'}</button>
               <button className="ghost danger-button inventory-archive-button" disabled={saving} onClick={() => void archiveItem()}>Archive item</button>
             </div>}
-          </aside> : <aside className="card inventory-readonly-note"><strong>Inventory is view-only for staff.</strong><span>An admin can create items, change quantities, and manage locations/categories.</span></aside>}
+          </aside>}
         </section>}
 
         {tab === 'history' && <section className="card inventory-history">
