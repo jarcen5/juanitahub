@@ -941,3 +941,738 @@ html[data-theme="dark"] :where(
 ){
   color:#aebdc7!important;
 }
+
+
+/* Unified staff-portal dark mode — Home is the visual reference */
+html[data-theme="dark"]{
+  --jh-home-bg:#0b1218;
+  --jh-home-panel:#192630;
+  --jh-home-card:#1b2832;
+  --jh-home-raised:#21303a;
+  --jh-home-border:#354956;
+  --jh-home-border-strong:#435b6a;
+  --jh-home-heading:#f1f5f8;
+  --jh-home-text:#d9e3e9;
+  --jh-home-muted:#b8c6cf;
+  --jh-home-accent:#7fb9f4;
+  --jh-home-accent-bg:#1b3a50;
+  --jh-home-green:#7fd1a5;
+}
+
+/* Consistent page heroes */
+html[data-theme="dark"] :where(
+  .children-hero,
+  .learning-hero,
+  .attendance-hero,
+  .reports-hero,
+  .rewards-hero,
+  .calendar-hero,
+  .purchasing-hero,
+  .team-hero,
+  .task-center-hero,
+  .announcements-hero,
+  .programs-hero,
+  .registration-admin-hero,
+  .fulfillment-hero
+){
+  padding:22px 24px!important;
+  border:1px solid var(--jh-home-border)!important;
+  border-radius:20px!important;
+  background:
+    radial-gradient(circle at 86% 16%,rgba(72,137,181,.14),transparent 29%),
+    linear-gradient(135deg,#1c2b36,#17232d 60%,#1b2932)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.18)!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-hero h1,
+  .learning-hero h1,
+  .attendance-hero h1,
+  .reports-hero h1,
+  .rewards-hero h1,
+  .calendar-hero h1,
+  .purchasing-hero h1,
+  .team-hero h1,
+  .task-center-hero h1,
+  .announcements-hero h1,
+  .programs-hero h1,
+  .registration-admin-hero h1,
+  .fulfillment-hero h1
+){
+  color:var(--jh-home-heading)!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-hero p,
+  .learning-hero p,
+  .attendance-hero p,
+  .reports-hero p,
+  .rewards-hero p,
+  .calendar-hero p,
+  .purchasing-hero p,
+  .team-hero p,
+  .task-center-hero p,
+  .announcements-hero p,
+  .programs-hero p,
+  .registration-admin-hero p,
+  .fulfillment-hero p
+){
+  color:var(--jh-home-muted)!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-eyebrow,
+  .learning-kicker,
+  .attendance-eyebrow,
+  .reports-eyebrow,
+  .rewards-kicker,
+  .calendar-eyebrow,
+  .purchasing-kicker,
+  .team-kicker,
+  .task-kicker,
+  .programs-eyebrow,
+  .registration-kicker,
+  .fulfillment-kicker
+){
+  color:var(--jh-home-accent)!important;
+}
+
+/* Directory */
+html[data-theme="dark"] :where(
+  .children-directory-toolbar,
+  .child-profile-card,
+  .children-retention-note,
+  .children-profile-modal,
+  .children-profile-section,
+  .children-form-section,
+  .children-facts-grid>div,
+  .children-contact-grid article,
+  .children-health-alert,
+  .children-care-notes,
+  .children-weekdays label,
+  .children-pickup-row,
+  .children-support-grid>div,
+  .children-agreement-grid>div,
+  .children-learning-access-list article,
+  .children-new-student-summary,
+  .children-learning-profile-access,
+  .children-profile-shortcuts>div,
+  .child-activity-metrics article,
+  .child-activity-list article
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+  color:var(--jh-home-text)!important;
+}
+html[data-theme="dark"] :where(
+  .child-profile-card:hover,
+  .children-profile-shortcuts>a:hover
+){
+  background:var(--jh-home-raised)!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.16)!important;
+}
+html[data-theme="dark"] :where(
+  .child-profile-card-copy strong,
+  .children-directory-count strong,
+  .children-retention-note strong,
+  .children-profile-heading h2,
+  .children-profile-modal>h2,
+  .children-section-title h3,
+  .children-facts-grid strong,
+  .children-contact-grid strong,
+  .children-health-alert strong,
+  .children-public-birthday strong,
+  .children-support-grid strong,
+  .children-agreement-grid strong,
+  .children-new-student-summary strong,
+  .children-learning-profile-access strong,
+  .children-profile-shortcuts strong
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .child-profile-card-copy small,
+  .child-profile-card-copy>span,
+  .children-directory-count,
+  .children-retention-note p,
+  .children-profile-heading p,
+  .children-section-title small,
+  .children-facts-grid small,
+  .children-contact-grid small,
+  .children-contact-grid article span,
+  .children-care-notes p,
+  .children-public-birthday small,
+  .children-support-grid small,
+  .children-agreement-grid small,
+  .children-empty-inline,
+  .children-new-student-summary span,
+  .children-learning-profile-access small,
+  .children-profile-shortcuts small
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] :where(.children-profile-section.sensitive,.children-form-section.restricted){
+  background:linear-gradient(180deg,rgba(117,137,205,.12),rgba(27,40,50,.96))!important;
+  border-color:#44566f!important;
+}
+html[data-theme="dark"] :where(.children-profile-section.health,.children-form-section.health,.children-care-notes.important,.children-health-alert.has-info){
+  background:linear-gradient(180deg,rgba(190,88,98,.10),rgba(27,40,50,.96))!important;
+  border-color:#63424a!important;
+}
+html[data-theme="dark"] .children-profile-section.locked{
+  background:#151f27!important;
+  color:#aab9c3!important;
+}
+html[data-theme="dark"] .children-security-pill{
+  background:#1a3a51!important;
+  color:#bfdef5!important;
+}
+html[data-theme="dark"] .children-modal-close{
+  background:#263640!important;
+  color:#dce6ec!important;
+}
+html[data-theme="dark"] .children-profile-tabs{
+  background:#14212a!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .children-profile-tabs button{
+  color:#b9c7d0!important;
+}
+html[data-theme="dark"] .children-profile-tabs button.active{
+  background:#203d52!important;
+  color:#cce8fb!important;
+}
+
+/* Attendance */
+html[data-theme="dark"] :where(
+  .attendance-safety-notice,
+  .attendance-panel,
+  .attendance-person,
+  .attendance-checkin-form,
+  .attendance-community-row,
+  .attendance-operating-day,
+  .attendance-live-person,
+  .attendance-live-community,
+  .attendance-live-plan,
+  .attendance-tabs,
+  .attendance-search
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.attendance-person:hover,.attendance-live-person:hover,.attendance-live-community:hover){
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(.attendance-person-name,.attendance-operating-day h2){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.attendance-operating-day p,.attendance-person-status,.attendance-day-status){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .attendance-tabs button{
+  background:#17232d!important;
+  color:#b9c7d0!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .attendance-tabs button.active{
+  background:#203d52!important;
+  color:#cce8fb!important;
+  border-color:#4c7390!important;
+}
+html[data-theme="dark"] .attendance-person.present,
+html[data-theme="dark"] .attendance-live-person.present{
+  background:#1a3028!important;
+  border-color:#365b49!important;
+}
+html[data-theme="dark"] .attendance-person.checked-out,
+html[data-theme="dark"] .attendance-community-row.checked-out{
+  background:#151f27!important;
+  color:#9faeb8!important;
+}
+
+/* Learning */
+html[data-theme="dark"] :where(
+  .learning-section,
+  .learning-student-card,
+  .learning-assignment-row,
+  .learning-create-card,
+  .learning-library-card,
+  .learning-assign-card,
+  .learning-editor-card,
+  .learning-library-browser,
+  .learning-library-subject-group,
+  .learning-library-item,
+  .learning-log-list article,
+  .learning-completion-dialog
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.learning-library-item:hover,.learning-library-item.selected){
+  background:var(--jh-home-raised)!important;
+  border-color:#4d6879!important;
+}
+html[data-theme="dark"] :where(
+  .learning-heading h2,
+  .learning-student-card>header strong,
+  .learning-assignment-copy strong,
+  .learning-assign-card h2,
+  .learning-editor-heading h2,
+  .learning-library-browser-heading strong,
+  .learning-library-item strong,
+  .learning-log-list strong
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .learning-student-card>header small,
+  .learning-assignment-copy small,
+  .learning-library-item small,
+  .learning-library-item em,
+  .learning-assign-card>p,
+  .learning-library-browser-heading span,
+  .learning-library-browser-heading p,
+  .learning-log-list small,
+  .learning-log-list p
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .learning-progress{
+  background:#253741!important;
+}
+html[data-theme="dark"] .learning-progress>span{
+  background:linear-gradient(90deg,#5b9ce4,#65c397)!important;
+}
+
+/* Reports */
+html[data-theme="dark"] :where(
+  .reports-controls,
+  .reports-summary-header,
+  .reports-open-days,
+  .reports-metric,
+  .reports-layout>.card,
+  .reports-table-wrap,
+  .reports-mood-card,
+  .reports-moods>div,
+  .reports-note,
+  .month-bar,
+  .history-sidebar,
+  .history-panel,
+  .entry-editor,
+  .audit-item,
+  .behavior-student-summary,
+  .behavior-card-totals
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .reports-table{
+  color:var(--jh-home-text)!important;
+}
+html[data-theme="dark"] .reports-table th{
+  background:#14212a!important;
+  color:#b9c7d0!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .reports-table td{
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(
+  .reports-open-days strong,
+  .reports-metric strong,
+  .reports-moods strong,
+  .reports-note strong,
+  .history-heading h2
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .reports-open-days span,
+  .reports-open-days small,
+  .reports-metric>span,
+  .reports-metric small,
+  .reports-moods span,
+  .reports-moods small,
+  .reports-note p,
+  .history-heading p,
+  .history-note,
+  .audit-item span
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .clickable-row:hover{
+  background:var(--jh-home-raised)!important;
+}
+
+/* Rewards */
+html[data-theme="dark"] :where(
+  .rewards-panel,
+  .rewards-controls-card,
+  .rewards-category-grid button,
+  .rewards-stat-grid>div,
+  .rewards-wheel-card,
+  .reward-wheel-presentation,
+  .reward-wheel-legend,
+  .reward-prize-row,
+  .reward-chance-row,
+  .reward-setup-toolbar,
+  .reward-test-history span,
+  .fulfillment-summary,
+  .fulfillment-filters,
+  .fulfillment-child,
+  .fulfillment-prize-row
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(
+  .rewards-panel-heading h2,
+  .rewards-category-grid strong,
+  .rewards-stat-grid strong,
+  .reward-wheel-legend h3,
+  .reward-prize-copy strong,
+  .reward-wheel-legend-row strong,
+  .fulfillment-prize-info strong
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .rewards-panel-heading p,
+  .reward-prize-copy small,
+  .reward-wheel-legend-row small,
+  .fulfillment-prize-info small,
+  .fulfillment-footnote
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .rewards-tabs button{
+  background:#17232d!important;
+  color:#b9c7d0!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .rewards-tabs button.active{
+  background:#203d52!important;
+  color:#cce8fb!important;
+  border-color:#4c7390!important;
+}
+html[data-theme="dark"] .reward-wheel-stage{
+  background:radial-gradient(circle,#223440,#131f28)!important;
+  border-color:#405663!important;
+}
+
+/* Programs + households + registration */
+html[data-theme="dark"] :where(
+  .programs-list-panel,
+  .program-detail-panel,
+  .program-list-item,
+  .program-roster-section,
+  .program-roster-row,
+  .program-facts>div,
+  .program-builder,
+  .program-days label,
+  .household-create-bar,
+  .household-section,
+  .household-contact,
+  .household-contact-editor,
+  .registration-program-list,
+  .registration-setup-panel,
+  .registration-link-box,
+  .registration-renewal-box,
+  .registration-consent-box,
+  .registration-consent-row,
+  .registration-submissions-card,
+  .registration-payload-section,
+  .registration-review-action-guide>div,
+  .registration-rich-preview
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.program-list-item:hover,.program-list-item.active,.registration-program-list>button:hover,.registration-program-list>button.active,.registration-submission-list>button:hover,.registration-submission-list>button.active){
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(
+  .program-detail-heading h2,
+  .programs-panel-heading h2,
+  .program-builder-heading h2,
+  .program-roster-heading h3,
+  .household-section-title h3,
+  .registration-program-list h2,
+  .registration-setup-heading h2,
+  .registration-review-top h3,
+  .registration-payload-section h4,
+  .registration-rich-preview-content h2,
+  .registration-rich-preview-content h3,
+  .registration-rich-preview-content h4
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .program-description,
+  .program-adult-note,
+  .registration-link-box p,
+  .registration-renewal-box p,
+  .registration-review-top p,
+  .registration-consent-row p,
+  .registration-consent-row small,
+  .registration-child-summary span,
+  .registration-child-summary small,
+  .registration-rich-preview-content,
+  .registration-review-action-guide span
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .registration-tabs button{
+  background:#17232d!important;
+  color:#b9c7d0!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .registration-tabs button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+  border-color:#4c7390!important;
+}
+
+/* Calendar */
+html[data-theme="dark"] :where(
+  .calendar-toolbar,
+  .calendar-view-switch,
+  .calendar-day-column,
+  .calendar-event-card,
+  .calendar-loading
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .calendar-day-column>header{
+  background:#14212a!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.calendar-day-column>header strong,.calendar-event-copy strong,.calendar-toolbar h2){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.calendar-day-column>header small,.calendar-event-copy small,.calendar-event-copy>span,.calendar-event-copy em,.calendar-empty-day){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .calendar-day-column.today{
+  border-color:#4d7896!important;
+}
+html[data-theme="dark"] .calendar-day-column.today>header{
+  background:#19364a!important;
+}
+html[data-theme="dark"] .calendar-view-switch button{
+  color:#b9c7d0!important;
+}
+html[data-theme="dark"] .calendar-view-switch button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+
+/* Inventory */
+html[data-theme="dark"] :where(
+  .inventory-filter-card,
+  .inventory-item-card,
+  .inventory-editor,
+  .inventory-history-list article,
+  .inventory-setup-list article,
+  .inventory-staff-helper,
+  .inventory-advanced
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .inventory-item-card:hover{
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(.inventory-item-heading h3,.inventory-editor h2,.inventory-setup-list strong,.inventory-staff-helper strong){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.inventory-item-meta,.inventory-location-chips span,.inventory-staff-helper span,.inventory-history-meta){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .inventory-location-chips span{
+  background:#24343e!important;
+  border-color:#354956!important;
+}
+
+/* Purchases + Budgeting */
+html[data-theme="dark"] :where(
+  .purchasing-inventory-needs,
+  .purchasing-lists,
+  .purchasing-list-detail,
+  .purchasing-simple-editor,
+  .purchasing-list-stack>button,
+  .purchasing-list-settings,
+  .purchasing-item,
+  .purchasing-budget-picker,
+  .purchasing-donut-card,
+  .purchasing-category-chart,
+  .purchasing-budget-list-card,
+  .purchasing-budget-add,
+  .purchasing-unplanned-row,
+  .purchasing-spend-history article
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.purchasing-list-stack>button:hover,.purchasing-list-stack>button.active,.purchasing-item:hover){
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(
+  .purchasing-section-heading h2,
+  .purchasing-section-heading h3,
+  .purchasing-list-header h2,
+  .purchasing-item-title strong,
+  .purchasing-budget-picker h2,
+  .purchasing-budget-item-name strong,
+  .purchasing-list-stack strong
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .purchasing-need-chip small,
+  .purchasing-list-stack small,
+  .purchasing-item-meta,
+  .purchasing-budget-item-name small,
+  .purchasing-budget-item-name em,
+  .purchasing-unplanned-row small
+){
+  color:var(--jh-home-muted)!important;
+}
+
+/* Tasks */
+html[data-theme="dark"] :where(
+  .task-editor-card,
+  .task-system-item,
+  .task-all-clear,
+  .task-segmented,
+  .task-item,
+  .task-empty,
+  .task-helper
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .task-item:hover{
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(.task-item-title strong,.task-section-heading h2){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.task-item small,.task-helper,.task-empty){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .task-segmented button{
+  color:#b9c7d0!important;
+}
+html[data-theme="dark"] .task-segmented button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+
+/* Team / Staff */
+html[data-theme="dark"] :where(
+  .team-panel,
+  .team-directory-list,
+  .team-active-check,
+  .team-readonly-profile,
+  .team-day,
+  .team-schedule-block,
+  .team-builder,
+  .team-exception-list>article,
+  .team-assignment-list>article
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.team-directory-list>button:hover,.team-directory-list>button.active){
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(.team-panel-heading h2,.team-builder h2,.team-day strong,.team-schedule-block strong){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.team-directory-list small,.team-day-empty,.team-exception-note){
+  color:var(--jh-home-muted)!important;
+}
+
+/* Announcements */
+html[data-theme="dark"] :where(
+  .announcement-editor,
+  .announcement-list-card,
+  .announcement-list article,
+  .announcement-pin
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .announcement-list article.pinned{
+  background:#1c3546!important;
+  border-color:#45677d!important;
+}
+html[data-theme="dark"] :where(.announcement-copy strong,.announcement-pin strong,.announcement-section-heading h2){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.announcement-copy p,.announcement-copy small,.announcement-pin small){
+  color:var(--jh-home-muted)!important;
+}
+
+/* Shared nested controls / rows */
+html[data-theme="dark"] :where(
+  .summary-row,
+  .child-row,
+  .history-entry,
+  .learning-assignment-row,
+  .reward-chance-row,
+  .fulfillment-prize-row,
+  .program-roster-row,
+  .registration-consent-row
+){
+  border-color:var(--jh-home-border)!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-filter,
+  .children-search,
+  .field label,
+  .purchasing-page .field>span,
+  .learning-form-grid .field,
+  .reward-setup-toolbar .field,
+  .attendance-date-field>span
+){
+  color:#d5e1e8!important;
+}
+
+html[data-theme="dark"] :where(
+  .primary,
+  .calendar-new-button,
+  .rewards-spin-button,
+  .attendance-big-button
+){
+  box-shadow:0 5px 14px rgba(26,91,145,.22);
+}
+
+html[data-theme="dark"] .primary:hover:not(:disabled){
+  filter:brightness(1.08);
+}
+
+/* Mobile keeps the same visual hierarchy */
+@media(max-width:760px){
+  html[data-theme="dark"] :where(
+    .children-hero,
+    .learning-hero,
+    .attendance-hero,
+    .reports-hero,
+    .rewards-hero,
+    .calendar-hero,
+    .purchasing-hero,
+    .team-hero,
+    .task-center-hero,
+    .announcements-hero,
+    .programs-hero,
+    .registration-admin-hero,
+    .fulfillment-hero
+  ){
+    padding:18px!important;
+    border-radius:17px!important;
+  }
+}
