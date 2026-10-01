@@ -280,6 +280,15 @@ export default function PurchasingPage() {
   }, [budgetItems, budgetSpends, purchaseItems])
 
   const selectedList = purchaseLists.find((list) => list.id === selectedListId) ?? null
+
+  useEffect(() => {
+    if (!selectedList || creatingList) return
+    setListTitle(selectedList.title)
+    setListWishlist(selectedList.wishlist_url ?? '')
+    setListBudget(selectedList.budget_id ? String(selectedList.budget_id) : '')
+    setListNotes(selectedList.notes ?? '')
+  }, [selectedListId, purchaseLists, creatingList])
+
   const selectedListItems = purchaseItems.filter((item) => item.purchase_request_id === selectedListId)
   const selectedListEstimated = selectedListItems.reduce((sum, item) => sum + item.quantity * item.estimated_unit_cost, 0)
   const selectedListSpent = selectedListItems
@@ -692,7 +701,7 @@ export default function PurchasingPage() {
     await loadData()
   }
 
-  if (loading && !session) return <main className="login-wrap"><div className="card login-card">Loading Purchasing…</div></main>
+  if (loading) return <main className="login-wrap"><div className="card login-card">Loading Purchasing…</div></main>
   if (!session) return <main className="login-wrap"><section className="card login-card"><h1>Purchasing</h1><p className="subtle">Sign in through Juanita Hub first.</p></section></main>
   if (!profile?.active) return <main className="login-wrap"><section className="card login-card"><h1>Purchasing</h1><div className="notice">Your staff account must be active.</div></section></main>
 
