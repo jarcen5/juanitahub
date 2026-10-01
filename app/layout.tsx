@@ -26,6 +26,9 @@ import './inventory.css'
 import './learning.css'
 import './purchasing.css'
 import './organization-shell.css'
+import './theme.css'
+
+const themeInitScript = "(function(){try{var p=location.pathname;var lightOnly=p.indexOf('/kiosk')===0||p==='/learn'||p.indexOf('/learn/')===0||p.indexOf('/register')===0||p.indexOf('/reset-password')===0||p.indexOf('/forgot-password')===0;var pref=localStorage.getItem('juanita-theme');if(pref!=='light'&&pref!=='dark'&&pref!=='system')pref='system';var dark=!lightOnly&&(pref==='dark'||(pref==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches));var resolved=dark?'dark':'light';document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themePreference=pref;document.documentElement.style.colorScheme=resolved;}catch(e){}})();"
 
 export const metadata: Metadata = {
   title: 'Juanita Hub',
@@ -34,7 +37,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: themeInitScript }} /></head>
       <body>
         <SiteNavigation />
         {children}

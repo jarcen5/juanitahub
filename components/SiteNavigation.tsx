@@ -11,6 +11,17 @@ type AccessState = {
   role: 'staff' | 'admin' | null
 }
 
+type ThemePreference = 'light' | 'dark' | 'system'
+
+function isLightOnlyPath(pathname: string) {
+  return pathname.startsWith('/kiosk')
+    || pathname === '/learn'
+    || pathname.startsWith('/learn/')
+    || pathname.startsWith('/register')
+    || pathname.startsWith('/reset-password')
+    || pathname.startsWith('/forgot-password')
+}
+
 type NavItem = {
   href?: string
   label: string
@@ -206,6 +217,42 @@ export default function SiteNavigation() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [learningReviewCount, setLearningReviewCount] = useState(0)
+  const [themePreference, setThemePreference] = useState<ThemePreference | null>(null)
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('juanita-theme')
+    setThemePreference(stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system')
+  }, [])
+
+  useEffect(() => {
+    if (!themePreference) return
+
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+    const applyTheme = () => {
+      const resolved = isLightOnlyPath(pathname)
+        ? 'light'
+        : themePreference === 'system'
+          ? (systemTheme.matches ? 'dark' : 'light')
+          : themePreference
+      document.documentElement.dataset.theme = resolved
+      document.documentElement.dataset.themePreference = themePreference
+      document.documentElement.style.colorScheme = resolved
+    }
+
+    applyTheme()
+    if (themePreference === 'system') systemTheme.addEventListener('change', applyTheme)
+    return () => systemTheme.removeEventListener('change', applyTheme)
+  }, [pathname, themePreference])
+
+  function chooseTheme(next: ThemePreference) {
+    window.localStorage.setItem('juanita-theme', next)
+    setThemePreference(next)
+  }
+
+  function cycleTheme() {
+    const current = themePreference ?? 'system'
+    chooseTheme(current === 'light' ? 'dark' : current === 'dark' ? 'system' : 'light')
+  }
 
   useEffect(() => {
     function syncHash() { setLocationHash(window.location.hash.replace('#', '')) }
@@ -332,13 +379,7 @@ export default function SiteNavigation() {
     }
   }, [mobileOpen])
 
-  if (
-    pathname.startsWith('/kiosk') ||
-    (pathname === '/learn' || pathname.startsWith('/learn/')) ||
-    pathname.startsWith('/register') ||
-    pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/forgot-password')
-  ) {
+  if (isLightOnlyPath(pathname)) {
     return null
   }
 
@@ -430,6 +471,23 @@ export default function SiteNavigation() {
               <span aria-hidden="true">🎓</span>
               <span><strong>Launch Student Learning</strong><small>Open Computer Lab Mode for individual student work</small></span>
             </Link>
+            <div className="jh-theme-control">
+              <button
+                className="jh-theme-cycle"
+                type="button"
+                onClick={cycleTheme}
+                aria-label={`Appearance: ${themePreference ?? 'system'}. Change appearance.`}
+                title={`Appearance: ${themePreference ?? 'system'}`}
+              >
+                <span aria-hidden="true">{themePreference === 'dark' ? '🌙' : themePreference === 'light' ? '☀️' : '◐'}</span>
+                <span>Appearance</span>
+              </button>
+              <div className="jh-theme-options" role="group" aria-label="Appearance">
+                <button type="button" className={themePreference === 'light' ? 'active' : ''} aria-pressed={themePreference === 'light'} onClick={() => chooseTheme('light')}><span aria-hidden="true">☀️</span> Light</button>
+                <button type="button" className={themePreference === 'dark' ? 'active' : ''} aria-pressed={themePreference === 'dark'} onClick={() => chooseTheme('dark')}><span aria-hidden="true">🌙</span> Dark</button>
+                <button type="button" className={themePreference === 'system' ? 'active' : ''} aria-pressed={themePreference === 'system'} onClick={() => chooseTheme('system')}><span aria-hidden="true">◐</span> System</button>
+              </div>
+            </div>
             <div className="jh-role-row">
               <span className="jh-role-dot" aria-hidden="true" />
               <span>Signed in as <strong>{access.role === 'admin' ? 'Admin' : 'Staff'}</strong></span>
