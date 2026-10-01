@@ -57,6 +57,13 @@ type BirthdayRegistration = {
   birth_date: string | null
 }
 
+type Announcement = {
+  id: number
+  title: string
+  body: string
+  pinned: boolean
+}
+
 function localDateString(date = new Date()) {
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
@@ -120,6 +127,7 @@ export default function StaffHomePage() {
   const [operatingDay, setOperatingDay] = useState<OperatingDay | null>(null)
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
   const [birthdayRegistrations, setBirthdayRegistrations] = useState<BirthdayRegistration[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
@@ -150,6 +158,7 @@ export default function StaffHomePage() {
       setOperatingDay(null)
       setCalendarEvents([])
       setBirthdayRegistrations([])
+      setAnnouncements([])
       return
     }
 
@@ -160,7 +169,7 @@ export default function StaffHomePage() {
     if (!session) return
     setLoading(true)
 
-    const [profileResult, childrenResult, entriesResult, attendanceResult, operatingResult, calendarResult, birthdayResult] = await Promise.all([
+    const [profileResult, childrenResult, entriesResult, attendanceResult, operatingResult, calendarResult, birthdayResult, announcementResult] = await Promise.all([
       supabase
         .from('staff_profiles')
         .select('display_name, role, active')
@@ -195,6 +204,15 @@ export default function StaffHomePage() {
         .select('child_id, birth_date')
         .eq('status', 'active')
         .not('birth_date', 'is', null),
+      supabase
+        .from('center_announcements')
+        .select('id, title, body, pinned')
+        .eq('active', true)
+        .lte('starts_on', today)
+        .or(`ends_on.is.null,ends_on.gte.${today}`)
+        .order('pinned', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(6),
     ])
 
     setProfile(profileResult.data as StaffProfile | null)
@@ -204,7 +222,8 @@ export default function StaffHomePage() {
     setOperatingDay(operatingResult.data as OperatingDay | null)
     setCalendarEvents((calendarResult.data ?? []) as CalendarEvent[])
     setBirthdayRegistrations((birthdayResult.data ?? []) as BirthdayRegistration[])
-    setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? entriesResult.error?.message ?? attendanceResult.error?.message ?? operatingResult.error?.message ?? calendarResult.error?.message ?? birthdayResult.error?.message ?? '')
+    setAnnouncements((announcementResult.data ?? []) as Announcement[])
+    setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? entriesResult.error?.message ?? attendanceResult.error?.message ?? operatingResult.error?.message ?? calendarResult.error?.message ?? birthdayResult.error?.message ?? announcementResult.error?.message ?? '')
     setLoading(false)
   }
 
@@ -380,9 +399,10 @@ export default function StaffHomePage() {
           <section className="card home-board-card">
             <div className="home-section-heading compact"><div><span className="home-section-kicker">Staff board</span><h2>Announcements & Birthdays</h2></div></div>
             <div className="home-board-section">
-              <div className="home-board-subheading"><span>📌</span><strong>Announcements</strong><span className="home-preview-pill">Coming soon</span></div>
+              <div className="home-board-subheading"><span>📌</span><strong>Announcements</strong><Link className="home-preview-pill" href="/announcements">Manage</Link></div>
               <div className="home-announcements">
-                <article className="home-announcement"><span className="home-announcement-icon">📌</span><div><strong>No staff announcements posted</strong><p>This space is reserved for real center reminders once the announcement editor is added.</p></div></article>
+                {announcements.length === 0 && <article className="home-announcement"><span className="home-announcement-icon">📌</span><div><strong>No staff announcements posted</strong><p>Use the Announcements tab under Programs to post a reminder for the team.</p></div></article>}
+                {announcements.map((announcement) => <article className="home-announcement" key={announcement.id}><span className="home-announcement-icon">{announcement.pinned ? '📌' : '💬'}</span><div><strong>{announcement.title}</strong><p>{announcement.body}</p></div></article>)}
               </div>
             </div>
             <div className="home-board-divider" />
