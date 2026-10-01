@@ -57,11 +57,11 @@ export default function BehaviorReportsPage(){
     setLoading(false)
   }
 
-  const realChildren=useMemo(()=>children.filter((c)=>!c.is_demo),[children])
-  const realIds=useMemo(()=>new Set(realChildren.map((c)=>c.id)),[realChildren])
-  const realEntries=useMemo(()=>entries.filter((e)=>realIds.has(e.child_id)),[entries,realIds])
-  const realBonuses=useMemo(()=>bonuses.filter((b)=>realIds.has(b.child_id)),[bonuses,realIds])
-  const summaryChildren=useMemo(()=>{const ids=new Set(realEntries.map((e)=>e.child_id));return realChildren.filter((c)=>c.active||ids.has(c.id))},[realChildren,realEntries])
+  const activeChildren=useMemo(()=>children.filter((c)=>c.active&&!c.is_demo),[children])
+  const activeChildIds=useMemo(()=>new Set(activeChildren.map((c)=>c.id)),[activeChildren])
+  const realEntries=useMemo(()=>entries.filter((e)=>activeChildIds.has(e.child_id)),[entries,activeChildIds])
+  const realBonuses=useMemo(()=>bonuses.filter((b)=>activeChildIds.has(b.child_id)),[bonuses,activeChildIds])
+  const summaryChildren=activeChildren
   const spinsFor=(value:number,diamonds:number)=>settings?.wheel_rule_mode==='points_per_spin'&&Number(settings.points_per_spin)>0?Math.max(0,Math.round(value/Number(settings.points_per_spin)))+diamonds:null
   const summaries=useMemo(()=>summaryChildren.map((c)=>{const ce=realEntries.filter((e)=>e.child_id===c.id);const cb=realBonuses.filter((b)=>b.child_id===c.id);const behavior=ce.reduce((s,e)=>s+e.points,0);const bonus=cb.reduce((s,b)=>s+b.points,0);const diamonds=ce.filter((e)=>e.card==='diamond').length;return{...c,entries:ce.length,behavior,bonus,total:behavior+bonus,diamonds,spins:spinsFor(behavior+bonus,diamonds)}}),[summaryChildren,realEntries,realBonuses,settings])
   const summaryTotals=useMemo(()=>({
@@ -69,7 +69,7 @@ export default function BehaviorReportsPage(){
     points:summaries.reduce((sum,c)=>sum+c.total,0),
     spins:summaries.reduce((sum,c)=>sum+(c.spins??0),0),
   }),[summaries])
-  const selected=children.find((c)=>c.id===childId)??null
+  const selected=activeChildren.find((c)=>c.id===childId)??null
   const selectedEntries=entries.filter((e)=>e.child_id===childId)
   const selectedBonuses=bonuses.filter((b)=>b.child_id===childId)
   const selectedPoints=selectedEntries.reduce((s,e)=>s+e.points,0)+selectedBonuses.reduce((s,b)=>s+b.points,0)
@@ -90,7 +90,7 @@ export default function BehaviorReportsPage(){
       {view==='summary'&&<section className="behavior-summary-layout">
         <section className="card behavior-student-summary">
           <div className="behavior-report-heading">
-            <div><span className="reports-eyebrow">Student overview</span><h2>Monthly student summary</h2><p>{monthLabel(month)} behavior activity. Archived students only appear when they have records for this month.</p></div>
+            <div><span className="reports-eyebrow">Student overview</span><h2>Monthly student summary</h2><p>{monthLabel(month)} behavior activity for currently active students.</p></div>
             <div className="behavior-report-totals">
               <div><small>Recorded days</small><strong>{summaryTotals.recordedDays}</strong></div>
               <div><small>Net points</small><strong className={summaryTotals.points<0?'negative':''}>{points(summaryTotals.points)}</strong></div>
@@ -107,7 +107,6 @@ export default function BehaviorReportsPage(){
                 <span className="behavior-summary-student">
                   <span className="behavior-summary-avatar">{c.first_name[0]?.toUpperCase()}</span>
                   <span><strong>{childName(c)}</strong><small>{c.bonus>0?`+${c.bonus} Learning Goal bonus`:'Behavior activity'}</small></span>
-                  {!c.active&&<span className="badge archived-badge">Archived</span>}
                 </span>
                 <span className="behavior-summary-cell" data-label="Recorded days"><strong>{c.entries}</strong><small>{c.entries===1?'day':'days'}</small></span>
                 <span className={`behavior-summary-cell behavior-points ${c.total<0?'negative':c.total>0?'positive':''}`} data-label="Points"><strong>{points(c.total)}</strong><small>points</small></span>
@@ -130,10 +129,10 @@ export default function BehaviorReportsPage(){
       </section>}
 
       {view==='history'&&<section className="history-layout">
-        <aside className="card history-sidebar"><h2>Choose child</h2><div className="field" style={{marginBottom:0}}><select value={childId??''} onChange={(e)=>setChildId(Number(e.target.value))}><option value="" disabled>Select a child…</option>{children.map((c)=><option key={c.id} value={c.id}>{childName(c)}{c.active?'':' (Archived)'}</option>)}</select></div>
+        <aside className="card history-sidebar"><h2>Choose child</h2><div className="field" style={{marginBottom:0}}><select value={childId??''} onChange={(e)=>setChildId(Number(e.target.value))}><option value="" disabled>Select a child…</option>{activeChildren.map((c)=><option key={c.id} value={c.id}>{childName(c)}</option>)}</select></div>
           {selected&&<div className="history-mini-stats"><div><span className="subtle">Points</span><strong>{points(selectedPoints)}</strong></div><div><span className="subtle">Spins</span><strong>{selectedSpins==null?'Pending':selectedSpins}</strong></div><div><span className="subtle">Diamonds</span><strong>{selectedDiamonds}</strong></div><div><span className="subtle">Entries</span><strong>{selectedEntries.length}</strong></div></div>}
         </aside>
-        <div className="card history-panel">{selected?<><div className="history-heading"><div><h2>{childName(selected)} {!selected.active&&<span className="badge archived-badge">Archived</span>}</h2><p className="subtle">{monthLabel(month)} behavior history</p></div><a className="ghost" href={'/children?child='+selected.id} style={{textDecoration:'none'}}>Open student profile</a></div>
+        <div className="card history-panel">{selected?<><div className="history-heading"><div><h2>{childName(selected)}</h2><p className="subtle">{monthLabel(month)} behavior history</p></div><a className="ghost" href={'/children?child='+selected.id} style={{textDecoration:'none'}}>Open student profile</a></div>
           {selectedEntries.length===0&&selectedBonuses.length===0?<div className="empty">No entries for {childName(selected)} in {monthLabel(month)}.</div>:<>{selectedEntries.length>0&&<HistoryEntryList entries={selectedEntries} onSaved={load}/>} {selectedBonuses.length>0&&<div className="learning-bonus-history"><h3>Learning Goal bonuses</h3>{selectedBonuses.map((b)=><div className="summary-row" key={b.id}><span><strong>🎯 {b.note||'Learning Goal Bonus'}</strong><br/><small className="subtle">{new Date(b.awarded_on+'T12:00:00').toLocaleDateString()}</small></span><strong>+{b.points} pt</strong></div>)}</div>}</>}</>:<div className="empty">Choose a child to view their history.</div>}</div>
       </section>}
     </main></div>
