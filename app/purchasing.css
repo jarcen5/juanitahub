@@ -952,3 +952,61 @@
   font-style:normal;
   line-height:1.35;
 }
+
+.purchasing-budget-item-view{
+  display:inline-flex;
+  gap:6px;
+  margin:14px 0 10px;
+  padding:4px;
+  border:1px solid #dce7ee;
+  border-radius:11px;
+  background:#f8fbfd;
+}
+.purchasing-budget-item-view button{
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:#65798a;
+  font-weight:850;
+  cursor:pointer;
+}
+.purchasing-budget-item-view button.active{
+  background:#fff;
+  color:#246aa4;
+  box-shadow:0 1px 4px rgba(31,72,103,.08);
+}
+.purchasing-budget-item-view button span{
+  min-width:20px;
+  height:20px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:#edf2f5;
+  color:#718392;
+  font-size:.62rem;
+}
+.purchasing-budget-row.hidden-item{
+  background:#fafbfc;
+}
+.purchasing-budget-row.hidden-item .purchasing-budget-item-name strong{
+  color:#6c7e8b;
+}
+.purchasing-budget-row.hidden-item .purchasing-budget-item-name small,
+.purchasing-budget-row.hidden-item .purchasing-budget-item-name em{
+  color:#929da5;
+}
+@media(max-width:620px){
+  .purchasing-budget-item-view{
+    width:100%;
+    box-sizing:border-box;
+  }
+  .purchasing-budget-item-view button{
+    flex:1;
+    justify-content:center;
+  }
+}
