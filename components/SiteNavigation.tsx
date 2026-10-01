@@ -101,7 +101,7 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     links: [
       { href: '/tasks', label: 'Tasks' },
       { href: '/inventory', label: 'Inventory' },
-      { href: '/purchasing', label: 'Purchasing', adminOnly: true },
+      { href: '/purchasing', label: 'Purchasing' },
     ],
   },
   {
@@ -173,7 +173,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/tasks', label: 'Task Center', description: 'Assigned work, personal to-dos, and live items that still need attention.' },
       { href: '/inventory', label: 'Inventory', description: 'Supplies, equipment, locations, stock levels, and movement history.' },
-      { href: '/purchasing', label: 'Budgets & Purchasing', description: 'Budgets, approvals, orders, receiving, and spending history.', adminOnly: true },
+      { href: '/purchasing', label: 'Purchases & Budgeting', description: 'Simple purchase lists, wishlists, program budgets, spending, and remaining funds.' },
     ],
   },
   {
