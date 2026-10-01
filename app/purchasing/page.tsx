@@ -886,14 +886,15 @@ export default function PurchasingPage() {
               <div className="purchasing-budget-table">
                 <div className="purchasing-budget-table-head"><span>Item</span><span>Planned</span><span>Spent</span><span>Difference</span><span></span></div>
                 {visibleBudgetItems.map((item) => {
+                  const itemSpends = selectedBudgetSpends.filter((entry) => entry.budget_item_id === item.id)
                   const spent = itemSpendMap.get(item.id) ?? 0
                   const difference = item.planned_amount - spent
                   return <div className="purchasing-budget-row" key={item.id}>
-                    <span className="purchasing-budget-item-name"><strong>{item.description}</strong><small>{item.category}{!item.counts_toward_plan ? ' • Reference only' : ''}{item.purchase_item_id ? ' • From Purchases' : ''}</small>{item.notes && <em>{item.notes}</em>}</span>
+                    <span className="purchasing-budget-item-name"><strong>{item.description}</strong><small>{item.category}{!item.counts_toward_plan ? ' • Reference only' : ''}{item.purchase_item_id ? ' • From Purchases' : ''}{itemSpends.length > 0 ? ' • ' + itemSpends.length + ' spend ' + (itemSpends.length === 1 ? 'record' : 'records') : ''}</small>{item.notes && <em>{item.notes}</em>}</span>
                     <span data-label="Planned"><strong>{money(item.planned_amount)}</strong></span>
                     <span data-label="Spent"><strong>{money(spent)}</strong></span>
                     <span className={difference < 0 ? 'negative' : ''} data-label="Difference"><strong>{money(difference)}</strong></span>
-                    <span className="purchasing-budget-row-actions"><button className="ghost compact-button" onClick={() => openSpendForItem(item)}>Record spend</button>{!item.purchase_item_id && <button className="ghost compact-button" disabled={saving} onClick={() => void archiveBudgetItem(item)}>Hide</button>}</span>
+                    <span className="purchasing-budget-row-actions">{item.purchase_item_id ? <span className="purchasing-auto-tracked">Tracked in Purchases</span> : <><button className="ghost compact-button" onClick={() => openSpendForItem(item)}>Record spend</button><button className="ghost compact-button" disabled={saving} onClick={() => void archiveBudgetItem(item)}>Hide</button></>}</span>
                   </div>
                 })}
               </div>
@@ -902,6 +903,15 @@ export default function PurchasingPage() {
                 <div className="purchasing-section-heading compact"><div><span className="purchasing-kicker">Unplanned spending</span><h3>Spent without a planned line</h3></div></div>
                 {unplannedSpends.map((entry) => <div className="purchasing-unplanned-row" key={entry.id}><span><strong>{entry.description}</strong><small>{entry.category} • {shortDate(entry.spent_on)}</small></span><strong>{money(entry.amount)}</strong></div>)}
               </div>}
+
+              <details className="purchasing-spend-history">
+                <summary>Spending history <span>{selectedBudgetSpends.length}</span></summary>
+                <div>
+                  {selectedBudgetSpends
+                    .filter((entry) => categoryFilter === 'all' || entry.category === categoryFilter)
+                    .map((entry) => <article key={entry.id}><span><strong>{entry.description}</strong><small>{entry.category} • {shortDate(entry.spent_on)}</small>{entry.notes && <em>{entry.notes}</em>}</span><strong>{money(entry.amount)}</strong></article>)}
+                </div>
+              </details>
             </article>
 
             <aside className="card purchasing-budget-add">
