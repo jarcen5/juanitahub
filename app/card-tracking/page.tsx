@@ -559,11 +559,6 @@ export default function Home() {
                 : monthLabel(selectedMonth)}
             </p>
           </div>
-          <nav className="nav">
-            <button className="active" onClick={goToToday}>Today</button>
-            <button onClick={() => { window.location.href = '/reports/behavior' }}>Monthly Summary & History</button>
-            <button onClick={() => { window.location.href = '/children' }}>Student Directory</button>
-          </nav>
         </div>
 
         {(activeView === 'summary' || activeView === 'history') && (

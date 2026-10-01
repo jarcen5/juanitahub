@@ -64,6 +64,11 @@ export default function BehaviorReportsPage(){
   const summaryChildren=useMemo(()=>{const ids=new Set(realEntries.map((e)=>e.child_id));return realChildren.filter((c)=>c.active||ids.has(c.id))},[realChildren,realEntries])
   const spinsFor=(value:number,diamonds:number)=>settings?.wheel_rule_mode==='points_per_spin'&&Number(settings.points_per_spin)>0?Math.max(0,Math.round(value/Number(settings.points_per_spin)))+diamonds:null
   const summaries=useMemo(()=>summaryChildren.map((c)=>{const ce=realEntries.filter((e)=>e.child_id===c.id);const cb=realBonuses.filter((b)=>b.child_id===c.id);const behavior=ce.reduce((s,e)=>s+e.points,0);const bonus=cb.reduce((s,b)=>s+b.points,0);const diamonds=ce.filter((e)=>e.card==='diamond').length;return{...c,entries:ce.length,behavior,bonus,total:behavior+bonus,diamonds,spins:spinsFor(behavior+bonus,diamonds)}}),[summaryChildren,realEntries,realBonuses,settings])
+  const summaryTotals=useMemo(()=>({
+    recordedDays:summaries.reduce((sum,c)=>sum+c.entries,0),
+    points:summaries.reduce((sum,c)=>sum+c.total,0),
+    spins:summaries.reduce((sum,c)=>sum+(c.spins??0),0),
+  }),[summaries])
   const selected=children.find((c)=>c.id===childId)??null
   const selectedEntries=entries.filter((e)=>e.child_id===childId)
   const selectedBonuses=bonuses.filter((b)=>b.child_id===childId)
@@ -76,22 +81,52 @@ export default function BehaviorReportsPage(){
   if(!profile?.active)return <main className="login-wrap"><section className="card login-card"><h1>Behavior Reports</h1><div className="notice">Your staff account must be active.</div></section></main>
 
   return <div className="shell"><header className="topbar"><div className="brand">Juanita Hub<small>Behavior Reports</small></div><div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span></div></header>
-    <main className="main">
+    <main className="main behavior-reports-page">
       <section className="hero"><div><span className="children-eyebrow">Reports</span><h1>Behavior Summary & History</h1><p className="subtle">Monthly behavior data lives here; the Behavior workspace stays focused on today.</p></div><a className="primary" href="/card-tracking" style={{textDecoration:'none'}}>Open Today’s Behavior</a></section>
       {message&&<div className="notice">{message}</div>}
       <section className="month-bar card"><div><span className="subtle month-label">Viewing month</span><strong>{monthLabel(month)}</strong></div><div className="toolbar"><button className="ghost compact-button" onClick={()=>setMonth(shiftMonth(month,-1))}>← Previous</button><input type="month" value={month} max={currentMonthKey()} onChange={(e)=>e.target.value&&setMonth(e.target.value)} /><button className="ghost compact-button" disabled={month===currentMonthKey()} onClick={()=>setMonth(shiftMonth(month,1))}>Next →</button></div></section>
       <nav className="nav"><button className={view==='summary'?'active':''} onClick={()=>setView('summary')}>Monthly Summary</button><button className={view==='history'?'active':''} onClick={()=>setView('history')}>Child History</button></nav>
 
-      {view==='summary'&&<section className="grid panel-grid">
-        <div className="card"><h2>Points & spins by child</h2><p className="subtle">{monthLabel(month)}. Archived students remain visible when they have records in this month.</p>
-          {summaries.map((c)=><button className="summary-row clickable-row" key={c.id} onClick={()=>{setChildId(c.id);setView('history')}}><span><strong>{childName(c)}</strong>{!c.active&&<span className="badge archived-badge">Archived</span>}<br/><span className="subtle" style={{fontSize:13}}>{c.entries} recorded {c.entries===1?'day':'days'}{c.bonus>0?` • +${c.bonus} Learning Goal bonus`:''}</span></span><span className="summary-actions"><strong>{points(c.total)} pts • {c.spins==null?'Spins pending':c.spins+' spin'+(c.spins===1?'':'s')}</strong><span className="history-link">View history →</span></span></button>)}
+      {view==='summary'&&<section className="behavior-summary-layout">
+        <section className="card behavior-student-summary">
+          <div className="behavior-report-heading">
+            <div><span className="reports-eyebrow">Student overview</span><h2>Monthly student summary</h2><p>{monthLabel(month)} behavior activity. Archived students only appear when they have records for this month.</p></div>
+            <div className="behavior-report-totals">
+              <div><small>Recorded days</small><strong>{summaryTotals.recordedDays}</strong></div>
+              <div><small>Net points</small><strong className={summaryTotals.points<0?'negative':''}>{points(summaryTotals.points)}</strong></div>
+              <div><small>Spins</small><strong>{settings?.wheel_rule_mode==='points_per_spin'?summaryTotals.spins:'—'}</strong></div>
+            </div>
+          </div>
+
+          {summaries.length>0&&<div className="behavior-summary-table">
+            <div className="behavior-summary-table-head" aria-hidden="true">
+              <span>Student</span><span>Recorded days</span><span>Points</span><span>Spins</span><span></span>
+            </div>
+            <div className="behavior-summary-table-body">
+              {summaries.map((c)=><button className="behavior-summary-student-row" key={c.id} onClick={()=>{setChildId(c.id);setView('history')}}>
+                <span className="behavior-summary-student">
+                  <span className="behavior-summary-avatar">{c.first_name[0]?.toUpperCase()}</span>
+                  <span><strong>{childName(c)}</strong><small>{c.bonus>0?`+${c.bonus} Learning Goal bonus`:'Behavior activity'}</small></span>
+                  {!c.active&&<span className="badge archived-badge">Archived</span>}
+                </span>
+                <span className="behavior-summary-cell" data-label="Recorded days"><strong>{c.entries}</strong><small>{c.entries===1?'day':'days'}</small></span>
+                <span className={`behavior-summary-cell behavior-points ${c.total<0?'negative':c.total>0?'positive':''}`} data-label="Points"><strong>{points(c.total)}</strong><small>points</small></span>
+                <span className="behavior-summary-cell" data-label="Spins"><strong>{c.spins==null?'—':c.spins}</strong><small>{c.spins==null?'pending':c.spins===1?'spin':'spins'}</small></span>
+                <span className="behavior-summary-history">View history <span>→</span></span>
+              </button>)}
+            </div>
+          </div>}
           {summaries.length===0&&<div className="empty">No behavior records for this month.</div>}
-        </div>
-        <div className="card"><h2>Card totals</h2>
-          {['diamond','green','yellow','orange','red'].map((card)=><div className="summary-row" key={card}><span>{pretty(card)}</span><strong>{realEntries.filter((e)=>e.card===card).length}</strong></div>)}
-          <div className="summary-row"><span>Statuses / non-behavior days</span><strong>{realEntries.filter((e)=>e.entry_type==='status').length}</strong></div>
-          <div className="summary-row"><span>🎯 Learning Goal bonus points</span><strong>+{realBonuses.reduce((s,b)=>s+b.points,0)}</strong></div>
-        </div>
+        </section>
+
+        <aside className="card behavior-card-totals">
+          <div className="behavior-report-heading compact"><div><span className="reports-eyebrow">Month at a glance</span><h2>Card totals</h2><p>All real-student behavior entries for {monthLabel(month)}.</p></div></div>
+          <div className="behavior-card-total-list">
+            {(['diamond','green','yellow','orange','red'] as CardName[]).map((card)=><div className="behavior-card-total-row" key={card}><span><i className={`behavior-card-dot ${card}`} />{pretty(card)}</span><strong>{realEntries.filter((e)=>e.card===card).length}</strong></div>)}
+            <div className="behavior-card-total-row neutral"><span><i className="behavior-card-dot status" />Statuses / non-behavior</span><strong>{realEntries.filter((e)=>e.entry_type==='status').length}</strong></div>
+            <div className="behavior-card-total-row bonus"><span>🎯 Learning Goal bonus</span><strong>+{realBonuses.reduce((s,b)=>s+b.points,0)}</strong></div>
+          </div>
+        </aside>
       </section>}
 
       {view==='history'&&<section className="history-layout">
