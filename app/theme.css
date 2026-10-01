@@ -1987,3 +1987,712 @@ html[data-theme="dark"] :where(
     background:rgba(24,35,45,.97)!important;
   }
 }
+
+
+/* Final dark-mode audit: no solid-white staff surfaces, Home-level contrast */
+html[data-theme="dark"] body:has(.site-nav){
+  --jh-audit-bg:#0b1218;
+  --jh-audit-panel:#192630;
+  --jh-audit-card:#1b2832;
+  --jh-audit-raised:#21303a;
+  --jh-audit-border:#3a4d5a;
+  --jh-audit-heading:#f3f7fa;
+  --jh-audit-text:#d9e3e9;
+  --jh-audit-muted:#b8c6cf;
+  --jh-audit-accent:#8fc7ff;
+}
+
+/* Any generic staff hero should match Home instead of the light default. */
+html[data-theme="dark"] body:has(.site-nav) .hero{
+  border-color:var(--jh-audit-border)!important;
+  background:
+    radial-gradient(circle at 86% 16%,rgba(72,137,181,.14),transparent 29%),
+    linear-gradient(135deg,#1c2b36,#17232d 60%,#1b2932)!important;
+  color:var(--jh-audit-text)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.18)!important;
+}
+html[data-theme="dark"] body:has(.site-nav) .hero :where(h1,h2,h3,strong){
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] body:has(.site-nav) .hero :where(p,small,.subtle){
+  color:var(--jh-audit-muted)!important;
+}
+
+/* Home attention card: remove the last low-contrast navy text. */
+html[data-theme="dark"] .home-attention-list>a,
+html[data-theme="dark"] .home-future-attention,
+html[data-theme="dark"] .home-all-clear{
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .home-attention-list>a :where(strong,b){
+  color:#ddecf5!important;
+}
+html[data-theme="dark"] .home-attention-list>a :where(span,small){
+  color:var(--jh-audit-muted)!important;
+}
+html[data-theme="dark"] .home-roadmap-tags span{
+  background:var(--jh-audit-raised)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:#c7d5dd!important;
+}
+
+/* Attendance: replace pale yellow decoration with Home blue/slate. */
+html[data-theme="dark"] .attendance-eyebrow{
+  background:#1b3a50!important;
+  color:#a8d4ff!important;
+  border:1px solid #42647b!important;
+}
+html[data-theme="dark"] :where(
+  .attendance-workspace,
+  .attendance-operating-day,
+  .attendance-record-plan,
+  .attendance-panel,
+  .attendance-checkin-form,
+  .attendance-community-row,
+  .attendance-person
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] :where(
+  .attendance-operating-day h2,
+  .attendance-person-name,
+  .attendance-section-heading h2,
+  .attendance-record-plan h2
+){
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .attendance-operating-day p,
+  .attendance-person-status,
+  .attendance-record-plan p,
+  .attendance-community-row small
+){
+  color:var(--jh-audit-muted)!important;
+}
+html[data-theme="dark"] .attendance-day-status{
+  background:#21303a!important;
+  border-color:#425866!important;
+  color:#c8d5dd!important;
+}
+html[data-theme="dark"] .attendance-day-status.open{
+  background:#193529!important;
+  border-color:#3b6750!important;
+  color:#bde5cd!important;
+}
+html[data-theme="dark"] .attendance-day-status.closed{
+  background:#3a2328!important;
+  border-color:#704751!important;
+  color:#ffc0c7!important;
+}
+html[data-theme="dark"] .attendance-person-action{
+  background:#1d3b50!important;
+  color:#a9d7fa!important;
+}
+html[data-theme="dark"] .attendance-person.present .attendance-person-action{
+  background:#1b3c2f!important;
+  color:#aee3c5!important;
+}
+
+/* Inventory hero / controls / list setup */
+html[data-theme="dark"] .inventory-hero{
+  border:1px solid var(--jh-audit-border)!important;
+  border-radius:20px!important;
+  padding:22px 24px!important;
+  background:
+    radial-gradient(circle at 86% 16%,rgba(72,137,181,.14),transparent 29%),
+    linear-gradient(135deg,#1c2b36,#17232d 60%,#1b2932)!important;
+}
+html[data-theme="dark"] .inventory-hero h1{color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] .inventory-hero .subtle{color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] :where(
+  .inventory-tabs button,
+  .inventory-filter-card,
+  .inventory-segmented,
+  .inventory-segmented button,
+  .inventory-setup-list article,
+  .inventory-readonly-note
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .inventory-tabs button.active,
+html[data-theme="dark"] .inventory-segmented button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] :where(
+  .inventory-panel-heading h2,
+  .inventory-panel-heading h3,
+  .inventory-item-heading h3,
+  .inventory-setup-list article strong,
+  .inventory-readonly-note strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .inventory-item-heading small,
+  .inventory-setup-list article span,
+  .inventory-readonly-note span,
+  .inventory-restock-check
+){color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .inventory-low-label{
+  background:#403517!important;
+  color:#f0d27a!important;
+}
+
+/* Student Progress report */
+html[data-theme="dark"] :where(
+  .progress-period,
+  .progress-skill-facts>div,
+  .progress-feedback-list article,
+  .progress-internal-list article,
+  .progress-archive-list article,
+  .progress-archive-achievements article,
+  .progress-report-grid>.card,
+  .progress-report-card,
+  .progress-assignment-history,
+  .progress-family-summary,
+  .progress-internal-notes,
+  .progress-report-archive
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] .progress-period{
+  box-shadow:none!important;
+}
+html[data-theme="dark"] .progress-period small{color:#9fb0bb!important}
+html[data-theme="dark"] .progress-period strong{color:#dceaf3!important}
+html[data-theme="dark"] .progress-period span{color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .progress-subject-icon{
+  background:#263844!important;
+}
+html[data-theme="dark"] :where(
+  .progress-student-identity h2,
+  .progress-subject-list strong,
+  .progress-mini-list strong,
+  .progress-feedback-list strong,
+  .progress-internal-list strong,
+  .progress-skill-facts strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .progress-student-identity p,
+  .progress-subject-list small,
+  .progress-mini-list small,
+  .progress-feedback-list small,
+  .progress-internal-list small,
+  .progress-skill-facts small,
+  .progress-trend-note,
+  .progress-table-sub
+){color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .progress-track{background:#2a3a45!important}
+
+/* Account access / Staff Management generic page */
+html[data-theme="dark"] body:has(.site-nav) main>.hero{
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] body:has(.site-nav) main>.hero h1{
+  color:var(--jh-audit-heading)!important;
+}
+
+/* Lab Devices */
+html[data-theme="dark"] :where(
+  .lab-device-hero,
+  .lab-device-card,
+  .lab-device-security-note,
+  .lab-device-facts>div
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .lab-device-hero{
+  background:
+    radial-gradient(circle at 86% 16%,rgba(72,137,181,.14),transparent 29%),
+    linear-gradient(135deg,#1c2b36,#17232d 60%,#1b2932)!important;
+}
+html[data-theme="dark"] .lab-device-icon{
+  background:#243640!important;
+  border-color:#3a4d5a!important;
+}
+html[data-theme="dark"] :where(
+  .lab-device-title-row strong,
+  .lab-device-section h2,
+  .lab-device-facts strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .lab-device-title-row small,
+  .lab-device-use,
+  .lab-device-facts small,
+  .lab-device-section>p
+){color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .lab-device-status.active{
+  background:#1b3a2e!important;
+  color:#aee2c3!important;
+}
+html[data-theme="dark"] .lab-device-status.revoked{
+  background:#3a252a!important;
+  color:#ffc1c8!important;
+}
+html[data-theme="dark"] .lab-device-revoke{
+  background:#342329!important;
+  border-color:#704751!important;
+  color:#ffc0c7!important;
+}
+
+/* Program setup registration options (CSS module class names are hashed). */
+html[data-theme="dark"] [class*="optionCard"],
+html[data-theme="dark"] [class*="editOptions"]{
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] [class*="optionCard"]:hover{
+  background:var(--jh-audit-raised)!important;
+  border-color:#537084!important;
+}
+html[data-theme="dark"] [class*="optionCard"][class*="selected"]{
+  background:#1b3a50!important;
+  border-color:#4d7794!important;
+}
+html[data-theme="dark"] [class*="optionCopy"] strong,
+html[data-theme="dark"] [class*="registrationHeading"]>span,
+html[data-theme="dark"] [class*="editOptionsHeader"] strong{
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] [class*="optionCopy"] small,
+html[data-theme="dark"] [class*="registrationHeading"] small,
+html[data-theme="dark"] [class*="editOptionsHeader"] small{
+  color:var(--jh-audit-muted)!important;
+}
+
+/* Calendar: dark month grid, staffing chips, detail cards, add buttons. */
+html[data-theme="dark"] :where(
+  .calendar-month-wrap,
+  .calendar-month-weekdays,
+  .calendar-month-day,
+  .calendar-layer-bar,
+  .calendar-detail-section,
+  .calendar-checkbox,
+  .calendar-repeat-box,
+  .calendar-staffing-chip,
+  .calendar-add-day
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] .calendar-month-weekdays{
+  background:#14212a!important;
+}
+html[data-theme="dark"] .calendar-month-weekdays span{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .calendar-month-day{
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .calendar-month-day.outside{
+  background:#141e26!important;
+  color:#81919d!important;
+}
+html[data-theme="dark"] .calendar-month-day.today{
+  background:#1c3850!important;
+  box-shadow:inset 0 0 0 2px #5d8fb3!important;
+}
+html[data-theme="dark"] .calendar-month-date{
+  color:#dce7ed!important;
+}
+html[data-theme="dark"] .calendar-add-day{
+  color:#9ecbf0!important;
+}
+html[data-theme="dark"] .calendar-staffing-chip{
+  background:#22303b!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .calendar-staffing-chip strong{color:#e7eef3!important}
+html[data-theme="dark"] .calendar-staffing-chip small,
+html[data-theme="dark"] .calendar-staffing-chip span{color:#afbdc7!important}
+html[data-theme="dark"] .calendar-staffing-summary{
+  background:#252c43!important;
+  border-color:#4d4f78!important;
+  color:#c9c2ff!important;
+}
+html[data-theme="dark"] .calendar-layer-toggle strong,
+html[data-theme="dark"] .calendar-legend strong{
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] .calendar-layer-toggle small,
+html[data-theme="dark"] .calendar-legend span{
+  color:var(--jh-audit-muted)!important;
+}
+html[data-theme="dark"] .calendar-series-note{
+  background:#342f20!important;
+  color:#eadca4!important;
+}
+html[data-theme="dark"] .calendar-detail-section.staff-notes{
+  background:#29291f!important;
+  border-color:#55513a!important;
+}
+
+/* Team scheduling */
+html[data-theme="dark"] :where(
+  .team-tabs button,
+  .team-day,
+  .team-day>header,
+  .team-day>header span,
+  .team-schedule-block,
+  .team-builder,
+  .team-exception-list>article,
+  .team-assignment-list>article,
+  .team-active-check,
+  .team-readonly-profile>div
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] .team-tabs button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] .team-day>header{
+  background:#14212a!important;
+}
+html[data-theme="dark"] .team-day>header span{
+  background:#263844!important;
+  color:#d3dfe6!important;
+}
+html[data-theme="dark"] .team-schedule-block.available{
+  background:#193129!important;
+}
+html[data-theme="dark"] :where(
+  .team-day strong,
+  .team-schedule-block strong,
+  .team-assignment-list strong,
+  .team-active-check strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .team-day-empty,
+  .team-schedule-block span,
+  .team-schedule-block small,
+  .team-assignment-list span,
+  .team-assignment-list small,
+  .team-active-check small,
+  .team-exception-list small
+){color:var(--jh-audit-muted)!important}
+
+/* Learning Hub: every staff-facing light card gets a dark equivalent. */
+html[data-theme="dark"] :where(
+  .learning-metrics article,
+  .learning-student-card>header,
+  .learning-library-item,
+  .learning-log-list article,
+  .learning-library-item-v2,
+  .learning-assignment-preview,
+  .typing-lab-list article,
+  .typing-history-list article,
+  .learning-preview-typing-goals span,
+  .typing-live-stats article,
+  .typing-passage,
+  .typing-results-grid article,
+  .learning-typing-mode-note,
+  .learning-typing-presets,
+  .quiz-lab-list article,
+  .quiz-history-list article,
+  .learning-preview-quiz-list article,
+  .quiz-question-card,
+  .quiz-results-grid article,
+  .writing-lab-list article,
+  .writing-review-list article,
+  .writing-live-stats article,
+  .writing-prompt-card,
+  .writing-starters,
+  .writing-results-grid article,
+  .writing-review-header,
+  .writing-review-response,
+  .writing-rubric,
+  .writing-revision-panel,
+  .reading-lab-staff-list article,
+  .reading-review-queue-list article,
+  .learning-preview-reading,
+  .learning-preview-reading-passage,
+  .learning-preview-reading-list article,
+  .reading-activity-progress,
+  .reading-question-panel,
+  .reading-choice-list button,
+  .reading-results-grid article,
+  .reading-review-dialog,
+  .reading-review-header,
+  .reading-review-response,
+  .reading-review-summary,
+  .my-week-launch-student,
+  .my-week-launch-metrics article,
+  .my-week-roster>button,
+  .my-week-stats article,
+  .my-week-card,
+  .my-week-empty,
+  .learning-review-list>article,
+  .learning-review-compact-list article,
+  .learning-goal-summary article,
+  .learning-goal-card,
+  .learning-goal-suggestion-grid article,
+  .learning-custom-goal-form
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] :where(
+  .learning-library-item:hover,
+  .learning-library-item.selected,
+  .learning-library-item-v2.selected,
+  .my-week-roster>button:hover,
+  .my-week-roster>button.active,
+  .reading-choice-list button:hover
+){
+  background:var(--jh-audit-raised)!important;
+  border-color:#557183!important;
+}
+html[data-theme="dark"] .learning-library-item-v2.archived{
+  background:#151f27!important;
+}
+html[data-theme="dark"] .learning-review-metrics article:first-child{
+  background:#1d2b35!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] :where(
+  .my-week-launch-icon,
+  .learning-review-icon.writing,
+  .learning-review-icon.reading,
+  .learning-review-icon.goal,
+  .learning-subject-icon
+){
+  background:#263844!important;
+  color:#dceaf3!important;
+}
+html[data-theme="dark"] :where(
+  .learning-library-title-row strong,
+  .learning-library-subject-heading strong,
+  .learning-library-skill-heading span,
+  .writing-lab-row-copy strong,
+  .writing-review-list strong,
+  .reading-lab-row-copy strong,
+  .quiz-lab-row-copy strong,
+  .typing-lab-row-copy strong,
+  .my-week-launch-heading strong,
+  .my-week-launch-student strong,
+  .my-week-roster strong,
+  .learning-goal-suggestion-grid strong,
+  .learning-review-copy strong,
+  .learning-review-compact-list strong
+){
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .learning-library-title-row em,
+  .learning-library-item-copy>small,
+  .learning-library-subject-heading small,
+  .learning-library-skill-heading small,
+  .writing-lab-row-copy small,
+  .writing-review-list small,
+  .reading-lab-row-copy small,
+  .quiz-lab-row-copy small,
+  .typing-lab-row-copy small,
+  .my-week-launch-heading small,
+  .my-week-launch-student small,
+  .my-week-roster small,
+  .learning-goal-suggestion-grid p,
+  .learning-review-copy small,
+  .learning-review-copy em,
+  .learning-review-compact-list small
+){
+  color:var(--jh-audit-muted)!important;
+}
+html[data-theme="dark"] .learning-goal-suggestion-grid small{
+  color:#9ed4b8!important;
+}
+html[data-theme="dark"] .my-week-launch-metrics strong{
+  color:#9fd0f5!important;
+}
+html[data-theme="dark"] .my-week-launch-metrics span{
+  color:#b8c6cf!important;
+}
+
+/* Staff preview/test overlays inside Learning should follow the selected staff theme. */
+html[data-theme="dark"] :where(
+  .assignment-test-topbar,
+  .assignment-test-card,
+  .typing-runner-topbar,
+  .quiz-runner-topbar,
+  .writing-runner-topbar,
+  .reading-runner-topbar
+){
+  background:#192630!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] :where(
+  .typing-input-wrap textarea,
+  .quiz-text-answer input,
+  .writing-editor textarea
+){
+  background:#111b23!important;
+  color:#f1f5f8!important;
+  border-color:#405562!important;
+}
+
+/* Programs, households, registration admin */
+html[data-theme="dark"] :where(
+  .household-member,
+  .household-contact,
+  .program-roster-row,
+  .program-days label,
+  .program-facts>div,
+  .registration-consent-row,
+  .registration-payload-section,
+  .registration-review-action-guide>div
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] :where(
+  .household-form-grid .field span,
+  .program-form-grid .field span,
+  .household-create-bar .field span,
+  .program-days>span,
+  .program-facts strong,
+  .program-adult-note strong,
+  .registration-program-list>button,
+  .registration-empty strong,
+  .registration-review-action-guide strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .household-member small,
+  .household-contact small,
+  .program-roster-row small,
+  .program-adult-note span,
+  .registration-program-list>button small,
+  .registration-child-summary span,
+  .registration-child-summary small,
+  .registration-review-action-guide span
+){color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .registration-tabs button{
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:#c5d3dc!important;
+}
+html[data-theme="dark"] .registration-tabs button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+
+/* Tasks / announcements: remove icon tiles and remaining light controls. */
+html[data-theme="dark"] :where(
+  .task-hero-counts>div,
+  .task-system-icon,
+  .task-segmented,
+  .task-segmented button,
+  .task-item,
+  .announcement-editor,
+  .announcement-list article,
+  .announcement-pin
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .task-segmented button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] .task-item.completed{
+  background:#193129!important;
+}
+html[data-theme="dark"] .task-item.canceled{
+  background:#151f27!important;
+}
+html[data-theme="dark"] :where(
+  .task-item-title h3,
+  .task-section-heading h2,
+  .announcement-copy strong,
+  .announcement-pin strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .task-item>p,
+  .task-meta,
+  .task-system-item small,
+  .announcement-copy p,
+  .announcement-copy small,
+  .announcement-pin small
+){color:var(--jh-audit-muted)!important}
+
+/* Child profile / progress nested rows */
+html[data-theme="dark"] :where(
+  .children-weekdays label,
+  .children-pickup-row,
+  .children-support-grid>div,
+  .children-agreement-grid>div,
+  .children-empty-inline,
+  .children-learning-access-list article,
+  .children-learning-pin,
+  .child-progress-metrics article,
+  .child-progress-insights article,
+  .child-progress-achievements,
+  .child-progress-goal-list article,
+  .child-progress-achievement-grid article,
+  .child-progress-reports,
+  .child-progress-report-list article,
+  .child-activity-metrics article,
+  .child-activity-list article
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+
+/* Purchasing controls that still had explicit white defaults. */
+html[data-theme="dark"] :where(
+  .purchasing-tabs button,
+  .purchasing-need-chip,
+  .purchasing-list-stack>button,
+  .purchasing-item,
+  .purchasing-spend-history article,
+  .purchasing-budget-item-view,
+  .purchasing-budget-item-view button.active
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] .purchasing-item.received{
+  background:#193129!important;
+}
+
+/* Universal staff form readability. Native checkboxes/radios are intentionally excluded. */
+html[data-theme="dark"] body:has(.site-nav) :where(
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select
+){
+  background:#111b23!important;
+  border-color:#405562!important;
+  color:#f0f5f8!important;
+}
+html[data-theme="dark"] body:has(.site-nav) :where(
+  label,
+  .field>span
+){
+  color:#d7e2e8;
+}
+html[data-theme="dark"] body:has(.site-nav) :where(input,textarea)::placeholder{
+  color:#8295a2!important;
+}
+
+/* Standard secondary copy: never use dark navy on dark surfaces. */
+html[data-theme="dark"] body:has(.site-nav) :where(
+  .subtle,
+  small,
+  [class*="helper"],
+  [class*="description"],
+  [class*="subtitle"]
+){
+  --jh-copy-muted:var(--jh-audit-muted);
+}
