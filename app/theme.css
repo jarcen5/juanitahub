@@ -573,3 +573,371 @@ html[data-theme="dark"] .behavior-button.selected{
 html[data-theme="dark"] .yellow{
   color:#332600;
 }
+
+
+/* Dark-mode contrast pass — clearer hierarchy and lower glare */
+html[data-theme="dark"]{
+  --bg:#0b1218;
+  --panel:#18232d;
+  --ink:#f3f7fa;
+  --muted:#bdc9d2;
+  --line:#344754;
+  --brand:#83bdff;
+  --brand-dark:#9ac9ff;
+  --jh-surface-soft:#121d25;
+  --jh-surface-raised:#1d2a35;
+  --jh-input:#111b23;
+  --jh-nav-surface:rgba(17,27,35,.97);
+  --jh-blue-soft:#193246;
+  --jh-green-soft:#183229;
+}
+
+html[data-theme="dark"] body{
+  background:
+    radial-gradient(circle at 88% 8%,rgba(56,111,151,.08),transparent 29%),
+    #0b1218;
+}
+
+html[data-theme="dark"] .card{
+  background:#18232d;
+  border-color:#344754;
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4{
+  color:#f3f7fa!important;
+}
+
+html[data-theme="dark"] .subtle,
+html[data-theme="dark"] :where(
+  .home-quick-action small,
+  .home-announcement p,
+  .home-schedule-row small,
+  .home-task-row small,
+  .home-roadmap p,
+  .home-section-heading>p,
+  .learning-heading p,
+  .learning-library-item small,
+  .learning-library-item em,
+  .learning-log-list small,
+  .learning-log-list p,
+  .inventory-item-meta,
+  .inventory-history-list p,
+  .inventory-history-meta span,
+  .inventory-history-meta small,
+  .team-directory-list small,
+  .team-active-check small,
+  .team-readonly-profile small,
+  .program-detail-heading p,
+  .household-list-item small,
+  .program-list-item small,
+  .purchasing-section-heading p,
+  .purchasing-budget-picker p,
+  .purchasing-list-header p
+){
+  color:#bdc9d2!important;
+}
+
+html[data-theme="dark"] :where(.home-eyebrow,.home-section-kicker,.purchasing-kicker,.reports-eyebrow,.children-eyebrow,.programs-eyebrow){
+  color:#7fb9f4!important;
+}
+
+/* Dashboard welcome card */
+html[data-theme="dark"] .home-welcome{
+  border-color:#3b5060;
+  background:
+    radial-gradient(circle at 82% 18%,rgba(67,131,176,.17),transparent 30%),
+    linear-gradient(135deg,#1c2b36,#17232d 58%,#1b2932);
+  box-shadow:0 14px 34px rgba(0,0,0,.24);
+}
+html[data-theme="dark"] .home-welcome h1{
+  color:#f7fafc!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.12);
+}
+html[data-theme="dark"] .home-welcome p{
+  color:#c4d0d8!important;
+}
+html[data-theme="dark"] .home-center-status{
+  border-color:#35614b;
+  background:#193328;
+  color:#c5ead7;
+}
+html[data-theme="dark"] .home-center-status strong{
+  color:#dff5e9;
+}
+html[data-theme="dark"] .home-center-status small{
+  color:#a9cbbb;
+}
+html[data-theme="dark"] .home-status-dot{
+  background:#63ca91;
+  box-shadow:0 0 0 5px rgba(99,202,145,.14);
+}
+
+/* Dashboard shortcut cards */
+html[data-theme="dark"] .home-fast-card{
+  background:#1a2630;
+  border-color:#354956;
+}
+html[data-theme="dark"] .home-quick-action,
+html[data-theme="dark"] .home-find-grid>a{
+  background:#1b2832!important;
+  border-color:#3a4c59!important;
+  color:#e6eef3!important;
+  box-shadow:none;
+}
+html[data-theme="dark"] .home-quick-action:hover,
+html[data-theme="dark"] .home-find-grid>a:hover{
+  background:#21313c!important;
+  border-color:#537084!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] .home-quick-action strong,
+html[data-theme="dark"] .home-find-grid strong{
+  color:#f1f5f8!important;
+}
+html[data-theme="dark"] .home-quick-action small,
+html[data-theme="dark"] .home-find-grid small{
+  color:#b8c6cf!important;
+}
+
+/* Today at a glance */
+html[data-theme="dark"] .home-today-overview{
+  background:#192630!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .home-today-overview>summary:hover{
+  background:#1e2d38!important;
+}
+html[data-theme="dark"] .home-overview-summary-copy>strong{
+  color:#dce7ed!important;
+}
+html[data-theme="dark"] .home-overview-summary-copy .home-section-kicker{
+  color:#7fb9f4!important;
+}
+html[data-theme="dark"] .home-overview-summary-stats>span{
+  border-color:#3a4d5a;
+  background:#21303a;
+}
+html[data-theme="dark"] .home-overview-summary-stats strong{
+  color:#9dceff;
+}
+html[data-theme="dark"] .home-overview-summary-stats small{
+  color:#afbec8;
+}
+html[data-theme="dark"] .home-overview-chevron{
+  color:#aebdc7;
+}
+html[data-theme="dark"] .home-overview-body{
+  border-color:#344754;
+}
+html[data-theme="dark"] .home-overview-panel{
+  border-color:#344754;
+  background:#16212a;
+}
+html[data-theme="dark"] .home-overview-panel .home-task-row,
+html[data-theme="dark"] .home-overview-panel .home-attention-list>a,
+html[data-theme="dark"] .home-overview-panel .home-all-clear{
+  background:#1c2933!important;
+}
+
+/* Dashboard schedule / staff board */
+html[data-theme="dark"] :where(.home-board-card,.home-schedule-card){
+  background:#192630!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .home-board-subheading{
+  color:#d9e4ea!important;
+}
+html[data-theme="dark"] .home-board-divider{
+  background:#344754;
+}
+html[data-theme="dark"] .home-preview-pill{
+  background:#263744;
+  color:#c1d0da;
+}
+html[data-theme="dark"] .home-announcement,
+html[data-theme="dark"] .home-schedule-row,
+html[data-theme="dark"] .home-task-row,
+html[data-theme="dark"] .home-attention-list>a,
+html[data-theme="dark"] .home-empty-state{
+  background:#1b2832!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .home-empty-state{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .home-announcement strong,
+html[data-theme="dark"] .home-schedule-row strong,
+html[data-theme="dark"] .home-task-row strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .home-schedule-row time{
+  color:#8bc6ff!important;
+}
+
+/* Less glare for generic stats and metric tiles */
+html[data-theme="dark"] :where(
+  .stat,
+  .home-snapshot-grid>div,
+  .behavior-report-totals,
+  .child-activity-metrics article,
+  .learning-metrics article,
+  .lab-device-stats .stat
+){
+  background:#1c2933!important;
+  border-color:#394d5a!important;
+}
+html[data-theme="dark"] :where(
+  .stat strong,
+  .home-snapshot-grid strong,
+  .behavior-report-totals strong,
+  .child-activity-metrics strong,
+  .learning-metrics strong
+){
+  color:#a8d3fb!important;
+}
+html[data-theme="dark"] :where(
+  .stat span,
+  .stat small,
+  .home-snapshot-grid span,
+  .home-snapshot-grid small,
+  .child-activity-metrics small,
+  .child-activity-metrics span
+){
+  color:#b4c2cb!important;
+}
+
+/* Stronger general surface hierarchy */
+html[data-theme="dark"] :where(
+  .children-form-section,
+  .children-profile-tabs,
+  .children-directory-toolbar,
+  .history-sidebar,
+  .history-panel,
+  .learning-assign-card,
+  .learning-library-card,
+  .inventory-editor,
+  .inventory-filter-card,
+  .purchasing-list-settings,
+  .purchasing-budget-item-view,
+  .team-builder,
+  .announcement-editor,
+  .announcement-list-card
+){
+  border-color:#354956!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-profile-tabs button,
+  .learning-toggle button,
+  .inventory-segmented button,
+  .purchasing-budget-item-view button,
+  .team-tabs button
+){
+  color:#b9c7d0!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-profile-tabs button.active,
+  .learning-toggle button.active,
+  .inventory-segmented button.active,
+  .purchasing-budget-item-view button.active,
+  .team-tabs button.active
+){
+  color:#c9e4ff!important;
+}
+
+/* Navigation readability */
+html[data-theme="dark"] .jh-sidebar{
+  background:
+    radial-gradient(circle at 18% 10%,rgba(77,143,190,.13),transparent 29%),
+    linear-gradient(180deg,#14202a,#101920);
+}
+html[data-theme="dark"] :where(.jh-brand,.jh-home-link,.jh-section-trigger){
+  color:#edf3f6;
+}
+html[data-theme="dark"] :where(.jh-brand small,.jh-section-copy small,.jh-role-row,.jh-nav-item small){
+  color:#aebdc7!important;
+}
+html[data-theme="dark"] .jh-section-icon{
+  background:#24343f;
+  color:#c1d3df;
+}
+html[data-theme="dark"] .jh-home-link.active,
+html[data-theme="dark"] .jh-nav-section.active>.jh-section-trigger{
+  border-color:#47708d;
+  background:#1b3a50;
+  color:#b9dcf5;
+}
+html[data-theme="dark"] .jh-home-link.active .jh-section-icon,
+html[data-theme="dark"] .jh-nav-section.active>.jh-section-trigger .jh-section-icon{
+  background:#285671;
+  color:#e8f5fc;
+}
+html[data-theme="dark"] .jh-sidebar-expand,
+html[data-theme="dark"] .jh-theme-cycle{
+  border-color:#405564!important;
+  background:#1b2933!important;
+  color:#d8e4eb!important;
+}
+html[data-theme="dark"] body:has(.site-nav) .topbar{
+  border-color:#344754;
+  background:rgba(20,30,38,.97);
+}
+html[data-theme="dark"] body:has(.site-nav) .topbar .brand{
+  color:#f0f5f8;
+}
+html[data-theme="dark"] body:has(.site-nav) .topbar .brand small{
+  color:#aebdc7;
+}
+html[data-theme="dark"] body:has(.site-nav) .topbar .badge{
+  background:#233846;
+  color:#c4deee;
+}
+
+/* Buttons and keyboard focus */
+html[data-theme="dark"] .ghost{
+  background:#1b2933;
+  color:#dce6ec;
+  border-color:#425866;
+}
+html[data-theme="dark"] .ghost:hover:not(:disabled){
+  background:#233541;
+  border-color:#587083;
+}
+html[data-theme="dark"] :where(button,a,input,select,textarea):focus-visible{
+  outline:3px solid rgba(126,185,244,.65);
+  outline-offset:2px;
+}
+
+/* Tables and rows */
+html[data-theme="dark"] :where(
+  .behavior-summary-student-row,
+  .purchasing-budget-row,
+  .inventory-history-list article,
+  .child-activity-list article,
+  .team-directory-list article
+){
+  border-color:#354956!important;
+}
+html[data-theme="dark"] :where(
+  .behavior-summary-student strong,
+  .behavior-card-total-row span,
+  .purchasing-budget-row>span>strong,
+  .purchasing-unplanned-row strong,
+  .child-activity-list strong
+){
+  color:#e5edf2!important;
+}
+html[data-theme="dark"] :where(
+  .behavior-summary-student small,
+  .behavior-summary-cell small,
+  .purchasing-budget-item-name small,
+  .purchasing-budget-item-name em,
+  .purchasing-unplanned-row small,
+  .child-activity-list small
+){
+  color:#aebdc7!important;
+}
