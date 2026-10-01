@@ -1676,3 +1676,314 @@ html[data-theme="dark"] .primary:hover:not(:disabled){
     border-radius:17px!important;
   }
 }
+
+
+/* Dark-mode white-island cleanup
+   Reward Center first; then remaining known staff surfaces. */
+
+/* Reward Center wheel: preserve colorful slices, remove light canvas */
+html[data-theme="dark"] .reward-wheel-presentation{
+  background:linear-gradient(180deg,#1b2832,#16222b)!important;
+  border-color:var(--jh-home-border)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.18)!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation-bar{
+  background:#192630!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation-bar>div{
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation-bar small{
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .reward-wheel-layout{
+  background:transparent!important;
+}
+html[data-theme="dark"] .reward-wheel-stage{
+  padding:12px;
+  border:1px solid #354956!important;
+  border-radius:22px;
+  background:
+    radial-gradient(circle at 50% 45%,#253946 0,#1c2a34 57%,#16222b 100%)!important;
+}
+html[data-theme="dark"] .reward-wheel-svg{
+  border-color:#2a3d49!important;
+  background:#182630!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.24);
+}
+html[data-theme="dark"] .reward-wheel-slice{
+  stroke:#22343f!important;
+  stroke-width:1.7!important;
+}
+html[data-theme="dark"] .reward-wheel-hub{
+  fill:#121c24!important;
+  stroke:#d7e4eb!important;
+}
+html[data-theme="dark"] .reward-wheel-hub-sub{
+  fill:#b8c8d2!important;
+}
+html[data-theme="dark"] .reward-wheel-pointer{
+  color:#f3c95c!important;
+  text-shadow:0 2px 0 #111b22,0 4px 12px rgba(0,0,0,.45)!important;
+}
+html[data-theme="dark"] .reward-result-banner{
+  background:#10202b!important;
+  color:#f3f7fa!important;
+  border:1px solid #466273!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.34)!important;
+}
+html[data-theme="dark"] .reward-wheel-legend{
+  background:#182630!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .reward-wheel-legend h3{
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] .reward-wheel-legend-row{
+  background:#1e2d38!important;
+  border-color:#3a4d5a!important;
+}
+html[data-theme="dark"] .reward-wheel-legend-row strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .reward-wheel-legend-row small{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .reward-wheel-legend-row b{
+  color:#98ceff!important;
+}
+html[data-theme="dark"] .reward-wheel-empty{
+  background:#17242d!important;
+  border-color:#425967!important;
+  color:#b7c5ce!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation:fullscreen{
+  background:#0b1218!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation:fullscreen .reward-wheel-presentation-bar{
+  background:#192630!important;
+  border:1px solid #354956!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation:fullscreen .reward-wheel-legend{
+  background:#182630!important;
+  border:1px solid #354956!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation:fullscreen .reward-wheel-legend-row{
+  background:#1e2d38!important;
+}
+html[data-theme="dark"] .reward-wheel-action{
+  background:transparent!important;
+}
+
+/* Reward setup / testing */
+html[data-theme="dark"] .reward-test-banner{
+  background:#292447!important;
+  border-color:#65599a!important;
+  color:#d8d1ff!important;
+}
+html[data-theme="dark"] .reward-chance-summary{
+  background:#1b3344!important;
+  color:#bfd4e1!important;
+}
+html[data-theme="dark"] .reward-chance-summary strong{
+  color:#9fd2f6!important;
+}
+html[data-theme="dark"] .reward-prize-row{
+  background:#1b2832!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .reward-prize-copy strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .reward-prize-copy small{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .reward-chance-row{
+  background:#192630!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .reward-chance-row small{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .reward-chance-current{
+  color:#98ceff!important;
+}
+html[data-theme="dark"] .reward-chance-input input{
+  background:#111b23!important;
+  border-color:#405562!important;
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .reward-test-history span{
+  background:#253541!important;
+  color:#c4d2da!important;
+}
+html[data-theme="dark"] .reward-inventory-filters{
+  background:#192630!important;
+  border-color:#354956!important;
+}
+
+/* Reward fulfillment */
+html[data-theme="dark"] .fulfillment-summary article{
+  background:#1b2832!important;
+  border-color:#354956!important;
+  box-shadow:none!important;
+}
+html[data-theme="dark"] .fulfillment-summary article.attention{
+  background:linear-gradient(135deg,#332c18,#1b2832)!important;
+  border-color:#6d5a2c!important;
+}
+html[data-theme="dark"] .fulfillment-summary small,
+html[data-theme="dark"] .fulfillment-summary span{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .fulfillment-summary strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .fulfillment-month-control label{
+  color:#d7e2e8!important;
+}
+html[data-theme="dark"] .fulfillment-month-control input{
+  background:#111b23!important;
+  border-color:#405562!important;
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .fulfillment-filters button{
+  background:#1b2832!important;
+  border-color:#405562!important;
+  color:#cbd8e0!important;
+}
+html[data-theme="dark"] .fulfillment-filters button.active{
+  background:#245f8a!important;
+  border-color:#4c7390!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] .fulfillment-filters button:not(.active) span{
+  background:#2a3b47!important;
+  color:#d5e0e6!important;
+}
+html[data-theme="dark"] .fulfillment-search input{
+  background:#111b23!important;
+  border-color:#405562!important;
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .fulfillment-child{
+  background:#192630!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .fulfillment-child>header{
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .fulfillment-child header small{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .fulfillment-avatar{
+  background:#3a321a!important;
+}
+html[data-theme="dark"] .fulfillment-prize-row{
+  background:#1b2832!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .fulfillment-prize-row.received{
+  background:#193129!important;
+}
+html[data-theme="dark"] .fulfillment-check{
+  background:#15212a!important;
+  border-color:#526774!important;
+}
+html[data-theme="dark"] .fulfillment-prize-info>strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .fulfillment-prize-info em{
+  background:#1d3a4e!important;
+  color:#a9d7f5!important;
+}
+html[data-theme="dark"] .fulfillment-prize-info small,
+html[data-theme="dark"] .fulfillment-prize-status small,
+html[data-theme="dark"] .fulfillment-empty p{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .fulfillment-footnote{
+  background:#1b3344!important;
+  color:#bed3df!important;
+}
+html[data-theme="dark"] .fulfillment-notice.success{
+  background:#193529!important;
+  border-color:#386249!important;
+  color:#bde5cd!important;
+}
+html[data-theme="dark"] .fulfillment-notice.error{
+  background:#3b2227!important;
+  border-color:#70424b!important;
+  color:#ffc1c8!important;
+}
+
+/* Remaining nested surfaces that otherwise retain light-theme cards */
+html[data-theme="dark"] :where(
+  .children-editor-actions,
+  .children-learning-access-footer,
+  .children-demo-student-check,
+  .learning-selected-meta span,
+  .learning-completion-note,
+  .learning-library-browser-heading,
+  .attendance-form-grid,
+  .attendance-community-layout,
+  .reports-moods>div,
+  .program-enroll-bar,
+  .program-adult-note,
+  .household-primary-check,
+  .team-form-grid,
+  .team-exception-form,
+  .task-form,
+  .task-form-grid,
+  .registration-settings-grid,
+  .registration-consent-form,
+  .registration-review-detail,
+  .announcement-actions
+){
+  background-color:transparent!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-empty-inline,
+  .learning-inline-empty,
+  .learning-empty,
+  .attendance-community-row,
+  .reports-warning,
+  .reports-empty,
+  .programs-empty,
+  .task-empty,
+  .registration-empty,
+  .calendar-loading
+){
+  background:#17242d!important;
+  border-color:#405562!important;
+  color:#b8c6cf!important;
+}
+
+html[data-theme="dark"] :where(
+  .registration-consent-row,
+  .registration-payload-section,
+  .registration-review-action-guide>div,
+  .registration-rich-preview,
+  .program-facts>div,
+  .program-days label,
+  .household-contact,
+  .team-active-check,
+  .team-readonly-profile>div,
+  .team-exception-list>article,
+  .team-assignment-list>article,
+  .task-system-item,
+  .task-all-clear,
+  .announcement-pin
+){
+  background:#1b2832!important;
+  border-color:#354956!important;
+}
+
+/* Mobile editor footer should never flash white */
+@media(max-width:760px){
+  html[data-theme="dark"] .children-editor-actions{
+    background:rgba(24,35,45,.97)!important;
+  }
+}
