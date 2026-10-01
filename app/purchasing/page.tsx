@@ -148,6 +148,7 @@ export default function PurchasingPage() {
 
   const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(null)
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [budgetItemView, setBudgetItemView] = useState<'current' | 'hidden'>('current')
   const [budgetItemDescription, setBudgetItemDescription] = useState('')
   const [budgetItemCategory, setBudgetItemCategory] = useState('Supplies')
   const [budgetItemPlanned, setBudgetItemPlanned] = useState('')
@@ -298,7 +299,9 @@ export default function PurchasingPage() {
   const activeBudgets = budgets.filter((budget) => budget.active)
   const selectedBudget = budgets.find((budget) => budget.id === selectedBudgetId) ?? null
   const selectedBudgetSummary = selectedBudget ? summaryMap.get(selectedBudget.id) ?? null : null
-  const selectedBudgetItems = budgetItems.filter((item) => item.budget_id === selectedBudgetId && item.active)
+  const selectedBudgetAllItems = budgetItems.filter((item) => item.budget_id === selectedBudgetId)
+  const selectedBudgetItems = selectedBudgetAllItems.filter((item) => item.active)
+  const hiddenBudgetItems = selectedBudgetAllItems.filter((item) => !item.active)
   const selectedBudgetSpends = budgetSpends.filter((entry) => entry.budget_id === selectedBudgetId)
 
   const categoryRows = useMemo(() => {
@@ -313,7 +316,8 @@ export default function PurchasingPage() {
   }, [selectedBudgetItems, selectedBudgetSpends])
 
   const maxCategorySpend = Math.max(1, ...categoryRows.map((row) => row.spent))
-  const visibleBudgetItems = selectedBudgetItems.filter((item) => categoryFilter === 'all' || item.category === categoryFilter)
+  const budgetItemsForView = budgetItemView === 'current' ? selectedBudgetItems : hiddenBudgetItems
+  const visibleBudgetItems = budgetItemsForView.filter((item) => categoryFilter === 'all' || item.category === categoryFilter)
   const unplannedSpends = selectedBudgetSpends.filter((entry) => !entry.budget_item_id && (categoryFilter === 'all' || entry.category === categoryFilter))
 
   const itemSpendMap = useMemo(() => {
@@ -639,7 +643,39 @@ export default function PurchasingPage() {
       setMessage(error.message)
       return
     }
-    setMessage('Budget item hidden. Its spending history remains in the budget.')
+    setMessage('Budget item hidden. You can restore it from Hidden items.')
+    await loadData()
+  }
+
+  async function restoreBudgetItem(item: BudgetItem) {
+    if (saving || item.purchase_item_id) return
+    setSaving(true)
+    const { error } = await supabase.from('budget_items').update({ active: true }).eq('id', item.id)
+    setSaving(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage(item.description + ' was restored to the budget.')
+    await loadData()
+  }
+
+  async function removeBudgetItem(item: BudgetItem) {
+    if (saving || profile?.role !== 'admin' || item.purchase_item_id) return
+    const spendCount = selectedBudgetSpends.filter((entry) => entry.budget_item_id === item.id).length
+    if (spendCount > 0) {
+      setMessage('This item has spending history, so it can be hidden but not permanently removed.')
+      return
+    }
+    if (!window.confirm('Permanently remove "' + item.description + '" from this budget?')) return
+    setSaving(true)
+    const { error } = await supabase.from('budget_items').delete().eq('id', item.id)
+    setSaving(false)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage(item.description + ' was removed from the budget.')
     await loadData()
   }
 
@@ -842,7 +878,7 @@ export default function PurchasingPage() {
         <section className="purchasing-budget-picker card">
           <div><span className="purchasing-kicker">Program budgets</span><h2>{selectedBudget?.name ?? 'Choose a budget'}</h2><p>{selectedBudget?.period_label ?? 'Budgets are optional and are mainly useful for programs like summer.'}</p></div>
           <div className="purchasing-budget-picker-actions">
-            <select value={selectedBudgetId ?? ''} onChange={(event) => { setSelectedBudgetId(Number(event.target.value)); setCategoryFilter('all') }}>{activeBudgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name}</option>)}</select>
+            <select value={selectedBudgetId ?? ''} onChange={(event) => { setSelectedBudgetId(Number(event.target.value)); setCategoryFilter('all'); setBudgetItemView('current') }}>{activeBudgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name}</option>)}</select>
             {profile.role === 'admin' && selectedBudget && <button className="ghost" onClick={() => editBudget(selectedBudget)}>Budget settings</button>}
           </div>
         </section>
@@ -883,20 +919,35 @@ export default function PurchasingPage() {
                 <div className="purchasing-budget-list-actions"><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="all">All categories</option>{categoryRows.map((row) => <option key={row.category} value={row.category}>{row.category}</option>)}</select><button className="primary compact-button" onClick={openGeneralSpend}>+ Record spending</button></div>
               </div>
 
+              <div className="purchasing-budget-item-view" aria-label="Budget item visibility">
+                <button className={budgetItemView === 'current' ? 'active' : ''} onClick={() => setBudgetItemView('current')}>Current items <span>{selectedBudgetItems.length}</span></button>
+                <button className={budgetItemView === 'hidden' ? 'active' : ''} onClick={() => setBudgetItemView('hidden')}>Hidden items <span>{hiddenBudgetItems.length}</span></button>
+              </div>
+
               <div className="purchasing-budget-table">
                 <div className="purchasing-budget-table-head"><span>Item</span><span>Planned</span><span>Spent</span><span>Difference</span><span></span></div>
                 {visibleBudgetItems.map((item) => {
                   const itemSpends = selectedBudgetSpends.filter((entry) => entry.budget_item_id === item.id)
                   const spent = itemSpendMap.get(item.id) ?? 0
                   const difference = item.planned_amount - spent
-                  return <div className="purchasing-budget-row" key={item.id}>
-                    <span className="purchasing-budget-item-name"><strong>{item.description}</strong><small>{item.category}{!item.counts_toward_plan ? ' • Reference only' : ''}{item.purchase_item_id ? ' • From Purchases' : ''}{itemSpends.length > 0 ? ' • ' + itemSpends.length + ' spend ' + (itemSpends.length === 1 ? 'record' : 'records') : ''}</small>{item.notes && <em>{item.notes}</em>}</span>
+                  return <div className={'purchasing-budget-row ' + (!item.active ? 'hidden-item' : '')} key={item.id}>
+                    <span className="purchasing-budget-item-name"><strong>{item.description}</strong><small>{item.category}{!item.counts_toward_plan ? ' • Reference only' : ''}{item.purchase_item_id ? ' • From Purchases' : ''}{itemSpends.length > 0 ? ' • ' + itemSpends.length + ' spend ' + (itemSpends.length === 1 ? 'record' : 'records') : ''}{!item.active ? ' • Hidden' : ''}</small>{item.notes && <em>{item.notes}</em>}</span>
                     <span data-label="Planned"><strong>{money(item.planned_amount)}</strong></span>
                     <span data-label="Spent"><strong>{money(spent)}</strong></span>
                     <span className={difference < 0 ? 'negative' : ''} data-label="Difference"><strong>{money(difference)}</strong></span>
-                    <span className="purchasing-budget-row-actions">{item.purchase_item_id ? <span className="purchasing-auto-tracked">Tracked in Purchases</span> : <><button className="ghost compact-button" onClick={() => openSpendForItem(item)}>Record spend</button><button className="ghost compact-button" disabled={saving} onClick={() => void archiveBudgetItem(item)}>Hide</button></>}</span>
+                    <span className="purchasing-budget-row-actions">
+                      {item.purchase_item_id ? <span className="purchasing-auto-tracked">Tracked in Purchases</span> : item.active ? <>
+                        <button className="ghost compact-button" onClick={() => openSpendForItem(item)}>Record spend</button>
+                        <button className="ghost compact-button" disabled={saving} onClick={() => void archiveBudgetItem(item)}>Hide</button>
+                        {profile.role === 'admin' && itemSpends.length === 0 && <button className="ghost compact-button danger-button" disabled={saving} onClick={() => void removeBudgetItem(item)}>Remove</button>}
+                      </> : <>
+                        <button className="ghost compact-button" disabled={saving} onClick={() => void restoreBudgetItem(item)}>Restore</button>
+                        {profile.role === 'admin' && itemSpends.length === 0 && <button className="ghost compact-button danger-button" disabled={saving} onClick={() => void removeBudgetItem(item)}>Remove</button>}
+                      </>}
+                    </span>
                   </div>
                 })}
+                {visibleBudgetItems.length === 0 && <div className="purchasing-empty">{budgetItemView === 'hidden' ? 'No hidden budget items.' : 'No budget items match this category.'}</div>}
               </div>
 
               {unplannedSpends.length > 0 && <div className="purchasing-unplanned">
