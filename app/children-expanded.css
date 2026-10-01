@@ -503,3 +503,23 @@
     text-align:center;
   }
 }
+
+
+/* Six-month behavior + rewards snapshots */
+.children-archived-badge{display:inline-flex;margin-left:5px;padding:2px 6px;border-radius:999px;background:#eef1f4;color:#6f7d88;font-size:7px;font-weight:950}
+.child-activity-snapshot{display:grid;gap:14px}
+.child-activity-heading{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.child-activity-heading h3{margin:3px 0 4px}.child-activity-heading p{margin:0;color:#7b8995;font-size:9px}
+.child-activity-heading a{text-decoration:none;white-space:nowrap}
+.child-activity-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.child-activity-metrics article{display:grid;gap:3px;padding:12px;border:1px solid #e0e8ed;border-radius:12px;background:#fbfdfe}
+.child-activity-metrics small{color:#82909a;font-size:7.5px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.child-activity-metrics strong{color:#36566d;font-size:15px}.child-activity-metrics span{color:#86939c;font-size:8px}
+.child-card-breakdown{display:flex;gap:7px;flex-wrap:wrap}
+.child-card-breakdown span{padding:6px 9px;border-radius:999px;background:#f3f6f8;color:#5d7180;font-size:8px;font-weight:850}
+.child-activity-list{display:grid;gap:7px}
+.child-activity-list article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:10px 11px;border:1px solid #e3eaee;border-radius:11px;background:white}
+.child-activity-list article>span{display:grid;gap:2px}.child-activity-list strong{color:#3b586d;font-size:9px}.child-activity-list small{color:#8a969e;font-size:7.5px}.child-activity-list em{font-style:normal;color:#667b8b;font-size:8px;font-weight:850}
+.child-activity-note{grid-column:1/-1;margin:3px 0 0;color:#6f7f8b;font-size:8px;white-space:pre-wrap}
+.daily-behavior-note{display:flex;gap:7px;margin-top:8px}.daily-behavior-note input{flex:1;min-width:180px;border:1px solid #cfd4dc;border-radius:9px;padding:9px 10px;background:white}
+@media(max-width:760px){.child-activity-heading{flex-direction:column}.child-activity-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.daily-behavior-note{flex-direction:column}.daily-behavior-note input{min-width:0;width:100%}}

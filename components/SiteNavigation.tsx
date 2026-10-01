@@ -74,10 +74,11 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
   {
     label: 'Programs',
     icon: '🗓️',
-    routes: ['/programs', '/calendar', '/registrations'],
+    routes: ['/programs', '/calendar', '/announcements', '/registrations'],
     links: [
       { href: '/programs', label: 'Programs' },
       { href: '/calendar', label: 'Calendar' },
+      { href: '/announcements', label: 'Announcements' },
       { href: '/registrations', label: 'Registration', adminOnly: true },
     ],
   },
@@ -109,6 +110,7 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     routes: ['/reports'],
     links: [
       { href: '/reports/attendance', label: 'Attendance' },
+      { href: '/reports/behavior', label: 'Behavior' },
       { href: '/reports/progress', label: 'Student Progress' },
     ],
   },
@@ -152,6 +154,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/programs', label: 'Programs & Enrollments', description: 'Create programs, choose registration paths, and manage participant rosters.' },
       { href: '/calendar', label: 'Center Calendar', description: 'Activities, trips, meetings, closures, and special events.' },
+      { href: '/announcements', label: 'Announcements', description: 'Post and manage reminders for the staff dashboard.' },
       { href: '/registrations', label: 'Registration Center', description: 'Publish forms, create renewal links, and review family submissions.', adminOnly: true },
     ],
   },
@@ -179,6 +182,7 @@ const navGroups: NavGroup[] = [
     description: 'Progress, attendance, and center reporting',
     items: [
       { href: '/reports/attendance', label: 'Attendance Reports', description: 'Monthly sign-in totals, averages, and CSV exports.' },
+      { href: '/reports/behavior', label: 'Behavior Reports', description: 'Monthly behavior summaries, points, cards, notes, and child history.' },
       { href: '/reports/progress', label: 'Student Progress Reports', description: 'Learning progress, skill results, staff feedback, and printable student reports.' },
     ],
   },

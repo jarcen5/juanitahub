@@ -126,6 +126,7 @@ export default function Home() {
   const [goalBonuses, setGoalBonuses] = useState<GoalBonus[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [dailyNotes, setDailyNotes] = useState<Record<number, string>>({})
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -192,7 +193,9 @@ export default function Home() {
     setProfile(profileResult.data as StaffProfile | null)
     setSettings(settingsResult.data as AppSettings | null)
     setChildren((childrenResult.data ?? []) as Child[])
-    setEntries((entriesResult.data ?? []) as Entry[])
+    const nextEntries = (entriesResult.data ?? []) as Entry[]
+    setEntries(nextEntries)
+    setDailyNotes((current) => ({ ...current, ...Object.fromEntries(nextEntries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry.note ?? ''])) }))
     setGoalBonuses((bonusResult.data ?? []) as GoalBonus[])
     setLoading(false)
   }
@@ -223,7 +226,7 @@ export default function Home() {
     const result = existing
       ? await supabase
           .from('behavior_entries')
-          .update({ entry_type: 'behavior', card, day_status: null })
+          .update({ entry_type: 'behavior', card, day_status: null, note: (dailyNotes[childId] ?? existing.note ?? '').trim() || null })
           .eq('id', existing.id)
       : await supabase
           .from('behavior_entries')
@@ -233,6 +236,7 @@ export default function Home() {
             entry_type: 'behavior',
             card,
             day_status: null,
+            note: (dailyNotes[childId] ?? '').trim() || null,
             recorded_by: session.user.id,
           })
 
@@ -252,7 +256,7 @@ export default function Home() {
     const result = existing
       ? await supabase
           .from('behavior_entries')
-          .update({ entry_type: 'status', card: null, day_status: status })
+          .update({ entry_type: 'status', card: null, day_status: status, note: (dailyNotes[childId] ?? existing.note ?? '').trim() || null })
           .eq('id', existing.id)
       : await supabase
           .from('behavior_entries')
@@ -262,6 +266,7 @@ export default function Home() {
             entry_type: 'status',
             card: null,
             day_status: status,
+            note: (dailyNotes[childId] ?? '').trim() || null,
             recorded_by: session.user.id,
           })
 
@@ -271,6 +276,18 @@ export default function Home() {
     }
 
     setMessage(existing ? 'Daily status corrected. The change was added to the audit trail.' : 'Daily status saved.')
+    await loadAppData()
+  }
+
+  async function saveTodayNote(childId: number) {
+    const existing = todayEntries.get(childId)
+    if (!existing) {
+      setMessage('Choose a card or status first. The note will save with that daily entry.')
+      return
+    }
+    const { error } = await supabase.from('behavior_entries').update({ note: (dailyNotes[childId] ?? '').trim() || null }).eq('id', existing.id)
+    if (error) { setMessage(error.message); return }
+    setMessage('Daily note saved.')
     await loadAppData()
   }
 
@@ -543,10 +560,9 @@ export default function Home() {
             </p>
           </div>
           <nav className="nav">
-            <button className={activeView === 'today' ? 'active' : ''} onClick={goToToday}>Today</button>
-            <button className={activeView === 'summary' ? 'active' : ''} onClick={() => setActiveView('summary')}>Monthly Summary</button>
-            <button className={activeView === 'history' ? 'active' : ''} onClick={() => openHistory()}>History</button>
-            <button className={activeView === 'children' ? 'active' : ''} onClick={() => setActiveView('children')}>Children</button>
+            <button className="active" onClick={goToToday}>Today</button>
+            <button onClick={() => { window.location.href = '/reports/behavior' }}>Monthly Summary & History</button>
+            <button onClick={() => { window.location.href = '/children' }}>Student Directory</button>
           </nav>
         </div>
 
@@ -591,13 +607,13 @@ export default function Home() {
               <p className="subtle">Choose one behavior card or a non-behavior status for each child. Selecting again replaces today's entry and records the correction in the audit trail. Diamond cards add +2 points and 1 bonus monthly spin.</p>
             </div>
             <div className="roster">
-              {activeChildren.length === 0 && <div className="empty">No active children yet. An admin can add or reactivate a child from the Children tab.</div>}
+              {activeChildren.length === 0 && <div className="empty">No active children yet. An admin can add or reactivate students from the Student Directory.</div>}
               {activeChildren.map((child) => {
                 const entry = todayEntries.get(child.id)
                 return (
                   <div className="child-row" key={child.id}>
                     <div>
-                      <button className="name-link" onClick={() => openHistory(child.id)}>{childFullName(child)}{child.is_demo ? ' • Demo' : ''}</button>
+                      <a className="name-link" href={`/children?child=${child.id}`}>{childFullName(child)}{child.is_demo ? ' • Demo' : ''}</a>
                       <div className="subtle" style={{ fontSize: 13, marginTop: 4 }}>
                         {entry?.entry_type === 'behavior'
                           ? `${prettyCard(entry.card)} card • ${formatPoints(entry.points)}${entry.card === 'diamond' ? ' • +1 bonus spin' : ''}`
@@ -628,6 +644,15 @@ export default function Home() {
                           <option value="">Status…</option>
                           {statusOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
                         </select>
+                      </div>
+                      <div className="daily-behavior-note">
+                        <input
+                          value={dailyNotes[child.id] ?? entry?.note ?? ''}
+                          onChange={(event) => setDailyNotes((current) => ({ ...current, [child.id]: event.target.value }))}
+                          placeholder="Optional note for today"
+                          aria-label={`Daily behavior note for ${childFullName(child)}`}
+                        />
+                        <button className="ghost compact-button" disabled={!entry} onClick={() => void saveTodayNote(child.id)}>Save note</button>
                       </div>
                     </div>
                   </div>

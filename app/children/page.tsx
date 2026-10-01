@@ -6,6 +6,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import ChildLearningPanel from '@/components/ChildLearningPanel'
 import ChildProgressSummary from '@/components/ChildProgressSummary'
+import ChildActivitySnapshot from '@/components/ChildActivitySnapshot'
 
 type StaffProfile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean; is_demo: boolean }
@@ -90,8 +91,9 @@ export default function ChildrenPage() {
   const [search, setSearch] = useState('')
   const [gradeFilter, setGradeFilter] = useState('all')
   const [registrationFilter, setRegistrationFilter] = useState<'all' | 'current' | 'missing'>('all')
+  const [rosterFilter, setRosterFilter] = useState<'active' | 'archived' | 'all'>('active')
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
-  const [profileTab, setProfileTab] = useState<'profile' | 'progress'>('profile')
+  const [profileTab, setProfileTab] = useState<'profile' | 'behavior' | 'rewards' | 'progress'>('profile')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<ProfileForm>(blankForm())
   const [learningAccess, setLearningAccess] = useState<LearningAccess[]>([])
@@ -112,12 +114,17 @@ export default function ChildrenPage() {
   async function loadData() {
     if (!session) return
     setLoading(true); setMessage('')
-    const [profileResult, childrenResult, registrationsResult] = await Promise.all([
-      supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
-      supabase.from('children').select('id, first_name, last_name, active, is_demo').eq('active', true).order('first_name').order('last_name'),
-      supabase.from('child_registrations').select('id, child_id, school_year, birth_date, school, grade, status, show_birthday_publicly, attendance_days, attends_other_program, other_program_arrival_notes, dismissal_plan, dismissal_notes').eq('status', 'active'),
-    ])
+    const profileResult = await supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle()
     const nextProfile = profileResult.data as StaffProfile | null
+    const [childrenResult, registrationsResult] = nextProfile?.role === 'admin'
+      ? await Promise.all([
+          supabase.from('children').select('id, first_name, last_name, active, is_demo').order('first_name').order('last_name'),
+          supabase.from('child_registrations').select('id, child_id, school_year, birth_date, school, grade, status, show_birthday_publicly, attendance_days, attends_other_program, other_program_arrival_notes, dismissal_plan, dismissal_notes').order('school_year', { ascending: true }),
+        ])
+      : await Promise.all([
+          supabase.from('children').select('id, first_name, last_name, active, is_demo').eq('active', true).order('first_name').order('last_name'),
+          supabase.from('child_registrations').select('id, child_id, school_year, birth_date, school, grade, status, show_birthday_publicly, attendance_days, attends_other_program, other_program_arrival_notes, dismissal_plan, dismissal_notes').eq('status', 'active'),
+        ])
     const nextRegistrations = (registrationsResult.data ?? []) as Registration[]
     setProfile(nextProfile); setChildren((childrenResult.data ?? []) as Child[]); setRegistrations(nextRegistrations)
 
@@ -166,9 +173,23 @@ export default function ChildrenPage() {
         registrationFilter === 'all' ||
         (registrationFilter === 'current' && Boolean(registration)) ||
         (registrationFilter === 'missing' && !registration)
-      return matchesSearch && matchesGrade && matchesRegistration
+      const matchesRoster = profile?.role === 'admin'
+        ? rosterFilter === 'all' || (rosterFilter === 'active' ? child.active : !child.active)
+        : child.active
+      return matchesSearch && matchesGrade && matchesRegistration && matchesRoster
     })
-  }, [children, registrationByChild, search, gradeFilter, registrationFilter])
+  }, [children, registrationByChild, search, gradeFilter, registrationFilter, rosterFilter, profile?.role])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || children.length === 0) return
+    const childId = Number(new URLSearchParams(window.location.search).get('child'))
+    if (!Number.isFinite(childId)) return
+    const requested = children.find((child) => child.id === childId)
+    if (requested) {
+      setSelectedChild(requested)
+      setProfileTab('profile')
+    }
+  }, [children])
 
   function closeProfile() { if (!saving) { setSelectedChild(null); setProfileTab('profile'); setEditing(false) } }
   function openEditor(child: Child) {
@@ -200,6 +221,19 @@ export default function ChildrenPage() {
     const { error } = await supabase.from('learning_student_access').upsert({ child_id: childId, enabled, updated_by: session.user.id, updated_at: new Date().toISOString() }, { onConflict: 'child_id' })
     setSaving(false)
     if (error) { setMessage(error.message); return }
+    await loadData()
+  }
+
+  async function setChildActive(child: Child, active: boolean) {
+    if (profile?.role !== 'admin' || saving) return
+    if (!active && !window.confirm(`Archive ${childName(child)}? They will be hidden from daily rosters, but their profile and history will remain available to admins.`)) return
+    setSaving(true); setMessage('')
+    const { error } = await supabase.from('children').update({ active }).eq('id', child.id)
+    setSaving(false)
+    if (error) { setMessage(error.message); return }
+    setSelectedChild((current) => current?.id === child.id ? { ...current, active } : current)
+    setRosterFilter(active ? 'active' : 'archived')
+    setMessage(active ? `${childName(child)} is active again.` : `${childName(child)} was archived. Their information and history were preserved.`)
     await loadData()
   }
 
@@ -332,8 +366,8 @@ export default function ChildrenPage() {
     <main className="main children-page">
       <section className="hero children-hero"><div><span className="children-eyebrow">Students</span><h1>Student Directory</h1><p className="subtle">Find a child once, then open their school-year profile, routine, registration details, and connected Juanita Hub tools.</p></div><div className="children-hero-actions">{profile.role === 'admin' && <><button className="ghost" type="button" onClick={() => setAccessOpen(true)}>🎓 Learning Access</button><button className="primary" type="button" onClick={() => setAddingStudent(true)}>＋ Add Student</button></>}<div className="children-security-pill">🔒 Sensitive details restricted</div></div></section>
       {message && <div className="notice">{message}</div>}
-      <section className="card children-directory-toolbar"><div className="children-directory-controls"><label className="children-search"><span>Search students</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, school, or grade…" /></label><label className="children-filter"><span>Grade</span><select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>{grade}</option>)}</select></label><label className="children-filter"><span>Registration</span><select value={registrationFilter} onChange={(e) => setRegistrationFilter(e.target.value as typeof registrationFilter)}><option value="all">All students</option><option value="current">Current registration</option><option value="missing">Needs registration</option></select></label></div><div className="children-directory-count"><strong>{visibleChildren.length}</strong><span>of {children.length} active students</span></div></section>
-      <section className="children-grid">{visibleChildren.map((child) => { const r = registrationByChild.get(child.id); const age = calculateAge(r?.birth_date ?? null); return <button type="button" className="card child-profile-card" key={child.id} onClick={() => { setProfileTab('profile'); setSelectedChild(child) }}><span className="child-profile-avatar">{child.first_name[0]?.toUpperCase()}</span><span className="child-profile-card-copy"><strong>{childName(child)} {child.is_demo && <span className="children-demo-badge small">Demo</span>}</strong>{r ? <><small>{[r.grade ? `Grade ${r.grade}` : '', r.school ?? ''].filter(Boolean).join(' • ') || 'School details not added'}</small><span>{formatBirthday(r.birth_date)}{age != null ? ` • Age ${age}` : ''}</span></> : <><small>No current registration</small><span>Open profile to add school-year details</span></>}</span><span className={`child-registration-status ${r ? 'current' : 'missing'}`}>{r ? 'Current' : 'Needs registration'}</span></button> })}</section>
+      <section className="card children-directory-toolbar"><div className="children-directory-controls"><label className="children-search"><span>Search students</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, school, or grade…" /></label><label className="children-filter"><span>Grade</span><select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>{grade}</option>)}</select></label><label className="children-filter"><span>Registration</span><select value={registrationFilter} onChange={(e) => setRegistrationFilter(e.target.value as typeof registrationFilter)}><option value="all">All students</option><option value="current">Current registration</option><option value="missing">Needs registration</option></select></label>{profile.role === 'admin' && <label className="children-filter"><span>Status</span><select value={rosterFilter} onChange={(e) => setRosterFilter(e.target.value as typeof rosterFilter)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">Active + archived</option></select></label>}</div><div className="children-directory-count"><strong>{visibleChildren.length}</strong><span>{children.filter((child) => child.active).length} active{profile.role === 'admin' ? ` • ${children.filter((child) => !child.active).length} archived` : ''}</span></div></section>
+      <section className="children-grid">{visibleChildren.map((child) => { const r = registrationByChild.get(child.id); const age = calculateAge(r?.birth_date ?? null); return <button type="button" className="card child-profile-card" key={child.id} onClick={() => { setProfileTab('profile'); setSelectedChild(child) }}><span className="child-profile-avatar">{child.first_name[0]?.toUpperCase()}</span><span className="child-profile-card-copy"><strong>{childName(child)} {child.is_demo && <span className="children-demo-badge small">Demo</span>} {!child.active && <span className="children-archived-badge">Archived</span>}</strong>{r ? <><small>{[r.grade ? `Grade ${r.grade}` : '', r.school ?? ''].filter(Boolean).join(' • ') || 'School details not added'}</small><span>{formatBirthday(r.birth_date)}{age != null ? ` • Age ${age}` : ''}</span></> : <><small>No current registration</small><span>Open profile to add school-year details</span></>}</span><span className={`child-registration-status ${r ? 'current' : 'missing'}`}>{r ? 'Current' : 'Needs registration'}</span></button> })}</section>
       {visibleChildren.length === 0 && <section className="card children-empty">No children match that search.</section>}
       <section className="card children-retention-note"><strong>School-year privacy</strong><p>Annual registrations are separate from the permanent child roster so old family, health, schedule, dismissal, and consent information can later be expired and purged under the center’s retention policy.</p></section>
     </main>
@@ -352,9 +386,11 @@ export default function ChildrenPage() {
     </section></div>}
 
     {selectedChild && !editing && <div className="children-modal-backdrop" role="presentation" onClick={closeProfile}><section className="card children-profile-modal" role="dialog" aria-modal="true" aria-labelledby="child-profile-title" onClick={(e) => e.stopPropagation()}><button type="button" className="children-modal-close" onClick={closeProfile}>×</button>
-      <div className="children-profile-heading"><span className="child-profile-avatar large">{selectedChild.first_name[0]?.toUpperCase()}</span><div><span className="children-eyebrow">Child profile</span><h2 id="child-profile-title">{childName(selectedChild)} {selectedChild.is_demo && <span className="children-demo-badge">Demo/Test</span>}</h2><p>{selectedRegistration ? `${selectedRegistration.school_year} registration` : 'No current school-year registration yet'}</p></div>{profile.role === 'admin' && <div className="children-profile-heading-actions"><button type="button" className="ghost" onClick={() => void toggleDemoStudent(selectedChild)}>{selectedChild.is_demo ? 'Include in reports' : 'Mark as Demo/Test'}</button><button type="button" className="primary" onClick={() => openEditor(selectedChild)}>{selectedRegistration ? 'Edit registration' : 'Add registration'}</button></div>}</div>
+      <div className="children-profile-heading"><span className="child-profile-avatar large">{selectedChild.first_name[0]?.toUpperCase()}</span><div><span className="children-eyebrow">Child profile</span><h2 id="child-profile-title">{childName(selectedChild)} {selectedChild.is_demo && <span className="children-demo-badge">Demo/Test</span>} {!selectedChild.active && <span className="children-archived-badge">Archived</span>}</h2><p>{selectedRegistration ? `${selectedRegistration.school_year} ${selectedRegistration.status === 'active' ? 'registration' : 'historical registration'}` : 'No registration record available'}</p></div>{profile.role === 'admin' && <div className="children-profile-heading-actions"><button type="button" className={selectedChild.active ? 'ghost danger-button' : 'primary'} onClick={() => void setChildActive(selectedChild, !selectedChild.active)}>{selectedChild.active ? 'Archive student' : 'Reactivate student'}</button><button type="button" className="ghost" onClick={() => void toggleDemoStudent(selectedChild)}>{selectedChild.is_demo ? 'Include in reports' : 'Mark as Demo/Test'}</button><button type="button" className="primary" onClick={() => openEditor(selectedChild)}>{selectedRegistration ? 'Edit registration' : 'Add registration'}</button></div>}</div>
       <nav className="children-profile-tabs" aria-label="Student profile views">
         <button type="button" className={profileTab === 'profile' ? 'active' : ''} onClick={() => setProfileTab('profile')}>Profile</button>
+        <button type="button" className={profileTab === 'behavior' ? 'active' : ''} onClick={() => setProfileTab('behavior')}>Behavior</button>
+        <button type="button" className={profileTab === 'rewards' ? 'active' : ''} onClick={() => setProfileTab('rewards')}>Rewards</button>
         <button type="button" className={profileTab === 'progress' ? 'active' : ''} onClick={() => setProfileTab('progress')}>Progress</button>
       </nav>
       <nav className={`children-profile-shortcuts ${profileTab === 'profile' ? '' : 'children-profile-hidden'}`} aria-label={`${childName(selectedChild)} profile shortcuts`}><Link href="/attendance"><span>✓</span><strong>Attendance</strong><small>Sign-ins & visits</small></Link><Link href="/card-tracking"><span>◆</span><strong>Behavior</strong><small>Cards & history</small></Link><Link href="/rewards"><span>★</span><strong>Rewards</strong><small>Spins & prizes</small></Link><a href="#child-learning-profile"><span>📘</span><strong>Learning</strong><small>Progress & weekly work</small></a></nav>
@@ -370,6 +406,8 @@ export default function ChildrenPage() {
           <section className="children-profile-section sensitive"><div className="children-section-title"><span>✍️</span><div><small>Restricted</small><h3>Permissions & agreements</h3></div></div>{selectedAgreement ? <div className="children-agreement-grid"><div><small>Media</small><strong>{selectedAgreement.media_consent == null ? 'Not recorded' : selectedAgreement.media_consent ? 'Agreed' : 'Did not agree'}</strong></div><div><small>Program consent</small><strong>{selectedAgreement.program_consent == null ? 'Not recorded' : selectedAgreement.program_consent ? 'Agreed' : 'Did not agree'}</strong></div><div><small>Removal acknowledgment</small><strong>{selectedAgreement.removal_acknowledgment == null ? 'Not recorded' : selectedAgreement.removal_acknowledgment ? 'Agreed' : 'Did not agree'}</strong></div><div><small>Rules</small><strong>{selectedAgreement.rules_acknowledgment == null ? 'Not recorded' : selectedAgreement.rules_acknowledgment ? 'Agreed' : 'Did not agree'}</strong></div><div><small>Friday requirement</small><strong>{selectedAgreement.friday_participation_acknowledgment == null ? 'Not recorded' : selectedAgreement.friday_participation_acknowledgment ? 'Agreed' : 'Did not agree'}</strong></div><div><small>Keep info current</small><strong>{selectedAgreement.info_accuracy_acknowledgment == null ? 'Not recorded' : selectedAgreement.info_accuracy_acknowledgment ? 'Agreed' : 'Did not agree'}</strong></div><div><small>Signed by</small><strong>{selectedAgreement.signature_name || 'Not recorded'}</strong></div><div><small>Signature date</small><strong>{selectedAgreement.signature_date || 'Not recorded'}</strong></div></div> : <div className="children-empty-inline">No agreement record entered yet.</div>}</section>
         </> : <section className="children-profile-section locked"><div className="children-section-title"><span>🔒</span><div><small>Restricted information</small><h3>Contacts, safety & registration permissions</h3></div></div><p>Family contacts, emergency contacts, health/support details, pickup permissions, and signed agreements are restricted to admins in this first version.</p></section>}
       </div>
+      {profileTab === 'behavior' && <ChildActivitySnapshot mode="behavior" childId={selectedChild.id} childName={childName(selectedChild)} />}
+      {profileTab === 'rewards' && <ChildActivitySnapshot mode="rewards" childId={selectedChild.id} childName={childName(selectedChild)} />}
       {profileTab === 'progress' && <ChildProgressSummary childId={selectedChild.id} childName={childName(selectedChild)} grade={selectedRegistration?.grade ?? null} isDemo={selectedChild.is_demo} />}
     </section></div>}
 
