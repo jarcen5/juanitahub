@@ -10,6 +10,7 @@ import TypingActivityRunner from '@/components/TypingActivityRunner'
 import QuizActivityRunner, { type QuizConfig } from '@/components/QuizActivityRunner'
 import WritingActivityRunner, { type WritingConfig } from '@/components/WritingActivityRunner'
 import ReadingActivityRunner, { type ReadingConfig } from '@/components/ReadingActivityRunner'
+import JuanitaQuestRunner, { type JuanitaQuestConfig } from '@/components/JuanitaQuestRunner'
 
 type LabStudent = {
   id: number
@@ -410,6 +411,7 @@ export default function StudentLearningPage() {
       maxScore: row.max_score,
       writingStatus: writingByRow.get(row.id)?.status ?? null,
       readingReviewStatus: readingByRow.get(row.id)?.review_status ?? null,
+      isJuanitaQuest: assignment.assignment_type === 'quiz' && assignment.activity_config?.experience === 'juanita_quest',
     }]
   }), [week.rows, assignmentById, writingByRow, readingByRow])
 
@@ -531,7 +533,7 @@ export default function StudentLearningPage() {
         />
       )}
 
-      {activeItem?.assignment.assignment_type === 'quiz' && access && (
+      {activeItem?.assignment.assignment_type === 'quiz' && activeItem.assignment.activity_config?.experience !== 'juanita_quest' && access && (
         <QuizActivityRunner
           studentAssignmentId={activeItem.row.id}
           childId={student.id}
@@ -539,6 +541,20 @@ export default function StudentLearningPage() {
           assignmentTitle={activeItem.assignment.title}
           studentName={student.display_name}
           activityConfig={activeItem.assignment.activity_config as QuizConfig}
+          studentAccess={access}
+          onClose={() => setActiveItem(null)}
+          onSaved={() => loadWeek()}
+        />
+      )}
+
+      {activeItem?.assignment.assignment_type === 'quiz' && activeItem.assignment.activity_config?.experience === 'juanita_quest' && access && (
+        <JuanitaQuestRunner
+          studentAssignmentId={activeItem.row.id}
+          childId={student.id}
+          assignmentId={activeItem.assignment.id}
+          assignmentTitle={activeItem.assignment.title}
+          studentName={student.display_name}
+          activityConfig={activeItem.assignment.activity_config as JuanitaQuestConfig}
           studentAccess={access}
           onClose={() => setActiveItem(null)}
           onSaved={() => loadWeek()}
