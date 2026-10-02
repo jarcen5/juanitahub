@@ -16,6 +16,7 @@ export type MyWeekItem = {
   maxScore: number | null
   writingStatus?: 'draft' | 'submitted' | 'reviewed' | null
   readingReviewStatus?: 'not_needed' | 'pending' | 'reviewed' | null
+  isJuanitaQuest?: boolean
 }
 
 export type StudentGoalView = {
@@ -115,6 +116,10 @@ function isInteractive(item: MyWeekItem) {
 function actionLabel(item: MyWeekItem) {
   const status = statusFor(item)
   if (!isInteractive(item)) return 'Ask staff'
+  if (item.isJuanitaQuest) {
+    if (status.key === 'completed') return 'Play again'
+    return 'Play quest'
+  }
   if (item.assignmentType === 'writing' && item.writingStatus === 'draft') return 'Continue writing'
   if (item.assignmentType === 'writing' && (item.writingStatus === 'submitted' || item.writingStatus === 'reviewed')) return 'View writing'
   if (status.key === 'completed') return item.assignmentType === 'writing' ? 'View writing' : 'Practice again'
@@ -216,11 +221,11 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
               const due = formatDue(item.dueDate)
               const interactive = isInteractive(item)
               return (
-                <article className={'my-week-card ' + displayStatus.key} key={item.rowId}>
-                  <div className="my-week-card-icon">{subjectIcons[item.subject]}</div>
+                <article className={'my-week-card ' + displayStatus.key + (item.isJuanitaQuest ? ' quest-assignment' : '')} key={item.rowId}>
+                  <div className="my-week-card-icon">{item.isJuanitaQuest ? '🗺️' : subjectIcons[item.subject]}</div>
                   <div className="my-week-card-copy">
                     <div className="my-week-card-eyebrow">
-                      <span>{typeLabels[item.assignmentType] ?? 'Learning activity'}</span>
+                      <span>{item.isJuanitaQuest ? '🎮 Juanita Quest' : (typeLabels[item.assignmentType] ?? 'Learning activity')}</span>
                       <em className={'my-week-status ' + displayStatus.key}>{displayStatus.label}</em>
                     </div>
                     <h2>{item.title}</h2>
