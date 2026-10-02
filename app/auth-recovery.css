@@ -1,0 +1,91 @@
+/* Password recovery */
+.auth-recovery-page {
+  padding: 24px;
+}
+
+.auth-recovery-card {
+  width: min(470px, 100%);
+  display: grid;
+  gap: 14px;
+  text-align: left;
+}
+
+.auth-recovery-card h1 {
+  margin: 0;
+  color: #173c63;
+  font-size: clamp(28px, 6vw, 38px);
+}
+
+.auth-recovery-card .subtle {
+  margin: -4px 0 2px;
+  line-height: 1.55;
+}
+
+.auth-recovery-mark {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #3196df, #53ba91);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 0 8px 20px rgba(42, 133, 192, .2);
+}
+
+.auth-recovery-form {
+  display: grid;
+  gap: 13px;
+}
+
+.auth-recovery-form .primary {
+  width: 100%;
+}
+
+.auth-recovery-back {
+  display: inline-flex;
+  width: fit-content;
+  color: #28699e;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.auth-recovery-back:hover {
+  text-decoration: underline;
+}
+
+.auth-recovery-error {
+  border-color: #efc1c7;
+  background: #fff3f5;
+  color: #8a3040;
+}
+
+.auth-recovery-success {
+  border-color: #bfe2cf;
+  background: #f0fbf5;
+  color: #286146;
+}
+
+.auth-recovery-link-button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.login-card .forgot-password-link {
+  display: block;
+  margin-top: -2px;
+  color: #28699e;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+  text-decoration: none;
+}
+
+.login-card .forgot-password-link:hover {
+  text-decoration: underline;
+}

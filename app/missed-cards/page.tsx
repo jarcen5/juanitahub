@@ -97,7 +97,7 @@ export default function MissedCardsPage() {
     }
 
     const [childrenResult, rulesResult, existingResult] = await Promise.all([
-      supabase.from('children').select('id, first_name, last_name, active').order('first_name').order('last_name'),
+      supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
       supabase.from('card_rules').select('card, points, display_order').order('display_order'),
       supabase.from('behavior_entries').select('id, child_id, entry_type, card, day_status').eq('entry_date', date),
     ])

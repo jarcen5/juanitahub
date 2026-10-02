@@ -1,0 +1,2791 @@
+
+/* Juanita Hub appearance system
+   Loaded last so dark mode can safely override legacy light-only component styles. */
+
+:root{
+  --jh-surface-soft:#f8fbfd;
+  --jh-surface-raised:#ffffff;
+  --jh-input:#ffffff;
+  --jh-nav-surface:rgba(255,255,255,.96);
+  --jh-blue-soft:#eef7fc;
+  --jh-green-soft:#f0faf5;
+}
+
+html[data-theme="dark"]{
+  --bg:#0d151c;
+  --panel:#17232d;
+  --ink:#edf4f8;
+  --muted:#9badbb;
+  --line:#2d3e4b;
+  --brand:#6da9ff;
+  --brand-dark:#8bbaff;
+  --jh-surface-soft:#121d26;
+  --jh-surface-raised:#192731;
+  --jh-input:#111c24;
+  --jh-nav-surface:rgba(18,29,38,.96);
+  --jh-blue-soft:#172c3b;
+  --jh-green-soft:#172d27;
+  color-scheme:dark;
+}
+
+html[data-theme="dark"] body{
+  background:#0d151c;
+  color:var(--ink);
+}
+
+html[data-theme="dark"] body::before,
+html[data-theme="dark"] body::after{
+  opacity:.18;
+}
+
+html[data-theme="dark"] :where(.shell,.main,.home-dashboard,.children-page,.learning-page,.inventory-page,.purchasing-page,.team-page,.calendar-page,.programs-page,.household-page,.announcements-page,.task-center-page){
+  color:var(--ink);
+}
+
+html[data-theme="dark"] .card{
+  background:var(--panel);
+  border-color:var(--line);
+  box-shadow:0 6px 20px rgba(0,0,0,.18);
+}
+
+html[data-theme="dark"] :where(h1,h2,h3,h4){
+  color:#edf4f8;
+}
+
+html[data-theme="dark"] .subtle,
+html[data-theme="dark"] :where(.home-quick-action small,.home-announcement p,.learning-heading p,.learning-library-item small,.learning-library-item em,.learning-log-list small,.learning-log-list p,.inventory-item-meta,.inventory-history-list p,.inventory-history-meta span,.inventory-history-meta small,.team-directory-list small,.team-active-check small,.team-readonly-profile small,.program-detail-heading p,.household-list-item small,.program-list-item small,.purchasing-section-heading p,.purchasing-budget-picker p,.purchasing-list-header p){
+  color:#9badbb!important;
+}
+
+html[data-theme="dark"] :where(input,textarea,select){
+  background:var(--jh-input)!important;
+  color:#edf4f8!important;
+  border-color:#344957!important;
+}
+
+html[data-theme="dark"] :where(input,textarea)::placeholder{
+  color:#708592;
+}
+
+html[data-theme="dark"] :where(.ghost,.nav button,.month-controls input){
+  background:#17232d;
+  color:#dce8ef;
+  border-color:#344957;
+}
+
+html[data-theme="dark"] :where(.ghost:hover,.nav button:hover){
+  background:#1d2d39;
+  border-color:#476274;
+}
+
+html[data-theme="dark"] .nav button.active{
+  background:#203955;
+  border-color:#4774a3;
+  color:#9bc8ff;
+}
+
+html[data-theme="dark"] .badge,
+html[data-theme="dark"] .archived-badge{
+  background:#263540;
+  color:#c1d0da;
+}
+
+html[data-theme="dark"] .notice{
+  background:#172e48;
+  color:#a9d1ff;
+}
+html[data-theme="dark"] .error{background:#412229;color:#ffb7bf}
+html[data-theme="dark"] .success{background:#183b2c;color:#a6e4c3}
+
+html[data-theme="dark"] :where(.history-mini-stats>div,.entry-editor,.audit-item,.archived-section){
+  background:var(--jh-surface-soft);
+  border-color:var(--line);
+}
+
+/* Sidebar + workspace navigation */
+html[data-theme="dark"] .jh-sidebar{
+  border-color:#293b47;
+  background:
+    radial-gradient(circle at 18% 10%,rgba(65,129,174,.16),transparent 28%),
+    linear-gradient(180deg,#14212a,#111b23);
+  box-shadow:10px 0 28px rgba(0,0,0,.2);
+}
+html[data-theme="dark"] .jh-sidebar-header,
+html[data-theme="dark"] .jh-sidebar-footer{
+  border-color:#293b47;
+  background:rgba(16,27,35,.94);
+}
+html[data-theme="dark"] :where(.jh-brand,.jh-home-link,.jh-section-trigger){
+  color:#dce8ef;
+}
+html[data-theme="dark"] :where(.jh-brand small,.jh-section-copy small,.jh-role-row){
+  color:#8fa3b1;
+}
+html[data-theme="dark"] .jh-sidebar-expand,
+html[data-theme="dark"] .jh-sidebar-close{
+  background:#1b2a35;
+  color:#c6d6e0;
+  border-color:#344957;
+}
+html[data-theme="dark"] .jh-home-link.active,
+html[data-theme="dark"] .jh-nav-section.active>.jh-section-trigger{
+  border-color:#355a73;
+  background:#183247;
+  color:#94c9f1;
+}
+html[data-theme="dark"] .jh-section-icon{
+  background:#21313c;
+  color:#a9c1d1;
+}
+html[data-theme="dark"] .jh-home-link.active .jh-section-icon,
+html[data-theme="dark"] .jh-nav-section.active>.jh-section-trigger .jh-section-icon{
+  background:#1d4058;
+}
+html[data-theme="dark"] .jh-kiosk-link{
+  border-color:#315344;
+  background:#162c25;
+  color:#b8dec9;
+}
+html[data-theme="dark"] .jh-kiosk-link>span:first-child{
+  background:#214335;
+}
+html[data-theme="dark"] .jh-kiosk-link small{
+  color:#8dac9c;
+}
+html[data-theme="dark"] .jh-workspace-bar,
+html[data-theme="dark"] .jh-mobile-bar{
+  border-color:#293b47;
+  background:rgba(18,29,38,.97);
+  color:#dce8ef;
+  box-shadow:0 5px 18px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] .jh-workspace-title{
+  color:#dce8ef;
+}
+html[data-theme="dark"] .jh-workspace-link{
+  color:#a9bac6;
+}
+html[data-theme="dark"] .jh-workspace-link:hover{
+  background:#1b2b36;
+  color:#dce8ef;
+}
+html[data-theme="dark"] .jh-workspace-link.active{
+  border-color:#365c76;
+  background:#183247;
+  color:#9bcaf2;
+}
+html[data-theme="dark"] body:has(.site-nav) .topbar{
+  border-color:#293b47;
+  background:rgba(18,29,38,.94);
+  color:#dce8ef;
+  box-shadow:0 5px 18px rgba(0,0,0,.2);
+}
+
+/* Appearance control */
+.jh-theme-control{
+  display:grid;
+  gap:7px;
+}
+.jh-theme-options{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:4px;
+  padding:4px;
+  border:1px solid #dbe7ee;
+  border-radius:11px;
+  background:rgba(255,255,255,.55);
+}
+.jh-theme-options button,
+.jh-theme-cycle{
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:#617789;
+  min-height:34px;
+  padding:6px 7px;
+  font-size:9.5px;
+  font-weight:850;
+}
+.jh-theme-options button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+}
+.jh-theme-options button.active{
+  background:#fff;
+  color:#1c6399;
+  box-shadow:0 1px 5px rgba(27,64,91,.1);
+}
+.jh-theme-cycle{
+  display:none;
+}
+html[data-theme="dark"] .jh-theme-options{
+  border-color:#31444f;
+  background:rgba(9,17,23,.35);
+}
+html[data-theme="dark"] .jh-theme-options button,
+html[data-theme="dark"] .jh-theme-cycle{
+  color:#9eb0bc;
+}
+html[data-theme="dark"] .jh-theme-options button.active{
+  background:#213440;
+  color:#9bcaf2;
+  box-shadow:none;
+}
+@media(min-width:761px){
+  .jh-sidebar.collapsed .jh-theme-options{display:none}
+  .jh-sidebar.collapsed .jh-theme-cycle{
+    display:grid;
+    place-items:center;
+    width:46px;
+    height:42px;
+    margin:auto;
+    border:1px solid #dbe7ee;
+    background:#f8fbfd;
+    font-size:17px;
+  }
+  .jh-sidebar.collapsed .jh-theme-cycle>span:last-child{display:none}
+  html[data-theme="dark"] .jh-sidebar.collapsed .jh-theme-cycle{
+    border-color:#31444f;
+    background:#1a2933;
+  }
+}
+@media(max-width:760px){
+  .jh-sidebar.open .jh-theme-options{display:grid}
+  .jh-sidebar.open .jh-theme-cycle{display:none}
+}
+
+/* Dashboard */
+html[data-theme="dark"] :where(.home-quick-action,.home-announcement,.home-schedule-row,.home-roadmap,.home-attention-list){
+  background:var(--panel)!important;
+  border-color:var(--line)!important;
+}
+html[data-theme="dark"] :where(.home-quick-action strong,.home-announcement strong,.home-roadmap h2,.home-section-heading h2){
+  color:#e5eef4!important;
+}
+html[data-theme="dark"] .home-preview-pill{
+  background:#21313c;
+  color:#9db2c1;
+}
+
+/* Learning Hub */
+html[data-theme="dark"] .learning-hero{
+  border-color:#334a58;
+  background:linear-gradient(135deg,rgba(55,120,164,.18),rgba(49,135,99,.16),rgba(180,136,37,.10));
+}
+html[data-theme="dark"] :where(
+  .learning-metrics article,
+  .learning-student-card>header,
+  .learning-library-item,
+  .learning-inline-empty,
+  .learning-log-list article,
+  .learning-completion-dialog
+){
+  background:var(--panel)!important;
+  border-color:var(--line)!important;
+}
+html[data-theme="dark"] :where(
+  .learning-hero h1,
+  .learning-heading h2,
+  .learning-student-card>header strong,
+  .learning-assignment-copy strong,
+  .learning-library-item,
+  .learning-assign-card h2,
+  .learning-log-list strong
+){
+  color:#dfeaf1!important;
+}
+html[data-theme="dark"] :where(.learning-subject-icon,.learning-selected-meta span,.learning-progress){
+  background:#223541!important;
+  color:#a9c7d9!important;
+}
+html[data-theme="dark"] .learning-toggle{
+  background:#111c24;
+  border-color:#324652;
+}
+html[data-theme="dark"] .learning-toggle button{
+  color:#91a7b6;
+}
+html[data-theme="dark"] .learning-toggle button.active{
+  background:#223541;
+  color:#a8d4f2;
+  box-shadow:none;
+}
+
+/* Directory, households, programs */
+html[data-theme="dark"] :where(
+  .children-pickup-row,
+  .children-support-grid>div,
+  .children-agreement-grid>div,
+  .children-empty-inline,
+  .household-section,
+  .household-member,
+  .household-contact,
+  .program-roster-row,
+  .program-facts>div,
+  .program-days label
+){
+  background:var(--panel)!important;
+  border-color:var(--line)!important;
+}
+html[data-theme="dark"] :where(
+  .children-support-grid strong,
+  .children-agreement-grid strong,
+  .household-panel-heading h2,
+  .programs-panel-heading h2,
+  .household-detail-heading h2,
+  .program-detail-heading h2,
+  .program-facts strong,
+  .program-builder-heading h2,
+  .program-roster-heading h3
+){
+  color:#e4edf3!important;
+}
+html[data-theme="dark"] :where(.household-list-item,.program-list-item){
+  color:#dfe8ee;
+  border-color:#2d3e4b;
+}
+html[data-theme="dark"] :where(.household-list-item:hover,.program-list-item:hover,.household-list-item.active,.program-list-item.active){
+  background:#193044;
+}
+html[data-theme="dark"] .household-section.locked{
+  background:#111c24!important;
+  color:#9eb0bd;
+}
+
+/* Inventory */
+html[data-theme="dark"] :where(
+  .inventory-tabs button,
+  .inventory-filter-card,
+  .inventory-segmented,
+  .inventory-segmented button,
+  .inventory-item-card,
+  .inventory-location-chips span,
+  .inventory-setup-list article,
+  .inventory-advanced,
+  .inventory-staff-helper
+){
+  background:var(--panel)!important;
+  border-color:var(--line)!important;
+  color:#cbd9e2;
+}
+html[data-theme="dark"] :where(.inventory-tabs button.active,.inventory-segmented button.active){
+  background:#245f8a!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] :where(.inventory-item-heading h3,.inventory-setup-list article strong,.inventory-empty strong,.inventory-readonly-note strong){
+  color:#e1ebf1!important;
+}
+html[data-theme="dark"] .inventory-item-meta>span{
+  background:#22313b;
+}
+html[data-theme="dark"] .inventory-advanced{
+  background:#121d26!important;
+}
+
+/* Purchases + Budgeting */
+html[data-theme="dark"] :where(
+  .purchasing-tabs button,
+  .purchasing-lists,
+  .purchasing-list-detail,
+  .purchasing-simple-editor,
+  .purchasing-list-stack>button,
+  .purchasing-list-settings,
+  .purchasing-item,
+  .purchasing-budget-picker,
+  .purchasing-donut-card,
+  .purchasing-category-chart,
+  .purchasing-budget-list-card,
+  .purchasing-budget-add,
+  .purchasing-unplanned-row,
+  .purchasing-spend-history article,
+  .purchasing-modal
+){
+  background:var(--panel)!important;
+  border-color:var(--line)!important;
+}
+html[data-theme="dark"] .purchasing-tabs button{
+  color:#9db0bd;
+}
+html[data-theme="dark"] .purchasing-tabs button.active{
+  background:#1b3b53!important;
+  color:#9bd0f5!important;
+  border-color:#38627e!important;
+}
+html[data-theme="dark"] .purchasing-list-stack>button{
+  color:#c8d6df;
+}
+html[data-theme="dark"] :where(.purchasing-list-stack>button:hover,.purchasing-list-stack>button.active){
+  background:#193044!important;
+}
+html[data-theme="dark"] :where(.purchasing-list-header h2,.purchasing-section-heading h2,.purchasing-section-heading h3,.purchasing-budget-picker h2,.purchasing-item-title strong,.purchasing-budget-item-name strong){
+  color:#e2ecf2!important;
+}
+html[data-theme="dark"] .purchasing-donut>div{
+  background:#17232d;
+  box-shadow:0 1px 7px rgba(0,0,0,.24);
+}
+html[data-theme="dark"] .purchasing-bar-track{
+  background:#273944;
+}
+html[data-theme="dark"] .purchasing-budget-table{
+  border-color:#31444f;
+}
+html[data-theme="dark"] .purchasing-budget-table-head{
+  background:#121e27;
+  color:#8fa2af;
+}
+html[data-theme="dark"] .purchasing-budget-row,
+html[data-theme="dark"] .purchasing-spend-history{
+  border-color:#2d3e4b;
+}
+html[data-theme="dark"] .purchasing-budget-item-view{
+  border-color:#31444f;
+  background:#111c24;
+}
+html[data-theme="dark"] .purchasing-budget-item-view button{
+  color:#9badbb;
+}
+html[data-theme="dark"] .purchasing-budget-item-view button.active{
+  background:#223440;
+  color:#9bcaf2;
+  box-shadow:none;
+}
+html[data-theme="dark"] .purchasing-budget-row.hidden-item{
+  background:#121d26;
+}
+html[data-theme="dark"] .purchasing-check{
+  background:#121d26;
+  border-color:#31444f;
+}
+
+/* Team + Tasks */
+html[data-theme="dark"] :where(
+  .team-tabs button,
+  .team-active-check,
+  .team-readonly-profile>div,
+  .team-empty,
+  .team-day,
+  .team-schedule-block,
+  .team-builder,
+  .team-exception-list>article,
+  .team-assignment-list>article,
+  .task-item,
+  .task-empty
+){
+  background:var(--panel)!important;
+  border-color:var(--line)!important;
+}
+html[data-theme="dark"] :where(.team-tabs button.active){
+  background:#245f8a!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] .team-day>header{
+  background:#12212b!important;
+  border-color:#2d3e4b!important;
+}
+html[data-theme="dark"] .team-day>header span{
+  background:#263740!important;
+  color:#b5c5cf!important;
+}
+
+/* Reports + calendar */
+html[data-theme="dark"] :where(
+  .behavior-summary-table-head,
+  .behavior-summary-student-row,
+  .behavior-card-total-row,
+  .calendar-day-column,
+  .calendar-event-card,
+  .calendar-view-switch
+){
+  border-color:var(--line)!important;
+}
+html[data-theme="dark"] .behavior-summary-table-head{
+  background:#121e27!important;
+  color:#8fa2af!important;
+}
+html[data-theme="dark"] .behavior-summary-student-row{
+  background:var(--panel)!important;
+}
+html[data-theme="dark"] .behavior-summary-student-row:hover{
+  background:#1b2d38!important;
+}
+html[data-theme="dark"] .behavior-report-totals{
+  background:#121e27!important;
+  border-color:#31444f!important;
+}
+html[data-theme="dark"] .behavior-report-totals>div{
+  border-color:#31444f!important;
+}
+html[data-theme="dark"] .calendar-day-column{
+  background:var(--panel)!important;
+}
+html[data-theme="dark"] .calendar-day-column>header{
+  background:#121f28!important;
+  border-color:#2d3e4b!important;
+}
+html[data-theme="dark"] .calendar-event-card{
+  background:#1a2a34!important;
+}
+
+/* Announcement editor */
+html[data-theme="dark"] :where(.announcement-list article,.announcement-pin){
+  background:var(--panel)!important;
+  border-color:var(--line)!important;
+}
+html[data-theme="dark"] .announcement-list article.pinned{
+  background:#172c3b!important;
+}
+html[data-theme="dark"] :where(.announcement-copy strong,.announcement-pin strong){
+  color:#dfe9ef!important;
+}
+
+/* Modals / overlays */
+html[data-theme="dark"] :where(
+  .children-learning-access-modal,
+  .children-add-student-modal,
+  .learning-completion-dialog
+){
+  background:#17232d!important;
+  color:#edf4f8!important;
+  border-color:#334957!important;
+}
+html[data-theme="dark"] :where(.purchasing-modal-backdrop,.children-learning-access-backdrop,.learning-completion-backdrop){
+  background:rgba(2,8,12,.62)!important;
+}
+
+/* Native controls and links */
+html[data-theme="dark"] a{
+  --link-dark:#8ec7f0;
+}
+html[data-theme="dark"] :where(.name-link,.history-link,.household-contact a,.learning-create-card summary,.audit-trail summary){
+  color:#8ec7f0!important;
+}
+html[data-theme="dark"] hr{
+  border-color:#2d3e4b;
+}
+
+/* Keep color-coded behavior/reward states vivid and legible. */
+html[data-theme="dark"] .behavior-button.selected{
+  outline-color:#e7f0f5;
+}
+html[data-theme="dark"] .yellow{
+  color:#332600;
+}
+
+
+/* Dark-mode contrast pass — clearer hierarchy and lower glare */
+html[data-theme="dark"]{
+  --bg:#0b1218;
+  --panel:#18232d;
+  --ink:#f3f7fa;
+  --muted:#bdc9d2;
+  --line:#344754;
+  --brand:#83bdff;
+  --brand-dark:#9ac9ff;
+  --jh-surface-soft:#121d25;
+  --jh-surface-raised:#1d2a35;
+  --jh-input:#111b23;
+  --jh-nav-surface:rgba(17,27,35,.97);
+  --jh-blue-soft:#193246;
+  --jh-green-soft:#183229;
+}
+
+html[data-theme="dark"] body{
+  background:
+    radial-gradient(circle at 88% 8%,rgba(56,111,151,.08),transparent 29%),
+    #0b1218;
+}
+
+html[data-theme="dark"] .card{
+  background:#18232d;
+  border-color:#344754;
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4{
+  color:#f3f7fa!important;
+}
+
+html[data-theme="dark"] .subtle,
+html[data-theme="dark"] :where(
+  .home-quick-action small,
+  .home-announcement p,
+  .home-schedule-row small,
+  .home-task-row small,
+  .home-roadmap p,
+  .home-section-heading>p,
+  .learning-heading p,
+  .learning-library-item small,
+  .learning-library-item em,
+  .learning-log-list small,
+  .learning-log-list p,
+  .inventory-item-meta,
+  .inventory-history-list p,
+  .inventory-history-meta span,
+  .inventory-history-meta small,
+  .team-directory-list small,
+  .team-active-check small,
+  .team-readonly-profile small,
+  .program-detail-heading p,
+  .household-list-item small,
+  .program-list-item small,
+  .purchasing-section-heading p,
+  .purchasing-budget-picker p,
+  .purchasing-list-header p
+){
+  color:#bdc9d2!important;
+}
+
+html[data-theme="dark"] :where(.home-eyebrow,.home-section-kicker,.purchasing-kicker,.reports-eyebrow,.children-eyebrow,.programs-eyebrow){
+  color:#7fb9f4!important;
+}
+
+/* Dashboard welcome card */
+html[data-theme="dark"] .home-welcome{
+  border-color:#3b5060;
+  background:
+    radial-gradient(circle at 82% 18%,rgba(67,131,176,.17),transparent 30%),
+    linear-gradient(135deg,#1c2b36,#17232d 58%,#1b2932);
+  box-shadow:0 14px 34px rgba(0,0,0,.24);
+}
+html[data-theme="dark"] .home-welcome h1{
+  color:#f7fafc!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.12);
+}
+html[data-theme="dark"] .home-welcome p{
+  color:#c4d0d8!important;
+}
+html[data-theme="dark"] .home-center-status{
+  border-color:#35614b;
+  background:#193328;
+  color:#c5ead7;
+}
+html[data-theme="dark"] .home-center-status strong{
+  color:#dff5e9;
+}
+html[data-theme="dark"] .home-center-status small{
+  color:#a9cbbb;
+}
+html[data-theme="dark"] .home-status-dot{
+  background:#63ca91;
+  box-shadow:0 0 0 5px rgba(99,202,145,.14);
+}
+
+/* Dashboard shortcut cards */
+html[data-theme="dark"] .home-fast-card{
+  background:#1a2630;
+  border-color:#354956;
+}
+html[data-theme="dark"] .home-quick-action,
+html[data-theme="dark"] .home-find-grid>a{
+  background:#1b2832!important;
+  border-color:#3a4c59!important;
+  color:#e6eef3!important;
+  box-shadow:none;
+}
+html[data-theme="dark"] .home-quick-action:hover,
+html[data-theme="dark"] .home-find-grid>a:hover{
+  background:#21313c!important;
+  border-color:#537084!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] .home-quick-action strong,
+html[data-theme="dark"] .home-find-grid strong{
+  color:#f1f5f8!important;
+}
+html[data-theme="dark"] .home-quick-action small,
+html[data-theme="dark"] .home-find-grid small{
+  color:#b8c6cf!important;
+}
+
+/* Today at a glance */
+html[data-theme="dark"] .home-today-overview{
+  background:#192630!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .home-today-overview>summary:hover{
+  background:#1e2d38!important;
+}
+html[data-theme="dark"] .home-overview-summary-copy>strong{
+  color:#dce7ed!important;
+}
+html[data-theme="dark"] .home-overview-summary-copy .home-section-kicker{
+  color:#7fb9f4!important;
+}
+html[data-theme="dark"] .home-overview-summary-stats>span{
+  border-color:#3a4d5a;
+  background:#21303a;
+}
+html[data-theme="dark"] .home-overview-summary-stats strong{
+  color:#9dceff;
+}
+html[data-theme="dark"] .home-overview-summary-stats small{
+  color:#afbec8;
+}
+html[data-theme="dark"] .home-overview-chevron{
+  color:#aebdc7;
+}
+html[data-theme="dark"] .home-overview-body{
+  border-color:#344754;
+}
+html[data-theme="dark"] .home-overview-panel{
+  border-color:#344754;
+  background:#16212a;
+}
+html[data-theme="dark"] .home-overview-panel .home-task-row,
+html[data-theme="dark"] .home-overview-panel .home-attention-list>a,
+html[data-theme="dark"] .home-overview-panel .home-all-clear{
+  background:#1c2933!important;
+}
+
+/* Dashboard schedule / staff board */
+html[data-theme="dark"] :where(.home-board-card,.home-schedule-card){
+  background:#192630!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .home-board-subheading{
+  color:#d9e4ea!important;
+}
+html[data-theme="dark"] .home-board-divider{
+  background:#344754;
+}
+html[data-theme="dark"] .home-preview-pill{
+  background:#263744;
+  color:#c1d0da;
+}
+html[data-theme="dark"] .home-announcement,
+html[data-theme="dark"] .home-schedule-row,
+html[data-theme="dark"] .home-task-row,
+html[data-theme="dark"] .home-attention-list>a,
+html[data-theme="dark"] .home-empty-state{
+  background:#1b2832!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .home-empty-state{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .home-announcement strong,
+html[data-theme="dark"] .home-schedule-row strong,
+html[data-theme="dark"] .home-task-row strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .home-schedule-row time{
+  color:#8bc6ff!important;
+}
+
+/* Less glare for generic stats and metric tiles */
+html[data-theme="dark"] :where(
+  .stat,
+  .home-snapshot-grid>div,
+  .behavior-report-totals,
+  .child-activity-metrics article,
+  .learning-metrics article,
+  .lab-device-stats .stat
+){
+  background:#1c2933!important;
+  border-color:#394d5a!important;
+}
+html[data-theme="dark"] :where(
+  .stat strong,
+  .home-snapshot-grid strong,
+  .behavior-report-totals strong,
+  .child-activity-metrics strong,
+  .learning-metrics strong
+){
+  color:#a8d3fb!important;
+}
+html[data-theme="dark"] :where(
+  .stat span,
+  .stat small,
+  .home-snapshot-grid span,
+  .home-snapshot-grid small,
+  .child-activity-metrics small,
+  .child-activity-metrics span
+){
+  color:#b4c2cb!important;
+}
+
+/* Stronger general surface hierarchy */
+html[data-theme="dark"] :where(
+  .children-form-section,
+  .children-profile-tabs,
+  .children-directory-toolbar,
+  .history-sidebar,
+  .history-panel,
+  .learning-assign-card,
+  .learning-library-card,
+  .inventory-editor,
+  .inventory-filter-card,
+  .purchasing-list-settings,
+  .purchasing-budget-item-view,
+  .team-builder,
+  .announcement-editor,
+  .announcement-list-card
+){
+  border-color:#354956!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-profile-tabs button,
+  .learning-toggle button,
+  .inventory-segmented button,
+  .purchasing-budget-item-view button,
+  .team-tabs button
+){
+  color:#b9c7d0!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-profile-tabs button.active,
+  .learning-toggle button.active,
+  .inventory-segmented button.active,
+  .purchasing-budget-item-view button.active,
+  .team-tabs button.active
+){
+  color:#c9e4ff!important;
+}
+
+/* Navigation readability */
+html[data-theme="dark"] .jh-sidebar{
+  background:
+    radial-gradient(circle at 18% 10%,rgba(77,143,190,.13),transparent 29%),
+    linear-gradient(180deg,#14202a,#101920);
+}
+html[data-theme="dark"] :where(.jh-brand,.jh-home-link,.jh-section-trigger){
+  color:#edf3f6;
+}
+html[data-theme="dark"] :where(.jh-brand small,.jh-section-copy small,.jh-role-row,.jh-nav-item small){
+  color:#aebdc7!important;
+}
+html[data-theme="dark"] .jh-section-icon{
+  background:#24343f;
+  color:#c1d3df;
+}
+html[data-theme="dark"] .jh-home-link.active,
+html[data-theme="dark"] .jh-nav-section.active>.jh-section-trigger{
+  border-color:#47708d;
+  background:#1b3a50;
+  color:#b9dcf5;
+}
+html[data-theme="dark"] .jh-home-link.active .jh-section-icon,
+html[data-theme="dark"] .jh-nav-section.active>.jh-section-trigger .jh-section-icon{
+  background:#285671;
+  color:#e8f5fc;
+}
+html[data-theme="dark"] .jh-sidebar-expand,
+html[data-theme="dark"] .jh-theme-cycle{
+  border-color:#405564!important;
+  background:#1b2933!important;
+  color:#d8e4eb!important;
+}
+html[data-theme="dark"] body:has(.site-nav) .topbar{
+  border-color:#344754;
+  background:rgba(20,30,38,.97);
+}
+html[data-theme="dark"] body:has(.site-nav) .topbar .brand{
+  color:#f0f5f8;
+}
+html[data-theme="dark"] body:has(.site-nav) .topbar .brand small{
+  color:#aebdc7;
+}
+html[data-theme="dark"] body:has(.site-nav) .topbar .badge{
+  background:#233846;
+  color:#c4deee;
+}
+
+/* Buttons and keyboard focus */
+html[data-theme="dark"] .ghost{
+  background:#1b2933;
+  color:#dce6ec;
+  border-color:#425866;
+}
+html[data-theme="dark"] .ghost:hover:not(:disabled){
+  background:#233541;
+  border-color:#587083;
+}
+html[data-theme="dark"] :where(button,a,input,select,textarea):focus-visible{
+  outline:3px solid rgba(126,185,244,.65);
+  outline-offset:2px;
+}
+
+/* Tables and rows */
+html[data-theme="dark"] :where(
+  .behavior-summary-student-row,
+  .purchasing-budget-row,
+  .inventory-history-list article,
+  .child-activity-list article,
+  .team-directory-list article
+){
+  border-color:#354956!important;
+}
+html[data-theme="dark"] :where(
+  .behavior-summary-student strong,
+  .behavior-card-total-row span,
+  .purchasing-budget-row>span>strong,
+  .purchasing-unplanned-row strong,
+  .child-activity-list strong
+){
+  color:#e5edf2!important;
+}
+html[data-theme="dark"] :where(
+  .behavior-summary-student small,
+  .behavior-summary-cell small,
+  .purchasing-budget-item-name small,
+  .purchasing-budget-item-name em,
+  .purchasing-unplanned-row small,
+  .child-activity-list small
+){
+  color:#aebdc7!important;
+}
+
+
+/* Unified staff-portal dark mode — Home is the visual reference */
+html[data-theme="dark"]{
+  --jh-home-bg:#0b1218;
+  --jh-home-panel:#192630;
+  --jh-home-card:#1b2832;
+  --jh-home-raised:#21303a;
+  --jh-home-border:#354956;
+  --jh-home-border-strong:#435b6a;
+  --jh-home-heading:#f1f5f8;
+  --jh-home-text:#d9e3e9;
+  --jh-home-muted:#b8c6cf;
+  --jh-home-accent:#7fb9f4;
+  --jh-home-accent-bg:#1b3a50;
+  --jh-home-green:#7fd1a5;
+}
+
+/* Consistent page heroes */
+html[data-theme="dark"] :where(
+  .children-hero,
+  .learning-hero,
+  .attendance-hero,
+  .reports-hero,
+  .rewards-hero,
+  .calendar-hero,
+  .purchasing-hero,
+  .team-hero,
+  .task-center-hero,
+  .announcements-hero,
+  .programs-hero,
+  .registration-admin-hero,
+  .fulfillment-hero
+){
+  padding:22px 24px!important;
+  border:1px solid var(--jh-home-border)!important;
+  border-radius:20px!important;
+  background:
+    radial-gradient(circle at 86% 16%,rgba(72,137,181,.14),transparent 29%),
+    linear-gradient(135deg,#1c2b36,#17232d 60%,#1b2932)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.18)!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-hero h1,
+  .learning-hero h1,
+  .attendance-hero h1,
+  .reports-hero h1,
+  .rewards-hero h1,
+  .calendar-hero h1,
+  .purchasing-hero h1,
+  .team-hero h1,
+  .task-center-hero h1,
+  .announcements-hero h1,
+  .programs-hero h1,
+  .registration-admin-hero h1,
+  .fulfillment-hero h1
+){
+  color:var(--jh-home-heading)!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-hero p,
+  .learning-hero p,
+  .attendance-hero p,
+  .reports-hero p,
+  .rewards-hero p,
+  .calendar-hero p,
+  .purchasing-hero p,
+  .team-hero p,
+  .task-center-hero p,
+  .announcements-hero p,
+  .programs-hero p,
+  .registration-admin-hero p,
+  .fulfillment-hero p
+){
+  color:var(--jh-home-muted)!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-eyebrow,
+  .learning-kicker,
+  .attendance-eyebrow,
+  .reports-eyebrow,
+  .rewards-kicker,
+  .calendar-eyebrow,
+  .purchasing-kicker,
+  .team-kicker,
+  .task-kicker,
+  .programs-eyebrow,
+  .registration-kicker,
+  .fulfillment-kicker
+){
+  color:var(--jh-home-accent)!important;
+}
+
+/* Directory */
+html[data-theme="dark"] :where(
+  .children-directory-toolbar,
+  .child-profile-card,
+  .children-retention-note,
+  .children-profile-modal,
+  .children-profile-section,
+  .children-form-section,
+  .children-facts-grid>div,
+  .children-contact-grid article,
+  .children-health-alert,
+  .children-care-notes,
+  .children-weekdays label,
+  .children-pickup-row,
+  .children-support-grid>div,
+  .children-agreement-grid>div,
+  .children-learning-access-list article,
+  .children-new-student-summary,
+  .children-learning-profile-access,
+  .children-profile-shortcuts>div,
+  .child-activity-metrics article,
+  .child-activity-list article
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+  color:var(--jh-home-text)!important;
+}
+html[data-theme="dark"] :where(
+  .child-profile-card:hover,
+  .children-profile-shortcuts>a:hover
+){
+  background:var(--jh-home-raised)!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.16)!important;
+}
+html[data-theme="dark"] :where(
+  .child-profile-card-copy strong,
+  .children-directory-count strong,
+  .children-retention-note strong,
+  .children-profile-heading h2,
+  .children-profile-modal>h2,
+  .children-section-title h3,
+  .children-facts-grid strong,
+  .children-contact-grid strong,
+  .children-health-alert strong,
+  .children-public-birthday strong,
+  .children-support-grid strong,
+  .children-agreement-grid strong,
+  .children-new-student-summary strong,
+  .children-learning-profile-access strong,
+  .children-profile-shortcuts strong
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .child-profile-card-copy small,
+  .child-profile-card-copy>span,
+  .children-directory-count,
+  .children-retention-note p,
+  .children-profile-heading p,
+  .children-section-title small,
+  .children-facts-grid small,
+  .children-contact-grid small,
+  .children-contact-grid article span,
+  .children-care-notes p,
+  .children-public-birthday small,
+  .children-support-grid small,
+  .children-agreement-grid small,
+  .children-empty-inline,
+  .children-new-student-summary span,
+  .children-learning-profile-access small,
+  .children-profile-shortcuts small
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] :where(.children-profile-section.sensitive,.children-form-section.restricted){
+  background:linear-gradient(180deg,rgba(117,137,205,.12),rgba(27,40,50,.96))!important;
+  border-color:#44566f!important;
+}
+html[data-theme="dark"] :where(.children-profile-section.health,.children-form-section.health,.children-care-notes.important,.children-health-alert.has-info){
+  background:linear-gradient(180deg,rgba(190,88,98,.10),rgba(27,40,50,.96))!important;
+  border-color:#63424a!important;
+}
+html[data-theme="dark"] .children-profile-section.locked{
+  background:#151f27!important;
+  color:#aab9c3!important;
+}
+html[data-theme="dark"] .children-security-pill{
+  background:#1a3a51!important;
+  color:#bfdef5!important;
+}
+html[data-theme="dark"] .children-modal-close{
+  background:#263640!important;
+  color:#dce6ec!important;
+}
+html[data-theme="dark"] .children-profile-tabs{
+  background:#14212a!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .children-profile-tabs button{
+  color:#b9c7d0!important;
+}
+html[data-theme="dark"] .children-profile-tabs button.active{
+  background:#203d52!important;
+  color:#cce8fb!important;
+}
+
+/* Attendance */
+html[data-theme="dark"] :where(
+  .attendance-safety-notice,
+  .attendance-panel,
+  .attendance-person,
+  .attendance-checkin-form,
+  .attendance-community-row,
+  .attendance-operating-day,
+  .attendance-live-person,
+  .attendance-live-community,
+  .attendance-live-plan,
+  .attendance-tabs,
+  .attendance-search
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.attendance-person:hover,.attendance-live-person:hover,.attendance-live-community:hover){
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(.attendance-person-name,.attendance-operating-day h2){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.attendance-operating-day p,.attendance-person-status,.attendance-day-status){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .attendance-tabs button{
+  background:#17232d!important;
+  color:#b9c7d0!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .attendance-tabs button.active{
+  background:#203d52!important;
+  color:#cce8fb!important;
+  border-color:#4c7390!important;
+}
+html[data-theme="dark"] .attendance-person.present,
+html[data-theme="dark"] .attendance-live-person.present{
+  background:#1a3028!important;
+  border-color:#365b49!important;
+}
+html[data-theme="dark"] .attendance-person.checked-out,
+html[data-theme="dark"] .attendance-community-row.checked-out{
+  background:#151f27!important;
+  color:#9faeb8!important;
+}
+
+/* Learning */
+html[data-theme="dark"] :where(
+  .learning-section,
+  .learning-student-card,
+  .learning-assignment-row,
+  .learning-create-card,
+  .learning-library-card,
+  .learning-assign-card,
+  .learning-editor-card,
+  .learning-library-browser,
+  .learning-library-subject-group,
+  .learning-library-item,
+  .learning-log-list article,
+  .learning-completion-dialog
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.learning-library-item:hover,.learning-library-item.selected){
+  background:var(--jh-home-raised)!important;
+  border-color:#4d6879!important;
+}
+html[data-theme="dark"] :where(
+  .learning-heading h2,
+  .learning-student-card>header strong,
+  .learning-assignment-copy strong,
+  .learning-assign-card h2,
+  .learning-editor-heading h2,
+  .learning-library-browser-heading strong,
+  .learning-library-item strong,
+  .learning-log-list strong
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .learning-student-card>header small,
+  .learning-assignment-copy small,
+  .learning-library-item small,
+  .learning-library-item em,
+  .learning-assign-card>p,
+  .learning-library-browser-heading span,
+  .learning-library-browser-heading p,
+  .learning-log-list small,
+  .learning-log-list p
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .learning-progress{
+  background:#253741!important;
+}
+html[data-theme="dark"] .learning-progress>span{
+  background:linear-gradient(90deg,#5b9ce4,#65c397)!important;
+}
+
+/* Reports */
+html[data-theme="dark"] :where(
+  .reports-controls,
+  .reports-summary-header,
+  .reports-open-days,
+  .reports-metric,
+  .reports-layout>.card,
+  .reports-table-wrap,
+  .reports-mood-card,
+  .reports-moods>div,
+  .reports-note,
+  .month-bar,
+  .history-sidebar,
+  .history-panel,
+  .entry-editor,
+  .audit-item,
+  .behavior-student-summary,
+  .behavior-card-totals
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .reports-table{
+  color:var(--jh-home-text)!important;
+}
+html[data-theme="dark"] .reports-table th{
+  background:#14212a!important;
+  color:#b9c7d0!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .reports-table td{
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(
+  .reports-open-days strong,
+  .reports-metric strong,
+  .reports-moods strong,
+  .reports-note strong,
+  .history-heading h2
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .reports-open-days span,
+  .reports-open-days small,
+  .reports-metric>span,
+  .reports-metric small,
+  .reports-moods span,
+  .reports-moods small,
+  .reports-note p,
+  .history-heading p,
+  .history-note,
+  .audit-item span
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .clickable-row:hover{
+  background:var(--jh-home-raised)!important;
+}
+
+/* Rewards */
+html[data-theme="dark"] :where(
+  .rewards-panel,
+  .rewards-controls-card,
+  .rewards-category-grid button,
+  .rewards-stat-grid>div,
+  .rewards-wheel-card,
+  .reward-wheel-presentation,
+  .reward-wheel-legend,
+  .reward-prize-row,
+  .reward-chance-row,
+  .reward-setup-toolbar,
+  .reward-test-history span,
+  .fulfillment-summary,
+  .fulfillment-filters,
+  .fulfillment-child,
+  .fulfillment-prize-row
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(
+  .rewards-panel-heading h2,
+  .rewards-category-grid strong,
+  .rewards-stat-grid strong,
+  .reward-wheel-legend h3,
+  .reward-prize-copy strong,
+  .reward-wheel-legend-row strong,
+  .fulfillment-prize-info strong
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .rewards-panel-heading p,
+  .reward-prize-copy small,
+  .reward-wheel-legend-row small,
+  .fulfillment-prize-info small,
+  .fulfillment-footnote
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .rewards-tabs button{
+  background:#17232d!important;
+  color:#b9c7d0!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .rewards-tabs button.active{
+  background:#203d52!important;
+  color:#cce8fb!important;
+  border-color:#4c7390!important;
+}
+html[data-theme="dark"] .reward-wheel-stage{
+  background:radial-gradient(circle,#223440,#131f28)!important;
+  border-color:#405663!important;
+}
+
+/* Programs + households + registration */
+html[data-theme="dark"] :where(
+  .programs-list-panel,
+  .program-detail-panel,
+  .program-list-item,
+  .program-roster-section,
+  .program-roster-row,
+  .program-facts>div,
+  .program-builder,
+  .program-days label,
+  .household-create-bar,
+  .household-section,
+  .household-contact,
+  .household-contact-editor,
+  .registration-program-list,
+  .registration-setup-panel,
+  .registration-link-box,
+  .registration-renewal-box,
+  .registration-consent-box,
+  .registration-consent-row,
+  .registration-submissions-card,
+  .registration-payload-section,
+  .registration-review-action-guide>div,
+  .registration-rich-preview
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.program-list-item:hover,.program-list-item.active,.registration-program-list>button:hover,.registration-program-list>button.active,.registration-submission-list>button:hover,.registration-submission-list>button.active){
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(
+  .program-detail-heading h2,
+  .programs-panel-heading h2,
+  .program-builder-heading h2,
+  .program-roster-heading h3,
+  .household-section-title h3,
+  .registration-program-list h2,
+  .registration-setup-heading h2,
+  .registration-review-top h3,
+  .registration-payload-section h4,
+  .registration-rich-preview-content h2,
+  .registration-rich-preview-content h3,
+  .registration-rich-preview-content h4
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .program-description,
+  .program-adult-note,
+  .registration-link-box p,
+  .registration-renewal-box p,
+  .registration-review-top p,
+  .registration-consent-row p,
+  .registration-consent-row small,
+  .registration-child-summary span,
+  .registration-child-summary small,
+  .registration-rich-preview-content,
+  .registration-review-action-guide span
+){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .registration-tabs button{
+  background:#17232d!important;
+  color:#b9c7d0!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .registration-tabs button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+  border-color:#4c7390!important;
+}
+
+/* Calendar */
+html[data-theme="dark"] :where(
+  .calendar-toolbar,
+  .calendar-view-switch,
+  .calendar-day-column,
+  .calendar-event-card,
+  .calendar-loading
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .calendar-day-column>header{
+  background:#14212a!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.calendar-day-column>header strong,.calendar-event-copy strong,.calendar-toolbar h2){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.calendar-day-column>header small,.calendar-event-copy small,.calendar-event-copy>span,.calendar-event-copy em,.calendar-empty-day){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .calendar-day-column.today{
+  border-color:#4d7896!important;
+}
+html[data-theme="dark"] .calendar-day-column.today>header{
+  background:#19364a!important;
+}
+html[data-theme="dark"] .calendar-view-switch button{
+  color:#b9c7d0!important;
+}
+html[data-theme="dark"] .calendar-view-switch button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+
+/* Inventory */
+html[data-theme="dark"] :where(
+  .inventory-filter-card,
+  .inventory-item-card,
+  .inventory-editor,
+  .inventory-history-list article,
+  .inventory-setup-list article,
+  .inventory-staff-helper,
+  .inventory-advanced
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .inventory-item-card:hover{
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(.inventory-item-heading h3,.inventory-editor h2,.inventory-setup-list strong,.inventory-staff-helper strong){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.inventory-item-meta,.inventory-location-chips span,.inventory-staff-helper span,.inventory-history-meta){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .inventory-location-chips span{
+  background:#24343e!important;
+  border-color:#354956!important;
+}
+
+/* Purchases + Budgeting */
+html[data-theme="dark"] :where(
+  .purchasing-inventory-needs,
+  .purchasing-lists,
+  .purchasing-list-detail,
+  .purchasing-simple-editor,
+  .purchasing-list-stack>button,
+  .purchasing-list-settings,
+  .purchasing-item,
+  .purchasing-budget-picker,
+  .purchasing-donut-card,
+  .purchasing-category-chart,
+  .purchasing-budget-list-card,
+  .purchasing-budget-add,
+  .purchasing-unplanned-row,
+  .purchasing-spend-history article
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.purchasing-list-stack>button:hover,.purchasing-list-stack>button.active,.purchasing-item:hover){
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(
+  .purchasing-section-heading h2,
+  .purchasing-section-heading h3,
+  .purchasing-list-header h2,
+  .purchasing-item-title strong,
+  .purchasing-budget-picker h2,
+  .purchasing-budget-item-name strong,
+  .purchasing-list-stack strong
+){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .purchasing-need-chip small,
+  .purchasing-list-stack small,
+  .purchasing-item-meta,
+  .purchasing-budget-item-name small,
+  .purchasing-budget-item-name em,
+  .purchasing-unplanned-row small
+){
+  color:var(--jh-home-muted)!important;
+}
+
+/* Tasks */
+html[data-theme="dark"] :where(
+  .task-editor-card,
+  .task-system-item,
+  .task-all-clear,
+  .task-segmented,
+  .task-item,
+  .task-empty,
+  .task-helper
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .task-item:hover{
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(.task-item-title strong,.task-section-heading h2){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.task-item small,.task-helper,.task-empty){
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .task-segmented button{
+  color:#b9c7d0!important;
+}
+html[data-theme="dark"] .task-segmented button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+
+/* Team / Staff */
+html[data-theme="dark"] :where(
+  .team-panel,
+  .team-directory-list,
+  .team-active-check,
+  .team-readonly-profile,
+  .team-day,
+  .team-schedule-block,
+  .team-builder,
+  .team-exception-list>article,
+  .team-assignment-list>article
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] :where(.team-directory-list>button:hover,.team-directory-list>button.active){
+  background:var(--jh-home-raised)!important;
+}
+html[data-theme="dark"] :where(.team-panel-heading h2,.team-builder h2,.team-day strong,.team-schedule-block strong){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.team-directory-list small,.team-day-empty,.team-exception-note){
+  color:var(--jh-home-muted)!important;
+}
+
+/* Announcements */
+html[data-theme="dark"] :where(
+  .announcement-editor,
+  .announcement-list-card,
+  .announcement-list article,
+  .announcement-pin
+){
+  background:var(--jh-home-card)!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .announcement-list article.pinned{
+  background:#1c3546!important;
+  border-color:#45677d!important;
+}
+html[data-theme="dark"] :where(.announcement-copy strong,.announcement-pin strong,.announcement-section-heading h2){
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] :where(.announcement-copy p,.announcement-copy small,.announcement-pin small){
+  color:var(--jh-home-muted)!important;
+}
+
+/* Shared nested controls / rows */
+html[data-theme="dark"] :where(
+  .summary-row,
+  .child-row,
+  .history-entry,
+  .learning-assignment-row,
+  .reward-chance-row,
+  .fulfillment-prize-row,
+  .program-roster-row,
+  .registration-consent-row
+){
+  border-color:var(--jh-home-border)!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-filter,
+  .children-search,
+  .field label,
+  .purchasing-page .field>span,
+  .learning-form-grid .field,
+  .reward-setup-toolbar .field,
+  .attendance-date-field>span
+){
+  color:#d5e1e8!important;
+}
+
+html[data-theme="dark"] :where(
+  .primary,
+  .calendar-new-button,
+  .rewards-spin-button,
+  .attendance-big-button
+){
+  box-shadow:0 5px 14px rgba(26,91,145,.22);
+}
+
+html[data-theme="dark"] .primary:hover:not(:disabled){
+  filter:brightness(1.08);
+}
+
+/* Mobile keeps the same visual hierarchy */
+@media(max-width:760px){
+  html[data-theme="dark"] :where(
+    .children-hero,
+    .learning-hero,
+    .attendance-hero,
+    .reports-hero,
+    .rewards-hero,
+    .calendar-hero,
+    .purchasing-hero,
+    .team-hero,
+    .task-center-hero,
+    .announcements-hero,
+    .programs-hero,
+    .registration-admin-hero,
+    .fulfillment-hero
+  ){
+    padding:18px!important;
+    border-radius:17px!important;
+  }
+}
+
+
+/* Dark-mode white-island cleanup
+   Reward Center first; then remaining known staff surfaces. */
+
+/* Reward Center wheel: preserve colorful slices, remove light canvas */
+html[data-theme="dark"] .reward-wheel-presentation{
+  background:linear-gradient(180deg,#1b2832,#16222b)!important;
+  border-color:var(--jh-home-border)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.18)!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation-bar{
+  background:#192630!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation-bar>div{
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation-bar small{
+  color:var(--jh-home-muted)!important;
+}
+html[data-theme="dark"] .reward-wheel-layout{
+  background:transparent!important;
+}
+html[data-theme="dark"] .reward-wheel-stage{
+  padding:12px;
+  border:1px solid #354956!important;
+  border-radius:22px;
+  background:
+    radial-gradient(circle at 50% 45%,#253946 0,#1c2a34 57%,#16222b 100%)!important;
+}
+html[data-theme="dark"] .reward-wheel-svg{
+  border-color:#2a3d49!important;
+  background:#182630!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.24);
+}
+html[data-theme="dark"] .reward-wheel-slice{
+  stroke:#22343f!important;
+  stroke-width:1.7!important;
+}
+html[data-theme="dark"] .reward-wheel-hub{
+  fill:#121c24!important;
+  stroke:#d7e4eb!important;
+}
+html[data-theme="dark"] .reward-wheel-hub-sub{
+  fill:#b8c8d2!important;
+}
+html[data-theme="dark"] .reward-wheel-pointer{
+  color:#f3c95c!important;
+  text-shadow:0 2px 0 #111b22,0 4px 12px rgba(0,0,0,.45)!important;
+}
+html[data-theme="dark"] .reward-result-banner{
+  background:#10202b!important;
+  color:#f3f7fa!important;
+  border:1px solid #466273!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.34)!important;
+}
+html[data-theme="dark"] .reward-wheel-legend{
+  background:#182630!important;
+  border-color:var(--jh-home-border)!important;
+}
+html[data-theme="dark"] .reward-wheel-legend h3{
+  color:var(--jh-home-heading)!important;
+}
+html[data-theme="dark"] .reward-wheel-legend-row{
+  background:#1e2d38!important;
+  border-color:#3a4d5a!important;
+}
+html[data-theme="dark"] .reward-wheel-legend-row strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .reward-wheel-legend-row small{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .reward-wheel-legend-row b{
+  color:#98ceff!important;
+}
+html[data-theme="dark"] .reward-wheel-empty{
+  background:#17242d!important;
+  border-color:#425967!important;
+  color:#b7c5ce!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation:fullscreen{
+  background:#0b1218!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation:fullscreen .reward-wheel-presentation-bar{
+  background:#192630!important;
+  border:1px solid #354956!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation:fullscreen .reward-wheel-legend{
+  background:#182630!important;
+  border:1px solid #354956!important;
+}
+html[data-theme="dark"] .reward-wheel-presentation:fullscreen .reward-wheel-legend-row{
+  background:#1e2d38!important;
+}
+html[data-theme="dark"] .reward-wheel-action{
+  background:transparent!important;
+}
+
+/* Reward setup / testing */
+html[data-theme="dark"] .reward-test-banner{
+  background:#292447!important;
+  border-color:#65599a!important;
+  color:#d8d1ff!important;
+}
+html[data-theme="dark"] .reward-chance-summary{
+  background:#1b3344!important;
+  color:#bfd4e1!important;
+}
+html[data-theme="dark"] .reward-chance-summary strong{
+  color:#9fd2f6!important;
+}
+html[data-theme="dark"] .reward-prize-row{
+  background:#1b2832!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .reward-prize-copy strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .reward-prize-copy small{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .reward-chance-row{
+  background:#192630!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .reward-chance-row small{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .reward-chance-current{
+  color:#98ceff!important;
+}
+html[data-theme="dark"] .reward-chance-input input{
+  background:#111b23!important;
+  border-color:#405562!important;
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .reward-test-history span{
+  background:#253541!important;
+  color:#c4d2da!important;
+}
+html[data-theme="dark"] .reward-inventory-filters{
+  background:#192630!important;
+  border-color:#354956!important;
+}
+
+/* Reward fulfillment */
+html[data-theme="dark"] .fulfillment-summary article{
+  background:#1b2832!important;
+  border-color:#354956!important;
+  box-shadow:none!important;
+}
+html[data-theme="dark"] .fulfillment-summary article.attention{
+  background:linear-gradient(135deg,#332c18,#1b2832)!important;
+  border-color:#6d5a2c!important;
+}
+html[data-theme="dark"] .fulfillment-summary small,
+html[data-theme="dark"] .fulfillment-summary span{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .fulfillment-summary strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .fulfillment-month-control label{
+  color:#d7e2e8!important;
+}
+html[data-theme="dark"] .fulfillment-month-control input{
+  background:#111b23!important;
+  border-color:#405562!important;
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .fulfillment-filters button{
+  background:#1b2832!important;
+  border-color:#405562!important;
+  color:#cbd8e0!important;
+}
+html[data-theme="dark"] .fulfillment-filters button.active{
+  background:#245f8a!important;
+  border-color:#4c7390!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] .fulfillment-filters button:not(.active) span{
+  background:#2a3b47!important;
+  color:#d5e0e6!important;
+}
+html[data-theme="dark"] .fulfillment-search input{
+  background:#111b23!important;
+  border-color:#405562!important;
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .fulfillment-child{
+  background:#192630!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .fulfillment-child>header{
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .fulfillment-child header small{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .fulfillment-avatar{
+  background:#3a321a!important;
+}
+html[data-theme="dark"] .fulfillment-prize-row{
+  background:#1b2832!important;
+  border-color:#354956!important;
+}
+html[data-theme="dark"] .fulfillment-prize-row.received{
+  background:#193129!important;
+}
+html[data-theme="dark"] .fulfillment-check{
+  background:#15212a!important;
+  border-color:#526774!important;
+}
+html[data-theme="dark"] .fulfillment-prize-info>strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .fulfillment-prize-info em{
+  background:#1d3a4e!important;
+  color:#a9d7f5!important;
+}
+html[data-theme="dark"] .fulfillment-prize-info small,
+html[data-theme="dark"] .fulfillment-prize-status small,
+html[data-theme="dark"] .fulfillment-empty p{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .fulfillment-footnote{
+  background:#1b3344!important;
+  color:#bed3df!important;
+}
+html[data-theme="dark"] .fulfillment-notice.success{
+  background:#193529!important;
+  border-color:#386249!important;
+  color:#bde5cd!important;
+}
+html[data-theme="dark"] .fulfillment-notice.error{
+  background:#3b2227!important;
+  border-color:#70424b!important;
+  color:#ffc1c8!important;
+}
+
+/* Remaining nested surfaces that otherwise retain light-theme cards */
+html[data-theme="dark"] :where(
+  .children-editor-actions,
+  .children-learning-access-footer,
+  .children-demo-student-check,
+  .learning-selected-meta span,
+  .learning-completion-note,
+  .learning-library-browser-heading,
+  .attendance-form-grid,
+  .attendance-community-layout,
+  .reports-moods>div,
+  .program-enroll-bar,
+  .program-adult-note,
+  .household-primary-check,
+  .team-form-grid,
+  .team-exception-form,
+  .task-form,
+  .task-form-grid,
+  .registration-settings-grid,
+  .registration-consent-form,
+  .registration-review-detail,
+  .announcement-actions
+){
+  background-color:transparent!important;
+}
+
+html[data-theme="dark"] :where(
+  .children-empty-inline,
+  .learning-inline-empty,
+  .learning-empty,
+  .attendance-community-row,
+  .reports-warning,
+  .reports-empty,
+  .programs-empty,
+  .task-empty,
+  .registration-empty,
+  .calendar-loading
+){
+  background:#17242d!important;
+  border-color:#405562!important;
+  color:#b8c6cf!important;
+}
+
+html[data-theme="dark"] :where(
+  .registration-consent-row,
+  .registration-payload-section,
+  .registration-review-action-guide>div,
+  .registration-rich-preview,
+  .program-facts>div,
+  .program-days label,
+  .household-contact,
+  .team-active-check,
+  .team-readonly-profile>div,
+  .team-exception-list>article,
+  .team-assignment-list>article,
+  .task-system-item,
+  .task-all-clear,
+  .announcement-pin
+){
+  background:#1b2832!important;
+  border-color:#354956!important;
+}
+
+/* Mobile editor footer should never flash white */
+@media(max-width:760px){
+  html[data-theme="dark"] .children-editor-actions{
+    background:rgba(24,35,45,.97)!important;
+  }
+}
+
+
+/* Final dark-mode audit: no solid-white staff surfaces, Home-level contrast */
+html[data-theme="dark"] body:has(.site-nav){
+  --jh-audit-bg:#0b1218;
+  --jh-audit-panel:#192630;
+  --jh-audit-card:#1b2832;
+  --jh-audit-raised:#21303a;
+  --jh-audit-border:#3a4d5a;
+  --jh-audit-heading:#f3f7fa;
+  --jh-audit-text:#d9e3e9;
+  --jh-audit-muted:#b8c6cf;
+  --jh-audit-accent:#8fc7ff;
+}
+
+/* Any generic staff hero should match Home instead of the light default. */
+html[data-theme="dark"] body:has(.site-nav) .hero{
+  border-color:var(--jh-audit-border)!important;
+  background:
+    radial-gradient(circle at 86% 16%,rgba(72,137,181,.14),transparent 29%),
+    linear-gradient(135deg,#1c2b36,#17232d 60%,#1b2932)!important;
+  color:var(--jh-audit-text)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.18)!important;
+}
+html[data-theme="dark"] body:has(.site-nav) .hero :where(h1,h2,h3,strong){
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] body:has(.site-nav) .hero :where(p,small,.subtle){
+  color:var(--jh-audit-muted)!important;
+}
+
+/* Home attention card: remove the last low-contrast navy text. */
+html[data-theme="dark"] .home-attention-list>a,
+html[data-theme="dark"] .home-future-attention,
+html[data-theme="dark"] .home-all-clear{
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .home-attention-list>a :where(strong,b){
+  color:#ddecf5!important;
+}
+html[data-theme="dark"] .home-attention-list>a :where(span,small){
+  color:var(--jh-audit-muted)!important;
+}
+html[data-theme="dark"] .home-roadmap-tags span{
+  background:var(--jh-audit-raised)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:#c7d5dd!important;
+}
+
+/* Attendance: replace pale yellow decoration with Home blue/slate. */
+html[data-theme="dark"] .attendance-eyebrow{
+  background:#1b3a50!important;
+  color:#a8d4ff!important;
+  border:1px solid #42647b!important;
+}
+html[data-theme="dark"] :where(
+  .attendance-workspace,
+  .attendance-operating-day,
+  .attendance-record-plan,
+  .attendance-panel,
+  .attendance-checkin-form,
+  .attendance-community-row,
+  .attendance-person
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] :where(
+  .attendance-operating-day h2,
+  .attendance-person-name,
+  .attendance-section-heading h2,
+  .attendance-record-plan h2
+){
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .attendance-operating-day p,
+  .attendance-person-status,
+  .attendance-record-plan p,
+  .attendance-community-row small
+){
+  color:var(--jh-audit-muted)!important;
+}
+html[data-theme="dark"] .attendance-day-status{
+  background:#21303a!important;
+  border-color:#425866!important;
+  color:#c8d5dd!important;
+}
+html[data-theme="dark"] .attendance-day-status.open{
+  background:#193529!important;
+  border-color:#3b6750!important;
+  color:#bde5cd!important;
+}
+html[data-theme="dark"] .attendance-day-status.closed{
+  background:#3a2328!important;
+  border-color:#704751!important;
+  color:#ffc0c7!important;
+}
+html[data-theme="dark"] .attendance-person-action{
+  background:#1d3b50!important;
+  color:#a9d7fa!important;
+}
+html[data-theme="dark"] .attendance-person.present .attendance-person-action{
+  background:#1b3c2f!important;
+  color:#aee3c5!important;
+}
+
+/* Inventory hero / controls / list setup */
+html[data-theme="dark"] .inventory-hero{
+  border:1px solid var(--jh-audit-border)!important;
+  border-radius:20px!important;
+  padding:22px 24px!important;
+  background:
+    radial-gradient(circle at 86% 16%,rgba(72,137,181,.14),transparent 29%),
+    linear-gradient(135deg,#1c2b36,#17232d 60%,#1b2932)!important;
+}
+html[data-theme="dark"] .inventory-hero h1{color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] .inventory-hero .subtle{color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] :where(
+  .inventory-tabs button,
+  .inventory-filter-card,
+  .inventory-segmented,
+  .inventory-segmented button,
+  .inventory-setup-list article,
+  .inventory-readonly-note
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .inventory-tabs button.active,
+html[data-theme="dark"] .inventory-segmented button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] :where(
+  .inventory-panel-heading h2,
+  .inventory-panel-heading h3,
+  .inventory-item-heading h3,
+  .inventory-setup-list article strong,
+  .inventory-readonly-note strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .inventory-item-heading small,
+  .inventory-setup-list article span,
+  .inventory-readonly-note span,
+  .inventory-restock-check
+){color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .inventory-low-label{
+  background:#403517!important;
+  color:#f0d27a!important;
+}
+
+/* Student Progress report */
+html[data-theme="dark"] :where(
+  .progress-period,
+  .progress-skill-facts>div,
+  .progress-feedback-list article,
+  .progress-internal-list article,
+  .progress-archive-list article,
+  .progress-archive-achievements article,
+  .progress-report-grid>.card,
+  .progress-report-card,
+  .progress-assignment-history,
+  .progress-family-summary,
+  .progress-internal-notes,
+  .progress-report-archive
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] .progress-period{
+  box-shadow:none!important;
+}
+html[data-theme="dark"] .progress-period small{color:#9fb0bb!important}
+html[data-theme="dark"] .progress-period strong{color:#dceaf3!important}
+html[data-theme="dark"] .progress-period span{color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .progress-subject-icon{
+  background:#263844!important;
+}
+html[data-theme="dark"] :where(
+  .progress-student-identity h2,
+  .progress-subject-list strong,
+  .progress-mini-list strong,
+  .progress-feedback-list strong,
+  .progress-internal-list strong,
+  .progress-skill-facts strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .progress-student-identity p,
+  .progress-subject-list small,
+  .progress-mini-list small,
+  .progress-feedback-list small,
+  .progress-internal-list small,
+  .progress-skill-facts small,
+  .progress-trend-note,
+  .progress-table-sub
+){color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .progress-track{background:#2a3a45!important}
+
+/* Account access / Staff Management generic page */
+html[data-theme="dark"] body:has(.site-nav) main>.hero{
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] body:has(.site-nav) main>.hero h1{
+  color:var(--jh-audit-heading)!important;
+}
+
+/* Lab Devices */
+html[data-theme="dark"] :where(
+  .lab-device-hero,
+  .lab-device-card,
+  .lab-device-security-note,
+  .lab-device-facts>div
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .lab-device-hero{
+  background:
+    radial-gradient(circle at 86% 16%,rgba(72,137,181,.14),transparent 29%),
+    linear-gradient(135deg,#1c2b36,#17232d 60%,#1b2932)!important;
+}
+html[data-theme="dark"] .lab-device-icon{
+  background:#243640!important;
+  border-color:#3a4d5a!important;
+}
+html[data-theme="dark"] :where(
+  .lab-device-title-row strong,
+  .lab-device-section h2,
+  .lab-device-facts strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .lab-device-title-row small,
+  .lab-device-use,
+  .lab-device-facts small,
+  .lab-device-section>p
+){color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .lab-device-status.active{
+  background:#1b3a2e!important;
+  color:#aee2c3!important;
+}
+html[data-theme="dark"] .lab-device-status.revoked{
+  background:#3a252a!important;
+  color:#ffc1c8!important;
+}
+html[data-theme="dark"] .lab-device-revoke{
+  background:#342329!important;
+  border-color:#704751!important;
+  color:#ffc0c7!important;
+}
+
+/* Program setup registration options (CSS module class names are hashed). */
+html[data-theme="dark"] [class*="optionCard"],
+html[data-theme="dark"] [class*="editOptions"]{
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] [class*="optionCard"]:hover{
+  background:var(--jh-audit-raised)!important;
+  border-color:#537084!important;
+}
+html[data-theme="dark"] [class*="optionCard"][class*="selected"]{
+  background:#1b3a50!important;
+  border-color:#4d7794!important;
+}
+html[data-theme="dark"] [class*="optionCopy"] strong,
+html[data-theme="dark"] [class*="registrationHeading"]>span,
+html[data-theme="dark"] [class*="editOptionsHeader"] strong{
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] [class*="optionCopy"] small,
+html[data-theme="dark"] [class*="registrationHeading"] small,
+html[data-theme="dark"] [class*="editOptionsHeader"] small{
+  color:var(--jh-audit-muted)!important;
+}
+
+/* Calendar: dark month grid, staffing chips, detail cards, add buttons. */
+html[data-theme="dark"] :where(
+  .calendar-month-wrap,
+  .calendar-month-weekdays,
+  .calendar-month-day,
+  .calendar-layer-bar,
+  .calendar-detail-section,
+  .calendar-checkbox,
+  .calendar-repeat-box,
+  .calendar-staffing-chip,
+  .calendar-add-day
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] .calendar-month-weekdays{
+  background:#14212a!important;
+}
+html[data-theme="dark"] .calendar-month-weekdays span{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .calendar-month-day{
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .calendar-month-day.outside{
+  background:#141e26!important;
+  color:#81919d!important;
+}
+html[data-theme="dark"] .calendar-month-day.today{
+  background:#1c3850!important;
+  box-shadow:inset 0 0 0 2px #5d8fb3!important;
+}
+html[data-theme="dark"] .calendar-month-date{
+  color:#dce7ed!important;
+}
+html[data-theme="dark"] .calendar-add-day{
+  color:#9ecbf0!important;
+}
+html[data-theme="dark"] .calendar-staffing-chip{
+  background:#22303b!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .calendar-staffing-chip strong{color:#e7eef3!important}
+html[data-theme="dark"] .calendar-staffing-chip small,
+html[data-theme="dark"] .calendar-staffing-chip span{color:#afbdc7!important}
+html[data-theme="dark"] .calendar-staffing-summary{
+  background:#252c43!important;
+  border-color:#4d4f78!important;
+  color:#c9c2ff!important;
+}
+html[data-theme="dark"] .calendar-layer-toggle strong,
+html[data-theme="dark"] .calendar-legend strong{
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] .calendar-layer-toggle small,
+html[data-theme="dark"] .calendar-legend span{
+  color:var(--jh-audit-muted)!important;
+}
+html[data-theme="dark"] .calendar-series-note{
+  background:#342f20!important;
+  color:#eadca4!important;
+}
+html[data-theme="dark"] .calendar-detail-section.staff-notes{
+  background:#29291f!important;
+  border-color:#55513a!important;
+}
+
+/* Team scheduling */
+html[data-theme="dark"] :where(
+  .team-tabs button,
+  .team-day,
+  .team-day>header,
+  .team-day>header span,
+  .team-schedule-block,
+  .team-builder,
+  .team-exception-list>article,
+  .team-assignment-list>article,
+  .team-active-check,
+  .team-readonly-profile>div
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] .team-tabs button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] .team-day>header{
+  background:#14212a!important;
+}
+html[data-theme="dark"] .team-day>header span{
+  background:#263844!important;
+  color:#d3dfe6!important;
+}
+html[data-theme="dark"] .team-schedule-block.available{
+  background:#193129!important;
+}
+html[data-theme="dark"] :where(
+  .team-day strong,
+  .team-schedule-block strong,
+  .team-assignment-list strong,
+  .team-active-check strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .team-day-empty,
+  .team-schedule-block span,
+  .team-schedule-block small,
+  .team-assignment-list span,
+  .team-assignment-list small,
+  .team-active-check small,
+  .team-exception-list small
+){color:var(--jh-audit-muted)!important}
+
+/* Learning Hub: every staff-facing light card gets a dark equivalent. */
+html[data-theme="dark"] :where(
+  .learning-metrics article,
+  .learning-student-card>header,
+  .learning-library-item,
+  .learning-log-list article,
+  .learning-library-item-v2,
+  .learning-assignment-preview,
+  .typing-lab-list article,
+  .typing-history-list article,
+  .learning-preview-typing-goals span,
+  .typing-live-stats article,
+  .typing-passage,
+  .typing-results-grid article,
+  .learning-typing-mode-note,
+  .learning-typing-presets,
+  .quiz-lab-list article,
+  .quiz-history-list article,
+  .learning-preview-quiz-list article,
+  .quiz-question-card,
+  .quiz-results-grid article,
+  .writing-lab-list article,
+  .writing-review-list article,
+  .writing-live-stats article,
+  .writing-prompt-card,
+  .writing-starters,
+  .writing-results-grid article,
+  .writing-review-header,
+  .writing-review-response,
+  .writing-rubric,
+  .writing-revision-panel,
+  .reading-lab-staff-list article,
+  .reading-review-queue-list article,
+  .learning-preview-reading,
+  .learning-preview-reading-passage,
+  .learning-preview-reading-list article,
+  .reading-activity-progress,
+  .reading-question-panel,
+  .reading-choice-list button,
+  .reading-results-grid article,
+  .reading-review-dialog,
+  .reading-review-header,
+  .reading-review-response,
+  .reading-review-summary,
+  .my-week-launch-student,
+  .my-week-launch-metrics article,
+  .my-week-roster>button,
+  .my-week-stats article,
+  .my-week-card,
+  .my-week-empty,
+  .learning-review-list>article,
+  .learning-review-compact-list article,
+  .learning-goal-summary article,
+  .learning-goal-card,
+  .learning-goal-suggestion-grid article,
+  .learning-custom-goal-form
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] :where(
+  .learning-library-item:hover,
+  .learning-library-item.selected,
+  .learning-library-item-v2.selected,
+  .my-week-roster>button:hover,
+  .my-week-roster>button.active,
+  .reading-choice-list button:hover
+){
+  background:var(--jh-audit-raised)!important;
+  border-color:#557183!important;
+}
+html[data-theme="dark"] .learning-library-item-v2.archived{
+  background:#151f27!important;
+}
+html[data-theme="dark"] .learning-review-metrics article:first-child{
+  background:#1d2b35!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] :where(
+  .my-week-launch-icon,
+  .learning-review-icon.writing,
+  .learning-review-icon.reading,
+  .learning-review-icon.goal,
+  .learning-subject-icon
+){
+  background:#263844!important;
+  color:#dceaf3!important;
+}
+html[data-theme="dark"] :where(
+  .learning-library-title-row strong,
+  .learning-library-subject-heading strong,
+  .learning-library-skill-heading span,
+  .writing-lab-row-copy strong,
+  .writing-review-list strong,
+  .reading-lab-row-copy strong,
+  .quiz-lab-row-copy strong,
+  .typing-lab-row-copy strong,
+  .my-week-launch-heading strong,
+  .my-week-launch-student strong,
+  .my-week-roster strong,
+  .learning-goal-suggestion-grid strong,
+  .learning-review-copy strong,
+  .learning-review-compact-list strong
+){
+  color:var(--jh-audit-heading)!important;
+}
+html[data-theme="dark"] :where(
+  .learning-library-title-row em,
+  .learning-library-item-copy>small,
+  .learning-library-subject-heading small,
+  .learning-library-skill-heading small,
+  .writing-lab-row-copy small,
+  .writing-review-list small,
+  .reading-lab-row-copy small,
+  .quiz-lab-row-copy small,
+  .typing-lab-row-copy small,
+  .my-week-launch-heading small,
+  .my-week-launch-student small,
+  .my-week-roster small,
+  .learning-goal-suggestion-grid p,
+  .learning-review-copy small,
+  .learning-review-copy em,
+  .learning-review-compact-list small
+){
+  color:var(--jh-audit-muted)!important;
+}
+html[data-theme="dark"] .learning-goal-suggestion-grid small{
+  color:#9ed4b8!important;
+}
+html[data-theme="dark"] .my-week-launch-metrics strong{
+  color:#9fd0f5!important;
+}
+html[data-theme="dark"] .my-week-launch-metrics span{
+  color:#b8c6cf!important;
+}
+
+/* Staff preview/test overlays inside Learning should follow the selected staff theme. */
+html[data-theme="dark"] :where(
+  .assignment-test-topbar,
+  .assignment-test-card,
+  .typing-runner-topbar,
+  .quiz-runner-topbar,
+  .writing-runner-topbar,
+  .reading-runner-topbar
+){
+  background:#192630!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] :where(
+  .typing-input-wrap textarea,
+  .quiz-text-answer input,
+  .writing-editor textarea
+){
+  background:#111b23!important;
+  color:#f1f5f8!important;
+  border-color:#405562!important;
+}
+
+/* Programs, households, registration admin */
+html[data-theme="dark"] :where(
+  .household-member,
+  .household-contact,
+  .program-roster-row,
+  .program-days label,
+  .program-facts>div,
+  .registration-consent-row,
+  .registration-payload-section,
+  .registration-review-action-guide>div
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] :where(
+  .household-form-grid .field span,
+  .program-form-grid .field span,
+  .household-create-bar .field span,
+  .program-days>span,
+  .program-facts strong,
+  .program-adult-note strong,
+  .registration-program-list>button,
+  .registration-empty strong,
+  .registration-review-action-guide strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .household-member small,
+  .household-contact small,
+  .program-roster-row small,
+  .program-adult-note span,
+  .registration-program-list>button small,
+  .registration-child-summary span,
+  .registration-child-summary small,
+  .registration-review-action-guide span
+){color:var(--jh-audit-muted)!important}
+html[data-theme="dark"] .registration-tabs button{
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:#c5d3dc!important;
+}
+html[data-theme="dark"] .registration-tabs button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+
+/* Tasks / announcements: remove icon tiles and remaining light controls. */
+html[data-theme="dark"] :where(
+  .task-hero-counts>div,
+  .task-system-icon,
+  .task-segmented,
+  .task-segmented button,
+  .task-item,
+  .announcement-editor,
+  .announcement-list article,
+  .announcement-pin
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+html[data-theme="dark"] .task-segmented button.active{
+  background:#245f8a!important;
+  color:#fff!important;
+}
+html[data-theme="dark"] .task-item.completed{
+  background:#193129!important;
+}
+html[data-theme="dark"] .task-item.canceled{
+  background:#151f27!important;
+}
+html[data-theme="dark"] :where(
+  .task-item-title h3,
+  .task-section-heading h2,
+  .announcement-copy strong,
+  .announcement-pin strong
+){color:var(--jh-audit-heading)!important}
+html[data-theme="dark"] :where(
+  .task-item>p,
+  .task-meta,
+  .task-system-item small,
+  .announcement-copy p,
+  .announcement-copy small,
+  .announcement-pin small
+){color:var(--jh-audit-muted)!important}
+
+/* Child profile / progress nested rows */
+html[data-theme="dark"] :where(
+  .children-weekdays label,
+  .children-pickup-row,
+  .children-support-grid>div,
+  .children-agreement-grid>div,
+  .children-empty-inline,
+  .children-learning-access-list article,
+  .children-learning-pin,
+  .child-progress-metrics article,
+  .child-progress-insights article,
+  .child-progress-achievements,
+  .child-progress-goal-list article,
+  .child-progress-achievement-grid article,
+  .child-progress-reports,
+  .child-progress-report-list article,
+  .child-activity-metrics article,
+  .child-activity-list article
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+  color:var(--jh-audit-text)!important;
+}
+
+/* Purchasing controls that still had explicit white defaults. */
+html[data-theme="dark"] :where(
+  .purchasing-tabs button,
+  .purchasing-need-chip,
+  .purchasing-list-stack>button,
+  .purchasing-item,
+  .purchasing-spend-history article,
+  .purchasing-budget-item-view,
+  .purchasing-budget-item-view button.active
+){
+  background:var(--jh-audit-card)!important;
+  border-color:var(--jh-audit-border)!important;
+}
+html[data-theme="dark"] .purchasing-item.received{
+  background:#193129!important;
+}
+
+/* Universal staff form readability. Native checkboxes/radios are intentionally excluded. */
+html[data-theme="dark"] body:has(.site-nav) :where(
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select
+){
+  background:#111b23!important;
+  border-color:#405562!important;
+  color:#f0f5f8!important;
+}
+html[data-theme="dark"] body:has(.site-nav) :where(
+  label,
+  .field>span
+){
+  color:#d7e2e8;
+}
+html[data-theme="dark"] body:has(.site-nav) :where(input,textarea)::placeholder{
+  color:#8295a2!important;
+}
+
+/* Standard secondary copy: never use dark navy on dark surfaces. */
+html[data-theme="dark"] body:has(.site-nav) :where(
+  .subtle,
+  small,
+  [class*="helper"],
+  [class*="description"],
+  [class*="subtitle"]
+){
+  --jh-copy-muted:var(--jh-audit-muted);
+}
+
+
+/* Staff-wide spacing rhythm */
+body:has(.site-nav) .field{
+  gap:8px;
+}
+body:has(.site-nav) .field>span{
+  line-height:1.25;
+}
+body:has(.site-nav) :where(
+  .learning-form-grid,
+  .learning-library-filters.v2,
+  .learning-typing-goal-grid,
+  .learning-quiz-settings,
+  .learning-quiz-question-grid,
+  .learning-writing-word-grid,
+  .learning-reading-settings,
+  .learning-reading-question-grid,
+  .inventory-filter-card,
+  .inventory-form-grid,
+  .inventory-setup-grid,
+  .purchasing-form-grid,
+  .purchasing-budget-add,
+  .task-form-grid,
+  .team-form-grid,
+  .team-exception-form,
+  .registration-settings-grid,
+  .household-form-grid,
+  .program-form-grid,
+  .calendar-form-grid,
+  .announcement-date-grid
+){
+  column-gap:12px;
+  row-gap:14px;
+}
+body:has(.site-nav) :where(
+  .learning-editor-actions,
+  .learning-row-actions,
+  .learning-library-admin-actions,
+  .inventory-item-actions,
+  .purchasing-budget-tools,
+  .purchasing-item-editor,
+  .task-item-actions,
+  .team-actions,
+  .registration-actions,
+  .registration-review-actions,
+  .household-contact-editor-actions,
+  .program-builder-actions,
+  .calendar-modal-actions,
+  .announcement-actions
+){
+  gap:10px;
+}
+body:has(.site-nav) :where(
+  .learning-form-grid,
+  .inventory-form,
+  .purchasing-page,
+  .task-form,
+  .team-form,
+  .registration-setup-panel,
+  .household-detail-panel,
+  .program-builder,
+  .announcement-editor
+) :where(input,select,textarea){
+  scroll-margin-top:120px;
+}
+
+
+body:has(.site-nav) :where(
+  .learning-form-grid,
+  .learning-library-filters.v2,
+  .learning-typing-goal-grid,
+  .learning-quiz-settings,
+  .learning-quiz-question-grid,
+  .learning-writing-word-grid,
+  .learning-reading-settings,
+  .learning-reading-question-grid,
+  .inventory-filter-card,
+  .inventory-form-grid,
+  .purchasing-form-grid,
+  .purchasing-budget-add,
+  .task-form-grid,
+  .team-form-grid,
+  .team-exception-form,
+  .registration-settings-grid,
+  .household-form-grid,
+  .program-form-grid,
+  .calendar-form-grid,
+  .announcement-date-grid
+) .field{
+  margin:0;
+  min-width:0;
+}

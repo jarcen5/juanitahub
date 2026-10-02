@@ -1,0 +1,15 @@
+create index households_created_by_idx on public.households(created_by);
+create index households_updated_by_idx on public.households(updated_by);
+create index household_children_created_by_idx on public.household_children(created_by);
+create index household_contacts_created_by_idx on public.household_contacts(created_by);
+create index household_contacts_updated_by_idx on public.household_contacts(updated_by);
+create index adult_participants_created_by_idx on public.adult_participants(created_by);
+create index adult_participants_updated_by_idx on public.adult_participants(updated_by);
+create index adult_participant_contacts_created_by_idx on public.adult_participant_contacts(created_by);
+create index adult_participant_contacts_updated_by_idx on public.adult_participant_contacts(updated_by);
+create index programs_created_by_idx on public.programs(created_by);
+create index programs_updated_by_idx on public.programs(updated_by);
+create index program_enrollments_created_by_idx on public.program_enrollments(created_by);
+create index program_enrollments_updated_by_idx on public.program_enrollments(updated_by);
+create index if not exists child_registration_agreements_created_by_idx on public.child_registration_agreements(created_by);
+create index if not exists child_registration_agreements_updated_by_idx on public.child_registration_agreements(updated_by);;
