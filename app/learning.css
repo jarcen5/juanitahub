@@ -5220,3 +5220,45 @@
     grid-column:auto;
   }
 }
+
+
+/* Locked Student Learning staff exit */
+.lab-staff-exit-trigger{
+  position:fixed;
+  right:16px;
+  bottom:16px;
+  z-index:1550;
+  min-height:38px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 10px;
+  border:1px solid rgba(69,97,116,.24);
+  border-radius:999px;
+  background:rgba(255,255,255,.88);
+  color:#536f82;
+  box-shadow:0 5px 18px rgba(35,70,91,.10);
+  backdrop-filter:blur(8px);
+  font:inherit;
+  font-size:9px;
+  font-weight:850;
+  cursor:pointer;
+}
+.lab-staff-exit-trigger:hover{
+  border-color:#9bbdce;
+  background:#fff;
+  color:#2f607d;
+}
+.lab-staff-exit-trigger>span:first-child{
+  font-size:12px;
+}
+.kiosk-staff-unlock-card input[type="email"]{
+  width:100%;
+  box-sizing:border-box;
+}
+@media(max-width:620px){
+  .lab-staff-exit-trigger{
+    right:10px;
+    bottom:10px;
+  }
+}

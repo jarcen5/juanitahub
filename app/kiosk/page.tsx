@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { clearDeviceModeLock, setDeviceModeLock } from '@/lib/deviceMode'
 
 type Child = {
   id: number
@@ -148,7 +149,12 @@ export default function KioskPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
-      if (!data.session) setLoading(false)
+      if (data.session) {
+        setDeviceModeLock('kiosk')
+      } else {
+        clearDeviceModeLock()
+        setLoading(false)
+      }
     })
   }, [])
 
@@ -217,7 +223,10 @@ export default function KioskPage() {
       setMessage(profileResult.error?.message ?? childrenResult.error?.message ?? visitsResult.error?.message ?? calendarResult.error?.message ?? birthdaysResult.error?.message ?? 'Kiosk information could not be loaded.')
     }
 
-    setProfile(profileResult.data as Profile | null)
+    const nextProfile = profileResult.data as Profile | null
+    setProfile(nextProfile)
+    if (nextProfile?.active) setDeviceModeLock('kiosk')
+    else clearDeviceModeLock()
     setChildren((childrenResult.data ?? []) as Child[])
     setCalendarEvents((calendarResult.data ?? []) as PublicCalendarEvent[])
     setBirthdays((birthdaysResult.data ?? []) as PublicBirthday[])
@@ -375,6 +384,7 @@ export default function KioskPage() {
     }
 
     allowNavigation.current = true
+    clearDeviceModeLock()
     setUnlockOpen(false)
     setUnlocking(false)
     router.replace('/')

@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { studentLearningRequest, type StudentAccessContext } from '@/lib/studentLearning'
+import { clearDeviceModeLock, setDeviceModeLock } from '@/lib/deviceMode'
 import StudentMyWeek, { type MyWeekItem, type StudentGoalView, type StudentAchievementView } from '@/components/StudentMyWeek'
 import TypingActivityRunner from '@/components/TypingActivityRunner'
 import QuizActivityRunner, { type QuizConfig } from '@/components/QuizActivityRunner'
@@ -92,6 +94,7 @@ function weekLabel(value: string) {
 }
 
 export default function StudentLearningPage() {
+  const router = useRouter()
   const weekStart = mondayFor(localDate())
   const [deviceToken, setDeviceToken] = useState('')
   const [studentToken, setStudentToken] = useState('')
@@ -104,6 +107,11 @@ export default function StudentLearningPage() {
   const [working, setWorking] = useState(false)
   const [message, setMessage] = useState('')
   const [staffSessionAvailable, setStaffSessionAvailable] = useState(false)
+  const [staffExitOpen, setStaffExitOpen] = useState(false)
+  const [staffEmail, setStaffEmail] = useState('')
+  const [staffPassword, setStaffPassword] = useState('')
+  const [staffExitError, setStaffExitError] = useState('')
+  const [staffExitWorking, setStaffExitWorking] = useState(false)
   const [activeItem, setActiveItem] = useState<{ row: WeekRow; assignment: LabAssignment } | null>(null)
 
   useEffect(() => {
@@ -116,7 +124,16 @@ export default function StudentLearningPage() {
     setStudentToken(savedStudentToken)
     setStudent(savedProfile)
 
-    void supabase.auth.getSession().then(({ data }) => setStaffSessionAvailable(Boolean(data.session)))
+    if (savedDevice) setDeviceModeLock('learning')
+
+    void supabase.auth.getSession().then(async ({ data }) => {
+      if (savedDevice) {
+        if (data.session) await supabase.auth.signOut({ scope: 'local' })
+        setStaffSessionAvailable(false)
+      } else {
+        setStaffSessionAvailable(Boolean(data.session))
+      }
+    })
 
     if (savedDevice && savedStudentToken && savedProfile) {
       void loadWeek(savedDevice, savedStudentToken)
@@ -155,6 +172,7 @@ export default function StudentLearningPage() {
       setMessage(error instanceof Error ? error.message : 'This computer is not ready for Student Learning.')
       if ((error instanceof Error ? error.message : '').toLowerCase().includes('not activated')) {
         window.localStorage.removeItem(DEVICE_KEY)
+        clearDeviceModeLock()
         setDeviceToken('')
       }
     }
@@ -207,9 +225,10 @@ export default function StudentLearningPage() {
 
       const deviceToken = String(deviceId)
       window.localStorage.setItem(DEVICE_KEY, deviceToken)
+      setDeviceModeLock('learning')
       setDeviceToken(deviceToken)
       await loadStudents(deviceToken)
-      await supabase.auth.signOut()
+      await supabase.auth.signOut({ scope: 'local' })
       setStaffSessionAvailable(false)
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'This computer could not be activated.'
@@ -259,6 +278,116 @@ export default function StudentLearningPage() {
     setMessage(inactive ? 'You were signed out after 30 minutes of inactivity.' : '')
     await loadStudents(deviceToken)
   }
+
+
+  async function unlockStaffExit() {
+    const email = staffEmail.trim()
+    if (!email || !staffPassword || staffExitWorking) return
+
+    setStaffExitWorking(true)
+    setStaffExitError('')
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: staffPassword,
+    })
+
+    if (error || !data.user) {
+      setStaffExitError('That staff email or password did not match.')
+      setStaffPassword('')
+      setStaffExitWorking(false)
+      return
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('staff_profiles')
+      .select('active')
+      .eq('user_id', data.user.id)
+      .maybeSingle()
+
+    if (profileError || !profile?.active) {
+      await supabase.auth.signOut({ scope: 'local' })
+      setStaffExitError('That account is not an active Juanita Hub staff account.')
+      setStaffPassword('')
+      setStaffExitWorking(false)
+      return
+    }
+
+    if (deviceToken && studentToken) {
+      try {
+        await studentLearningRequest('student_logout', {
+          device_token: deviceToken,
+          student_token: studentToken,
+        })
+      } catch {}
+    }
+
+    window.sessionStorage.removeItem(STUDENT_KEY)
+    window.sessionStorage.removeItem(STUDENT_PROFILE_KEY)
+    clearDeviceModeLock()
+    setStaffExitOpen(false)
+    setStaffExitWorking(false)
+    router.replace('/')
+    router.refresh()
+  }
+
+  const staffExitControls = deviceToken ? (
+    <>
+      <button
+        className="lab-staff-exit-trigger"
+        type="button"
+        onClick={() => {
+          setStaffExitError('')
+          setStaffPassword('')
+          setStaffExitOpen(true)
+        }}
+        aria-label="Staff exit from Student Learning"
+      >
+        <span aria-hidden="true">🔒</span>
+        <span>Staff</span>
+      </button>
+
+      {staffExitOpen && (
+        <div className="kiosk-staff-unlock-backdrop" role="dialog" aria-modal="true" aria-labelledby="lab-staff-exit-title">
+          <section className="kiosk-staff-unlock-card">
+            <button type="button" className="kiosk-close" onClick={() => !staffExitWorking && setStaffExitOpen(false)} aria-label="Close staff exit">×</button>
+            <span className="kiosk-lock-icon">🔒</span>
+            <h2 id="lab-staff-exit-title">Staff exit</h2>
+            <p>Sign in with an active Juanita Hub staff account to leave Student Learning.</p>
+            <input
+              type="email"
+              value={staffEmail}
+              onChange={(event) => setStaffEmail(event.target.value)}
+              placeholder="Staff email"
+              autoComplete="email"
+              disabled={staffExitWorking}
+            />
+            <input
+              type="password"
+              value={staffPassword}
+              onChange={(event) => setStaffPassword(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void unlockStaffExit()
+              }}
+              placeholder="Staff password"
+              autoComplete="current-password"
+              disabled={staffExitWorking}
+            />
+            {staffExitError && <div className="kiosk-unlock-error">{staffExitError}</div>}
+            <button
+              type="button"
+              className="kiosk-unlock-submit"
+              onClick={() => void unlockStaffExit()}
+              disabled={!staffEmail.trim() || !staffPassword || staffExitWorking}
+            >
+              {staffExitWorking ? 'Verifying…' : 'Exit to staff dashboard'}
+            </button>
+            <small>Student Learning stays locked even if someone changes the browser URL.</small>
+          </section>
+        </div>
+      )}
+    </>
+  ) : null
 
   const assignmentById = useMemo(() => new Map(week.assignments.map((assignment) => [assignment.id, assignment])), [week.assignments])
   const writingByRow = useMemo(() => new Map(week.writing.map((item) => [item.student_assignment_id, item])), [week.writing])
@@ -314,6 +443,7 @@ export default function StudentLearningPage() {
 
   if (!student || !studentToken) {
     return (
+      <>
       <main className="lab-login-page">
         <header className="lab-login-header">
           <span className="lab-logo">JH</span>
@@ -366,11 +496,14 @@ export default function StudentLearningPage() {
           )}
         </section>
       </main>
+      {staffExitControls}
+      </>
     )
   }
 
   return (
     <>
+      {staffExitControls}
       <StudentMyWeek
         studentName={student.display_name}
         grade={student.grade}

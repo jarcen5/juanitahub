@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { setDeviceModeLock } from '@/lib/deviceMode'
 import DailyCardNotes from '@/components/DailyCardNotes'
 
 type AccessState = {
@@ -463,11 +464,11 @@ export default function SiteNavigation() {
           </div>
 
           <div className="jh-sidebar-footer">
-            <Link className="jh-kiosk-link" href="/kiosk" onClick={closeNavigation} title="Launch Sign-In Kiosk">
+            <Link className="jh-kiosk-link" href="/kiosk" onClick={() => { setDeviceModeLock('kiosk'); closeNavigation() }} title="Launch Sign-In Kiosk">
               <span aria-hidden="true">☺</span>
               <span><strong>Launch Sign-In Kiosk</strong><small>Open the child and visitor sign-in screen</small></span>
             </Link>
-            <Link className="jh-kiosk-link" href="/learn" onClick={closeNavigation} title="Launch Student Learning">
+            <Link className="jh-kiosk-link" href="/learn" onClick={() => { if (window.localStorage.getItem('juanita-learning-device')) setDeviceModeLock('learning'); closeNavigation() }} title="Launch Student Learning">
               <span aria-hidden="true">🎓</span>
               <span><strong>Launch Student Learning</strong><small>Open Computer Lab Mode for individual student work</small></span>
             </Link>
