@@ -5180,3 +5180,43 @@
 .learning-review-icon.goal{
   background:#fff4cc;
 }
+
+
+/* Form spacing polish */
+.learning-library-filters.v2{
+  column-gap:12px;
+  row-gap:14px;
+}
+.learning-library-filters.v2 .field{
+  gap:8px;
+}
+.learning-library-browser-heading{
+  gap:18px;
+  margin-bottom:16px;
+}
+.learning-library-browser-heading>div{
+  gap:7px;
+}
+.learning-reading-log-form{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  column-gap:14px;
+  row-gap:14px;
+  margin-top:2px;
+}
+.learning-reading-log-form .field{
+  margin:0;
+}
+.learning-reading-log-form .wide{
+  grid-column:1/-1;
+}
+.learning-two-column>.card>.learning-reading-log-form+.primary{
+  margin-top:14px;
+}
+@media(max-width:620px){
+  .learning-reading-log-form{
+    grid-template-columns:1fr;
+  }
+  .learning-reading-log-form .wide{
+    grid-column:auto;
+  }
+}
