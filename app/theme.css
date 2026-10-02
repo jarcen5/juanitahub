@@ -2762,3 +2762,30 @@ body:has(.site-nav) :where(
 ) :where(input,select,textarea){
   scroll-margin-top:120px;
 }
+
+
+body:has(.site-nav) :where(
+  .learning-form-grid,
+  .learning-library-filters.v2,
+  .learning-typing-goal-grid,
+  .learning-quiz-settings,
+  .learning-quiz-question-grid,
+  .learning-writing-word-grid,
+  .learning-reading-settings,
+  .learning-reading-question-grid,
+  .inventory-filter-card,
+  .inventory-form-grid,
+  .purchasing-form-grid,
+  .purchasing-budget-add,
+  .task-form-grid,
+  .team-form-grid,
+  .team-exception-form,
+  .registration-settings-grid,
+  .household-form-grid,
+  .program-form-grid,
+  .calendar-form-grid,
+  .announcement-date-grid
+) .field{
+  margin:0;
+  min-width:0;
+}
