@@ -513,21 +513,21 @@ export default function JuanitaQuestRunner({
                   const isCorrect = normalize(option) === normalize(current.correct_answer)
                   const selected = choice === option
                   return (
-                    <button
+                    <div
                       key={option}
-                      type="button"
-                      className={(selected ? 'selected ' : '') + (feedback === 'correct' && isCorrect ? 'correct ' : '') + (feedback === 'wrong' && selected ? 'wrong' : '')}
-                      onClick={() => answer(option)}
+                      className={'jq-answer-option ' + (selected ? 'selected ' : '') + (feedback === 'correct' && isCorrect ? 'correct ' : '') + (feedback === 'wrong' && selected ? 'wrong' : '')}
                     >
-                      {current.choice_icons?.[option] && <span className="jq-choice-picture">{current.choice_icons[option]}</span>}
-                      <strong>{option}</strong>
+                      <button type="button" className="jq-answer-choice" onClick={() => answer(option)}>
+                        {current.choice_icons?.[option] && <span className="jq-choice-picture">{current.choice_icons[option]}</span>}
+                        <strong>{option}</strong>
+                      </button>
                       <button
                         type="button"
                         className="jq-choice-speaker"
                         aria-label={'Hear ' + option}
-                        onClick={(event) => { event.stopPropagation(); speak(option) }}
+                        onClick={() => speak(option)}
                       >🔊</button>
-                    </button>
+                    </div>
                   )
                 })}
               </div>
