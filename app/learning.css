@@ -5262,3 +5262,23 @@
     bottom:10px;
   }
 }
+
+.learning-unassign-button{
+  border-color:#e2bfc5!important;
+  color:#9a4752!important;
+}
+.learning-unassign-button:hover:not(:disabled){
+  border-color:#d79aa5!important;
+  background:#fff5f6!important;
+  color:#883844!important;
+}
+html[data-theme="dark"] .learning-unassign-button{
+  border-color:#704751!important;
+  background:#342329!important;
+  color:#ffc0c7!important;
+}
+html[data-theme="dark"] .learning-unassign-button:hover:not(:disabled){
+  border-color:#8b5964!important;
+  background:#452a31!important;
+  color:#ffd7dc!important;
+}
