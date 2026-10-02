@@ -2593,10 +2593,10 @@ export default function LearningPage() {
               <section className="card">
                 <h2>Record reading</h2>
                 <label className="field"><span>Student</span><select value={readingChildId ?? ''} onChange={(event) => setReadingChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}</option>)}</select></label>
-                <div className="learning-form-grid">
+                <div className="learning-form-grid learning-reading-log-form">
                   <label className="field"><span>Date</span><input type="date" value={readingDate} onChange={(event) => setReadingDate(event.target.value)} /></label>
                   <label className="field"><span>Minutes</span><input type="number" min="1" max="600" value={readingMinutes} onChange={(event) => setReadingMinutes(event.target.value)} /></label>
-                  <label className="field wide"><span>Book / text</span><input value={readingTitle} onChange={(event) => setReadingTitle(event.target.value)} placeholder="Optional title" /></label>
+                  <label className="field"><span>Book / text</span><input value={readingTitle} onChange={(event) => setReadingTitle(event.target.value)} placeholder="Optional title" /></label>
                   <label className="field"><span>Pages</span><input value={readingPages} onChange={(event) => setReadingPages(event.target.value)} placeholder="12–24" /></label>
                   <label className="field wide"><span>Note</span><textarea rows={3} value={readingNote} onChange={(event) => setReadingNote(event.target.value)} placeholder="Optional reading note" /></label>
                 </div>
