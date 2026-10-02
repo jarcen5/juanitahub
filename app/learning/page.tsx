@@ -1387,6 +1387,23 @@ export default function LearningPage() {
       }
     }
 
+    const originalAssignment = editingAssignmentId ? library.find((assignment) => assignment.id === editingAssignmentId) : null
+    const originalQuestConfig = originalAssignment?.activity_config as (ActivityConfig & {
+      experience?: string
+      quest_world?: string
+      quest_intro?: string
+      quest_goal?: string
+    }) | undefined
+    if (newType === 'quiz' && originalQuestConfig?.experience === 'juanita_quest') {
+      activityConfig = {
+        ...activityConfig,
+        experience: 'juanita_quest',
+        quest_world: originalQuestConfig.quest_world,
+        quest_intro: originalQuestConfig.quest_intro,
+        quest_goal: originalQuestConfig.quest_goal,
+      } as ActivityConfig
+    }
+
     const values = {
       title: newTitle.trim(),
       subject: newSubject,
