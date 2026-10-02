@@ -547,6 +547,20 @@ export default function StudentLearningPage() {
         />
       )}
 
+      {activeItem?.assignment.assignment_type === 'quiz' && activeItem.assignment.activity_config?.experience === 'juanita_quest' && access && (
+        <JuanitaQuestRunner
+          studentAssignmentId={activeItem.row.id}
+          childId={student.id}
+          assignmentId={activeItem.assignment.id}
+          assignmentTitle={activeItem.assignment.title}
+          studentName={student.display_name}
+          activityConfig={activeItem.assignment.activity_config as JuanitaQuestConfig}
+          studentAccess={access}
+          onClose={() => setActiveItem(null)}
+          onSaved={() => loadWeek()}
+        />
+      )}
+
       {activeItem?.assignment.assignment_type === 'writing' && access && (
         <WritingActivityRunner
           studentAssignmentId={activeItem.row.id}
