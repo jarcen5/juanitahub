@@ -136,6 +136,14 @@ export default function JuanitaQuestRunner({
   const [soundOn, setSoundOn] = useState(true)
   const movementKeys = useRef(new Set<string>())
 
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem('juanita-quest-avatar-' + childId)
+      const match = avatars.find((option) => option.id === saved)
+      if (match) setAvatar(match)
+    } catch {}
+  }, [childId])
+
   const current = questions[currentIndex] ?? null
   const station = current ? {
     x: Number.isFinite(current.station_x) ? Number(current.station_x) : (defaultStations[currentIndex % defaultStations.length]?.x ?? 50),
@@ -222,6 +230,7 @@ export default function JuanitaQuestRunner({
 
   function chooseAvatar(selected: AvatarOption) {
     setAvatar(selected)
+    try { window.localStorage.setItem('juanita-quest-avatar-' + childId, selected.id) } catch {}
     speak(selected.name)
   }
 
@@ -384,7 +393,6 @@ export default function JuanitaQuestRunner({
   }
 
   if (screen === 'finished') {
-    const percent = questions.length ? Math.round((correctCount / questions.length) * 100) : 0
     return (
       <div className="jq-backdrop">
         <main className="jq-game-shell">
@@ -400,8 +408,8 @@ export default function JuanitaQuestRunner({
             <div className="jq-score-cards">
               <article><span>⭐</span><strong>{stars}</strong><small>Stars</small></article>
               <article><span>🪙</span><strong>{coins.length}</strong><small>Coins</small></article>
-              <article><span>🎯</span><strong>{percent}%</strong><small>First Try</small></article>
-              <article><span>⏱</span><strong>{timeLabel(elapsedSeconds)}</strong><small>Time</small></article>
+              <article><span>🎮</span><strong>{completed.length}/{questions.length}</strong><small>Games</small></article>
+              <article><span>🎁</span><strong>1</strong><small>Treasure</small></article>
             </div>
             <p className="jq-win-copy">You explored the whole world and finished every game.</p>
             {saveWarning && <div className="jq-save-warning">{saveWarning}</div>}
@@ -423,7 +431,6 @@ export default function JuanitaQuestRunner({
           <div className="jq-player-stats">
             <span>⭐ {stars}</span>
             <span>🪙 {coins.length}</span>
-            <span>⏱ {timeLabel(elapsedSeconds)}</span>
             <button type="button" className="jq-sound-button" aria-label={soundOn ? 'Turn sound off' : 'Turn sound on'} onClick={() => setSoundOn((value) => !value)}>{soundOn ? '🔊' : '🔇'}</button>
             <button type="button" className="jq-top-button" disabled={saving} onClick={onClose}>Exit</button>
           </div>
