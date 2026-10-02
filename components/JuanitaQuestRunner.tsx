@@ -4,7 +4,20 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { studentLearningRequest, type StudentAccessContext } from '@/lib/studentLearning'
 import type { QuizConfig, QuizQuestion } from '@/components/QuizActivityRunner'
 
+type PaintCell = {
+  id: string
+  problem: string
+  answer: number
+}
+
+type PaintColor = {
+  number: number
+  name: string
+  color: string
+}
+
 type QuestQuestion = QuizQuestion & {
+  game_type?: 'choice' | 'build_number' | 'word_ending' | 'color_math'
   picture?: string
   station_icon?: string
   station_name?: string
@@ -12,6 +25,12 @@ type QuestQuestion = QuizQuestion & {
   choice_icons?: Record<string, string>
   station_x?: number
   station_y?: number
+  target_number?: number
+  word_start?: string
+  word_picture?: string
+  endings?: string[]
+  paint_cells?: PaintCell[]
+  paint_colors?: PaintColor[]
 }
 
 export type JuanitaQuestConfig = QuizConfig & {
@@ -86,12 +105,6 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value))
 }
 
-function timeLabel(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0')
-}
-
 function BlockAvatar({ avatar, size = 'normal' }: { avatar: AvatarOption; size?: 'normal' | 'small' }) {
   return (
     <span className={'jq-avatar-figure ' + size} aria-hidden="true">
@@ -134,6 +147,13 @@ export default function JuanitaQuestRunner({
   const [saving, setSaving] = useState(false)
   const [saveWarning, setSaveWarning] = useState('')
   const [soundOn, setSoundOn] = useState(true)
+
+  const [blockCount, setBlockCount] = useState(0)
+  const [wordEnding, setWordEnding] = useState('')
+  const [selectedPaint, setSelectedPaint] = useState<number | null>(null)
+  const [paintedCells, setPaintedCells] = useState<Record<string, number>>({})
+  const [customMistake, setCustomMistake] = useState(false)
+
   const movementKeys = useRef(new Set<string>())
 
   useEffect(() => {
@@ -145,14 +165,14 @@ export default function JuanitaQuestRunner({
   }, [childId])
 
   const current = questions[currentIndex] ?? null
+  const gameType = current?.game_type ?? 'choice'
   const station = current ? {
     x: Number.isFinite(current.station_x) ? Number(current.station_x) : (defaultStations[currentIndex % defaultStations.length]?.x ?? 50),
     y: Number.isFinite(current.station_y) ? Number(current.station_y) : (defaultStations[currentIndex % defaultStations.length]?.y ?? 50),
   } : null
   const nearStation = station ? distance(position, station) < 9 : false
   const correctCount = useMemo(() => answers.filter((answer) => answer.correct).length, [answers])
-  const firstTryBonus = correctCount
-  const stars = completed.length + firstTryBonus
+  const stars = completed.length + correctCount
 
   useEffect(() => {
     if (startedAt == null || screen === 'finished') return
@@ -233,13 +253,22 @@ export default function JuanitaQuestRunner({
   function enterWorld() {
     setStartedAt(Date.now())
     setScreen('world')
-    window.setTimeout(() => speak('Walk to the glowing star. Then press play.'), 200)
+    window.setTimeout(() => speak('Find the glowing game star. Walk to it and press play.'), 200)
+  }
+
+  function resetMiniGame() {
+    setChoice('')
+    setFeedback('idle')
+    setBlockCount(0)
+    setWordEnding('')
+    setSelectedPaint(null)
+    setPaintedCells({})
+    setCustomMistake(false)
   }
 
   function openChallenge() {
     if (!current) return
-    setChoice('')
-    setFeedback('idle')
+    resetMiniGame()
     setChallengeOpen(true)
     window.setTimeout(() => speak(current.speak_text || current.prompt), 120)
   }
@@ -248,18 +277,20 @@ export default function JuanitaQuestRunner({
     return answers.find((answer) => answer.question_id === current?.id)
   }
 
+  function recordFirstResult(response: string, correct: boolean) {
+    if (!current || firstRecordedAnswer()) return
+    setAnswers((rows) => [...rows, {
+      question_id: current.id,
+      response,
+      correct,
+    }])
+  }
+
   function answer(choiceValue: string) {
     if (!current || feedback === 'correct') return
     setChoice(choiceValue)
     const correct = normalize(choiceValue) === normalize(current.correct_answer)
-    const existing = firstRecordedAnswer()
-    if (!existing) {
-      setAnswers((rows) => [...rows, {
-        question_id: current.id,
-        response: choiceValue,
-        correct,
-      }])
-    }
+    recordFirstResult(choiceValue, correct)
 
     if (correct) {
       setFeedback('correct')
@@ -270,24 +301,74 @@ export default function JuanitaQuestRunner({
     }
   }
 
+  function checkBlocks() {
+    if (!current) return
+    const target = Number(current.target_number ?? current.correct_answer)
+    const correct = blockCount === target
+    recordFirstResult(String(blockCount), correct)
+    if (correct) {
+      setFeedback('correct')
+      speak('You built ' + target + '!')
+    } else {
+      setCustomMistake(true)
+      setFeedback('wrong')
+      speak(blockCount < target ? 'Add more blocks.' : 'Take away some blocks.')
+    }
+  }
+
+  function dropEnding(ending: string) {
+    setWordEnding(ending)
+    setFeedback('idle')
+    speak((current?.word_start ?? '') + ending)
+  }
+
+  function checkWord() {
+    if (!current || !wordEnding) return
+    const correct = normalize(wordEnding) === normalize(current.correct_answer)
+    recordFirstResult(wordEnding, correct)
+    if (correct) {
+      setFeedback('correct')
+      speak('You made ' + (current.word_start ?? '') + wordEnding + '!')
+    } else {
+      setCustomMistake(true)
+      setFeedback('wrong')
+      speak('Try another ending.')
+    }
+  }
+
+  function paintCell(cell: PaintCell) {
+    if (!current || selectedPaint == null || paintedCells[cell.id] != null) return
+    if (selectedPaint !== cell.answer) {
+      setCustomMistake(true)
+      setFeedback('wrong')
+      speak('Try a different color.')
+      return
+    }
+
+    const nextPainted = { ...paintedCells, [cell.id]: selectedPaint }
+    setPaintedCells(nextPainted)
+    setFeedback('idle')
+    speak('Nice!')
+
+    const cells = current.paint_cells ?? []
+    if (Object.keys(nextPainted).length === cells.length) {
+      const correct = !customMistake
+      recordFirstResult(correct ? current.correct_answer : '__retry__', correct)
+      setFeedback('correct')
+      window.setTimeout(() => speak('Picture complete!'), 120)
+    }
+  }
+
   async function finishStation() {
     if (!current || feedback !== 'correct') return
     const nextCompleted = completed.includes(currentIndex) ? completed : [...completed, currentIndex]
     setCompleted(nextCompleted)
     setChallengeOpen(false)
-    setChoice('')
-    setFeedback('idle')
+    resetMiniGame()
 
     if (currentIndex < questions.length - 1) {
-      const nextIndex = currentIndex + 1
-      setCurrentIndex(nextIndex)
-      const nextQuestion = questions[nextIndex]
-      const nextStation = {
-        x: Number.isFinite(nextQuestion?.station_x) ? Number(nextQuestion?.station_x) : (defaultStations[nextIndex % defaultStations.length]?.x ?? 50),
-        y: Number.isFinite(nextQuestion?.station_y) ? Number(nextQuestion?.station_y) : (defaultStations[nextIndex % defaultStations.length]?.y ?? 50),
-      }
-      window.setTimeout(() => speak('Great job! Find the next glowing star.'), 150)
-      setPosition((pos) => ({ x: clamp(pos.x, 7, 93), y: clamp(pos.y, 12, 90) }))
+      setCurrentIndex((value) => value + 1)
+      window.setTimeout(() => speak('Great job! Find the next glowing game star.'), 150)
       return
     }
 
@@ -322,15 +403,168 @@ export default function JuanitaQuestRunner({
     setPosition({ x: 48, y: 88 })
     setCurrentIndex(0)
     setChallengeOpen(false)
-    setChoice('')
-    setFeedback('idle')
     setAnswers([])
     setCompleted([])
     setCoins([])
     setStartedAt(Date.now())
     setElapsedSeconds(0)
     setSaveWarning('')
+    resetMiniGame()
     setScreen('world')
+  }
+
+  function colorFor(number: number) {
+    return current?.paint_colors?.find((item) => item.number === number)?.color ?? '#d8e4ef'
+  }
+
+  function gameBody() {
+    if (!current) return null
+
+    if (gameType === 'build_number') {
+      const target = Number(current.target_number ?? current.correct_answer)
+      return (
+        <div className="jq-build-game">
+          <div className="jq-build-target">
+            <span>BUILD</span>
+            <strong>{target}</strong>
+            <small>blocks</small>
+          </div>
+          <div
+            className="jq-block-zone"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault()
+              setBlockCount((value) => Math.min(12, value + 1))
+              setFeedback('idle')
+            }}
+          >
+            {blockCount === 0 && <span className="jq-drop-hint">Drag or tap blocks here</span>}
+            <div className="jq-built-blocks">
+              {Array.from({ length: blockCount }).map((_, index) => (
+                <button key={index} type="button" className="jq-number-block built" onClick={() => { setBlockCount((value) => Math.max(0, value - 1)); setFeedback('idle') }} aria-label="Remove one block">
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="jq-block-supply">
+            <button
+              type="button"
+              draggable
+              className="jq-number-block supply"
+              onDragStart={(event) => event.dataTransfer.setData('text/plain', 'block')}
+              onClick={() => { setBlockCount((value) => Math.min(12, value + 1)); setFeedback('idle') }}
+            >
+              + BLOCK
+            </button>
+            <button type="button" className="jq-check-button" onClick={checkBlocks}>CHECK ✓</button>
+          </div>
+        </div>
+      )
+    }
+
+    if (gameType === 'word_ending') {
+      const endings = current.endings ?? current.choices ?? []
+      return (
+        <div className="jq-word-game">
+          <div className="jq-word-picture">{current.word_picture || current.picture || '🔤'}</div>
+          <div className="jq-word-builder">
+            <span className="jq-word-start">{current.word_start ?? ''}</span>
+            <div
+              className={'jq-ending-slot ' + (wordEnding ? 'filled' : '')}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault()
+                const ending = event.dataTransfer.getData('text/plain')
+                if (ending) dropEnding(ending)
+              }}
+            >
+              {wordEnding || '___'}
+            </div>
+          </div>
+          <div className="jq-ending-tray">
+            {endings.map((ending) => (
+              <button
+                key={ending}
+                type="button"
+                draggable
+                className={'jq-ending-chip ' + (wordEnding === ending ? 'selected' : '')}
+                onDragStart={(event) => event.dataTransfer.setData('text/plain', ending)}
+                onClick={() => dropEnding(ending)}
+              >
+                {ending}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="jq-check-button" disabled={!wordEnding} onClick={checkWord}>CHECK WORD ✓</button>
+        </div>
+      )
+    }
+
+    if (gameType === 'color_math') {
+      const cells = current.paint_cells ?? []
+      const colors = current.paint_colors ?? []
+      return (
+        <div className="jq-color-game">
+          <div className="jq-paint-key">
+            {colors.map((paint) => (
+              <button
+                key={paint.number}
+                type="button"
+                className={selectedPaint === paint.number ? 'selected' : ''}
+                onClick={() => { setSelectedPaint(paint.number); setFeedback('idle'); speak(paint.number + ', ' + paint.name) }}
+              >
+                <span style={{ background: paint.color }} />
+                <strong>{paint.number}</strong>
+                <small>{paint.name}</small>
+              </button>
+            ))}
+          </div>
+          <div className="jq-color-picture" aria-label="Color by math picture">
+            {cells.map((cell, index) => {
+              const paintNumber = paintedCells[cell.id]
+              return (
+                <button
+                  key={cell.id}
+                  type="button"
+                  className={'jq-paint-cell cell-' + (index + 1) + (paintNumber != null ? ' painted' : '')}
+                  style={paintNumber != null ? { background: colorFor(paintNumber) } : undefined}
+                  onClick={() => paintCell(cell)}
+                  aria-label={paintNumber != null ? cell.problem + ' colored' : cell.problem}
+                >
+                  {paintNumber == null ? cell.problem : '✓'}
+                </button>
+              )
+            })}
+          </div>
+          <p className="jq-color-help">{selectedPaint == null ? 'Pick a color number, then solve a space.' : 'Paint with number ' + selectedPaint + '.'}</p>
+        </div>
+      )
+    }
+
+    return (
+      <>
+        {current.picture && <div className="jq-picture-prompt" aria-hidden="true">{current.picture}</div>}
+        <div className="jq-answer-grid">
+          {(current.choices ?? []).map((option) => {
+            const isCorrect = normalize(option) === normalize(current.correct_answer)
+            const selected = choice === option
+            return (
+              <div
+                key={option}
+                className={'jq-answer-option ' + (selected ? 'selected ' : '') + (feedback === 'correct' && isCorrect ? 'correct ' : '') + (feedback === 'wrong' && selected ? 'wrong' : '')}
+              >
+                <button type="button" className="jq-answer-choice" onClick={() => answer(option)}>
+                  {current.choice_icons?.[option] && <span className="jq-choice-picture">{current.choice_icons[option]}</span>}
+                  <strong>{option}</strong>
+                </button>
+                <button type="button" className="jq-choice-speaker" aria-label={'Hear ' + option} onClick={() => speak(option)}>🔊</button>
+              </div>
+            )
+          })}
+        </div>
+      </>
+    )
   }
 
   if (!questions.length) {
@@ -361,12 +595,7 @@ export default function JuanitaQuestRunner({
             </div>
             <div className="jq-avatar-picker">
               {avatars.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={'jq-avatar-card ' + (avatar.id === option.id ? 'selected' : '')}
-                  onClick={() => chooseAvatar(option)}
-                >
+                <button key={option.id} type="button" className={'jq-avatar-card ' + (avatar.id === option.id ? 'selected' : '')} onClick={() => chooseAvatar(option)}>
                   <BlockAvatar avatar={option} />
                   <strong>{option.name}</strong>
                   {avatar.id === option.id && <em>✓ READY</em>}
@@ -375,11 +604,7 @@ export default function JuanitaQuestRunner({
             </div>
             <div className="jq-avatar-preview">
               <div className="jq-preview-platform"><BlockAvatar avatar={avatar} /></div>
-              <div>
-                <span>YOUR HERO</span>
-                <strong>{avatar.name}</strong>
-                <small>Coins: 0 · Stars: 0</small>
-              </div>
+              <div><span>YOUR HERO</span><strong>{avatar.name}</strong><small>Coins: 0 · Stars: 0</small></div>
             </div>
             <button type="button" className="jq-main-button jq-enter" onClick={enterWorld}>PLAY ▶</button>
           </section>
@@ -435,13 +660,10 @@ export default function JuanitaQuestRunner({
         <section className="jq-world">
           <div className="jq-hud-card">
             <BlockAvatar avatar={avatar} size="small" />
-            <div>
-              <strong>{firstName}</strong>
-              <span>Game {currentIndex + 1} of {questions.length}</span>
-            </div>
+            <div><strong>{firstName}</strong><span>Game {currentIndex + 1} of {questions.length}</span></div>
           </div>
 
-          <div className="jq-world-tip">{nearStation ? '⭐ You found a game! Press SPACE or PLAY.' : 'Move to the glowing star ⭐'}</div>
+          <div className="jq-world-tip">{nearStation ? '⭐ You found a game! Press SPACE or PLAY.' : 'Find the glowing game ⭐'}</div>
 
           <div className="jq-sun" aria-hidden="true">☀️</div>
           <div className="jq-cloud cloud-one" aria-hidden="true">☁️</div>
@@ -468,13 +690,10 @@ export default function JuanitaQuestRunner({
             const isDone = completed.includes(index)
             const isCurrent = index === currentIndex
             return (
-              <div
-                key={question.id}
-                className={'jq-station ' + (isDone ? 'done ' : '') + (isCurrent ? 'current' : 'locked')}
-                style={{ left: point.x + '%', top: point.y + '%' }}
-              >
+              <div key={question.id} className={'jq-station ' + (isDone ? 'done ' : '') + (isCurrent ? 'current' : 'locked')} style={{ left: point.x + '%', top: point.y + '%' }}>
                 <div className="jq-station-beam" />
-                <span>{isDone ? '✅' : isCurrent ? (question.station_icon || '⭐') : '🔒'}</span>
+                {isCurrent && <span className="jq-active-star">⭐</span>}
+                <span className="jq-station-icon">{isDone ? '✅' : isCurrent ? (question.station_icon || '🎮') : '🔒'}</span>
                 <small>{isDone ? 'Done!' : isCurrent ? (question.station_name || 'Game') : 'Locked'}</small>
               </div>
             )
@@ -504,52 +723,28 @@ export default function JuanitaQuestRunner({
           <div className="jq-challenge-layer">
             <section className="jq-challenge-card" role="dialog" aria-modal="true" aria-label="Learning game">
               <header>
-                <div><span>{current.station_icon || '⭐'}</span><div><small>{current.station_name || 'Star Game'}</small><strong>Game {currentIndex + 1}</strong></div></div>
+                <div><span>{current.station_icon || '🎮'}</span><div><small>{current.station_name || 'Star Game'}</small><strong>Game {currentIndex + 1}</strong></div></div>
                 <button type="button" className="jq-listen-button" onClick={() => speak(current.speak_text || current.prompt)}>🔊 Hear it</button>
               </header>
 
-              {current.picture && <div className="jq-picture-prompt" aria-hidden="true">{current.picture}</div>}
               <h2>{current.prompt}</h2>
-
-              <div className="jq-answer-grid">
-                {(current.choices ?? []).map((option) => {
-                  const isCorrect = normalize(option) === normalize(current.correct_answer)
-                  const selected = choice === option
-                  return (
-                    <div
-                      key={option}
-                      className={'jq-answer-option ' + (selected ? 'selected ' : '') + (feedback === 'correct' && isCorrect ? 'correct ' : '') + (feedback === 'wrong' && selected ? 'wrong' : '')}
-                    >
-                      <button type="button" className="jq-answer-choice" onClick={() => answer(option)}>
-                        {current.choice_icons?.[option] && <span className="jq-choice-picture">{current.choice_icons[option]}</span>}
-                        <strong>{option}</strong>
-                      </button>
-                      <button
-                        type="button"
-                        className="jq-choice-speaker"
-                        aria-label={'Hear ' + option}
-                        onClick={() => speak(option)}
-                      >🔊</button>
-                    </div>
-                  )
-                })}
-              </div>
+              {gameBody()}
 
               {feedback === 'wrong' && (
                 <div className="jq-feedback-box wrong">
-                  <span>💛</span><div><strong>Good try!</strong><small>Pick another one.</small></div>
+                  <span>💛</span><div><strong>Keep going!</strong><small>Try something different.</small></div>
                 </div>
               )}
               {feedback === 'correct' && (
                 <div className="jq-feedback-box correct">
-                  <span>🌟</span><div><strong>You got it!</strong><small>Star unlocked!</small></div>
+                  <span>🌟</span><div><strong>You did it!</strong><small>Star unlocked!</small></div>
                 </div>
               )}
 
               <div className="jq-challenge-actions">
                 {feedback === 'correct'
                   ? <button type="button" className="jq-main-button" disabled={saving} onClick={() => void finishStation()}>{currentIndex === questions.length - 1 ? 'Finish Quest 🏆' : 'Back to World ▶'}</button>
-                  : <button type="button" className="jq-secondary-button" onClick={() => { setChallengeOpen(false); setChoice(''); setFeedback('idle') }}>Walk around</button>}
+                  : <button type="button" className="jq-secondary-button" onClick={() => { setChallengeOpen(false); resetMiniGame() }}>Walk around</button>}
               </div>
               {saveWarning && <div className="jq-save-warning">{saveWarning}</div>}
             </section>
