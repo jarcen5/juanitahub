@@ -208,24 +208,20 @@ export default function JuanitaQuestRunner({
     window.speechSynthesis.speak(utterance)
   }
 
-  function collectNearby(next: Point) {
+  useEffect(() => {
     setCoins((currentCoins) => {
       const found = coinPoints.flatMap((coin, index) =>
-        !currentCoins.includes(index) && distance(next, coin) < 5 ? [index] : []
+        !currentCoins.includes(index) && distance(position, coin) < 5 ? [index] : []
       )
       return found.length ? [...currentCoins, ...found] : currentCoins
     })
-  }
+  }, [position])
 
   function moveBy(dx: number, dy: number) {
-    setPosition((currentPosition) => {
-      const next = {
-        x: clamp(currentPosition.x + dx, 7, 93),
-        y: clamp(currentPosition.y + dy, 12, 90),
-      }
-      collectNearby(next)
-      return next
-    })
+    setPosition((currentPosition) => ({
+      x: clamp(currentPosition.x + dx, 7, 93),
+      y: clamp(currentPosition.y + dy, 12, 90),
+    }))
   }
 
   function chooseAvatar(selected: AvatarOption) {
