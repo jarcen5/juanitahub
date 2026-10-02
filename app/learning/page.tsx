@@ -1545,6 +1545,36 @@ export default function LearningPage() {
     await loadData()
   }
 
+  function canUnassign(row: StudentAssignment) {
+    if (row.status !== 'assigned' || row.completed_at || row.score != null || row.max_score != null || row.minutes_spent != null || row.staff_note) return false
+    return !typingAttempts.some((attempt) => attempt.student_assignment_id === row.id)
+      && !quizAttempts.some((attempt) => attempt.student_assignment_id === row.id)
+      && !writingSubmissions.some((submission) => submission.student_assignment_id === row.id)
+      && !readingAttempts.some((attempt) => attempt.student_assignment_id === row.id)
+  }
+
+  async function unassignWork(row: StudentAssignment, child: Child, assignment: LearningAssignment) {
+    if (!session || saving || !canUnassign(row)) return
+    const confirmed = window.confirm(
+      'Unassign "' + assignment.title + '" from ' + childName(child) + '?\n\nThis removes it from this student only. The activity will stay in the Assignment Library.'
+    )
+    if (!confirmed) return
+
+    setSaving(true)
+    const { data, error } = await supabase
+      .from('learning_student_assignments')
+      .delete()
+      .eq('id', row.id)
+      .select('id')
+    setSaving(false)
+
+    if (error) return showMessage(error.message)
+    if (!data?.length) return showMessage('This assignment can no longer be unassigned because the student has already started it.')
+
+    setMessage('Unassigned ' + assignment.title + ' from ' + childName(child) + '.')
+    await loadData()
+  }
+
   async function addReadingLog() {
     if (!session || !readingChildId || saving) return
     const minutes = Number(readingMinutes)
@@ -1660,6 +1690,7 @@ export default function LearningPage() {
                                 {row.status !== 'completed' && assignment.assignment_type !== 'typing' && assignment.assignment_type !== 'quiz' && assignment.assignment_type !== 'writing' && assignment.assignment_type !== 'reading' && <button className="primary" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Complete</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Edit details</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'assigned')}>Reopen</button>}
+                                {canUnassign(row) && <button className="ghost learning-unassign-button" type="button" disabled={saving} onClick={() => void unassignWork(row, child, assignment)}>Unassign</button>}
                               </span>
                             </div>
                           )
