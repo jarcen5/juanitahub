@@ -28,7 +28,7 @@ const subjectLabels: Record<TestAssignment['subject'], string> = {
   grammar: 'Grammar',
   typing: 'Typing',
   math: 'Math',
-  general: 'General',
+  general: 'Special',
 }
 
 export default function AssignmentTestRunner({ assignment, onClose }: Props) {

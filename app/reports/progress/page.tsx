@@ -47,10 +47,10 @@ type ArchivedReport = {
 type PeriodPreset = '30' | '90' | 'month' | 'school' | 'custom'
 
 const subjectLabels: Record<Assignment['subject'], string> = {
-  reading: 'Reading', writing: 'Writing', grammar: 'Grammar', typing: 'Typing', math: 'Math', general: 'General',
+  reading: 'Reading', writing: 'Writing', grammar: 'Grammar', typing: 'Typing', math: 'Math', general: 'Special',
 }
 const subjectIcons: Record<Assignment['subject'], string> = {
-  reading: '📖', writing: '✍️', grammar: '🔤', typing: '⌨️', math: '➗', general: '📘',
+  reading: '📖', writing: '✍️', grammar: '🔤', typing: '⌨️', math: '➗', general: '🌟',
 }
 
 function localDate() {

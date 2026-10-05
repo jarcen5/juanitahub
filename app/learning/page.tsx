@@ -123,7 +123,7 @@ const subjectLabels: Record<Subject, string> = {
   grammar: 'Grammar',
   typing: 'Typing',
   math: 'Math',
-  general: 'General',
+  general: 'Special',
 }
 const subjectIcons: Record<Subject, string> = {
   reading: '📖',
@@ -131,7 +131,7 @@ const subjectIcons: Record<Subject, string> = {
   grammar: '🔤',
   typing: '⌨️',
   math: '➗',
-  general: '📘',
+  general: '🌟',
 }
 
 const typingModeLabels: Record<TypingMode, string> = {
