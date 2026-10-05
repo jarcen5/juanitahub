@@ -4,7 +4,12 @@ import type { CSSProperties } from 'react'
 
 export type MyWeekItem = {
   rowId: number
-  assignmentId: number
+  assignmentId: number | null
+  kind?: 'assignment' | 'homework'
+  homeworkId?: number
+  homeworkStatus?: 'assigned' | 'awaiting_review' | 'completed'
+  schoolSubject?: string | null
+  details?: string | null
   title: string
   subject: 'reading' | 'writing' | 'grammar' | 'typing' | 'math' | 'general'
   assignmentType: 'activity' | 'reading' | 'writing' | 'quiz' | 'typing' | 'worksheet' | 'practice'
@@ -50,6 +55,7 @@ type Props = {
   weekLabel: string
   items: MyWeekItem[]
   onLaunch: (item: MyWeekItem) => void
+  onHomeworkDone?: (item: MyWeekItem) => void
   onExit: () => void
   exitLabel?: string
   isDemo?: boolean
@@ -77,6 +83,11 @@ const typeLabels: Partial<Record<MyWeekItem['assignmentType'], string>> = {
 }
 
 function statusFor(item: MyWeekItem) {
+  if (item.kind === 'homework') {
+    if (item.homeworkStatus === 'completed') return { key: 'completed', label: 'Checked by staff' }
+    if (item.homeworkStatus === 'awaiting_review') return { key: 'in_progress', label: 'Waiting for staff check' }
+    return { key: 'assigned', label: 'School homework' }
+  }
   if (item.status === 'skipped') return { key: 'completed', label: 'Skipped' }
   if (item.assignmentType === 'writing' && item.writingStatus === 'submitted') return { key: 'completed', label: 'Submitted' }
   if (item.assignmentType === 'writing' && item.writingStatus === 'reviewed') return { key: 'completed', label: 'Reviewed' }
@@ -110,11 +121,17 @@ function goalProgressLabel(goal: StudentGoalView) {
 }
 
 function isInteractive(item: MyWeekItem) {
+  if (item.kind === 'homework') return item.homeworkStatus === 'assigned'
   return ['typing', 'quiz', 'writing', 'reading'].includes(item.assignmentType)
 }
 
 function actionLabel(item: MyWeekItem) {
   const status = statusFor(item)
+  if (item.kind === 'homework') {
+    if (item.homeworkStatus === 'awaiting_review') return 'Waiting for staff'
+    if (item.homeworkStatus === 'completed') return 'Checked ✓'
+    return 'I finished my homework'
+  }
   if (!isInteractive(item)) return 'Ask staff'
   if (item.isJuanitaQuest) {
     if (status.key === 'completed') return 'Play again'
@@ -127,7 +144,7 @@ function actionLabel(item: MyWeekItem) {
   return 'Start'
 }
 
-export default function StudentMyWeek({ studentName, grade, weekLabel, items, onLaunch, onExit, exitLabel = 'Back to staff view', isDemo = false, goals = [], achievements = [] }: Props) {
+export default function StudentMyWeek({ studentName, grade, weekLabel, items, onLaunch, onHomeworkDone, onExit, exitLabel = 'Back to staff view', isDemo = false, goals = [], achievements = [] }: Props) {
   const completed = items.filter((item) => ['completed', 'skipped'].includes(item.status) || item.writingStatus === 'submitted' || item.writingStatus === 'reviewed' || item.readingReviewStatus === 'pending' || item.readingReviewStatus === 'reviewed').length
   const inProgress = items.filter((item) => statusFor(item).key === 'in_progress').length
   const todo = Math.max(0, items.length - completed - inProgress)
@@ -219,24 +236,30 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
             {ordered.map((item) => {
               const displayStatus = statusFor(item)
               const due = formatDue(item.dueDate)
-              const interactive = isInteractive(item)
+              const interactive = isInteractive(item) && (item.kind !== 'homework' || Boolean(onHomeworkDone))
+              const isHomework = item.kind === 'homework'
               return (
-                <article className={'my-week-card ' + displayStatus.key + (item.isJuanitaQuest ? ' quest-assignment' : '')} key={item.rowId}>
-                  <div className="my-week-card-icon">{item.isJuanitaQuest ? '🗺️' : subjectIcons[item.subject]}</div>
+                <article className={'my-week-card ' + displayStatus.key + (item.isJuanitaQuest ? ' quest-assignment' : '') + (isHomework ? ' homework-assignment' : '')} key={(item.kind ?? 'assignment') + '-' + item.rowId}>
+                  <div className="my-week-card-icon">{isHomework ? '🏫' : item.isJuanitaQuest ? '🗺️' : subjectIcons[item.subject]}</div>
                   <div className="my-week-card-copy">
                     <div className="my-week-card-eyebrow">
-                      <span>{item.isJuanitaQuest ? '🎮 Juanita Quest' : (typeLabels[item.assignmentType] ?? 'Learning activity')}</span>
+                      <span>{isHomework ? '🏫 School Homework' : item.isJuanitaQuest ? '🎮 Juanita Quest' : (typeLabels[item.assignmentType] ?? 'Learning activity')}</span>
                       <em className={'my-week-status ' + displayStatus.key}>{displayStatus.label}</em>
                     </div>
                     <h2>{item.title}</h2>
-                    <p>{item.skill || 'Learning practice'}</p>
+                    <p>{isHomework ? (item.details || 'Complete your school homework, then tell Juanita Hub when you are finished.') : (item.skill || 'Learning practice')}</p>
                     <div className="my-week-card-meta">
+                      {isHomework && item.schoolSubject && <span>📚 {item.schoolSubject}</span>}
                       {due && <span>📅 Due {due}</span>}
                       {item.estimatedMinutes != null && <span>⏱ About {item.estimatedMinutes} min</span>}
                       {item.score != null && item.maxScore != null && <span>✓ {item.score}/{item.maxScore}</span>}
                     </div>
                   </div>
-                  <button className={interactive ? 'primary' : 'ghost'} type="button" disabled={!interactive} onClick={() => interactive && onLaunch(item)}>{actionLabel(item)}</button>
+                  <button className={interactive ? 'primary' : 'ghost'} type="button" disabled={!interactive} onClick={() => {
+                    if (!interactive) return
+                    if (isHomework) onHomeworkDone?.(item)
+                    else onLaunch(item)
+                  }}>{actionLabel(item)}</button>
                 </article>
               )
             })}

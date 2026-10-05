@@ -66,6 +66,19 @@ function makeSequence(keys: string[], count: number) {
   return Array.from({ length: count }, (_, index) => keys[index % keys.length]).join('')
 }
 
+function makeMixedSequence(keys: string[], count: number) {
+  if (!keys.length || count <= 0) return ''
+  let seed = count * 2654435761
+  for (const key of keys) {
+    seed = (seed ^ key.charCodeAt(0)) >>> 0
+    seed = Math.imul(seed || 1, 1664525) >>> 0
+  }
+  return Array.from({ length: count }, () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+    return keys[seed % keys.length]
+  }).join('')
+}
+
 function textStats(target: string, typed: string, seconds: number) {
   const typedCharacters = typed.length
   let correctCharacters = 0
@@ -117,7 +130,11 @@ export default function TypingActivityRunner({
   const focusKeys = useMemo(() => normalizeKeys(activityConfig?.focus_keys), [activityConfig?.focus_keys])
   const targetKeystrokes = Math.max(5, Math.min(500, Math.round(activityConfig?.target_keystrokes ?? 30)))
   const passage = activityConfig?.passage?.trim() ?? ''
-  const targetText = mode === 'passage' ? passage : makeSequence(focusKeys, targetKeystrokes)
+  const targetText = useMemo(() => {
+    if (mode === 'passage') return passage
+    if (mode === 'letter_drill') return makeMixedSequence(focusKeys, targetKeystrokes)
+    return makeSequence(focusKeys, targetKeystrokes)
+  }, [mode, passage, focusKeys, targetKeystrokes])
   const targetWpm = typeof activityConfig?.target_wpm === 'number' ? activityConfig.target_wpm : null
   const targetAccuracy = typeof activityConfig?.target_accuracy === 'number' ? activityConfig.target_accuracy : null
   const guidedMode = mode === 'guided_keys' || mode === 'hand_placement'
