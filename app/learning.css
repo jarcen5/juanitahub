@@ -5282,3 +5282,151 @@ html[data-theme="dark"] .learning-unassign-button:hover:not(:disabled){
   background:#452a31!important;
   color:#ffd7dc!important;
 }
+
+
+/* School homework workflow */
+.learning-homework-create{
+  display:grid;
+  gap:14px;
+  margin-bottom:16px;
+  border-color:#d8e7ee;
+  background:linear-gradient(135deg,#f8fcff,#fbf9ff);
+}
+.learning-homework-create-heading{
+  display:flex;
+  align-items:center;
+  gap:11px;
+}
+.learning-homework-icon{
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  flex:0 0 auto;
+  border-radius:13px;
+  background:#edf6fb;
+  font-size:21px;
+}
+.learning-homework-create-heading>div{
+  display:grid;
+  gap:2px;
+}
+.learning-homework-create-heading strong{
+  color:#385b72;
+  font-size:12px;
+}
+.learning-homework-create-heading small{
+  color:#7e8f9a;
+  font-size:9px;
+}
+.learning-homework-form{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px 14px;
+}
+.learning-homework-form .field{
+  margin:0;
+}
+.learning-homework-form .wide{
+  grid-column:1/-1;
+}
+.learning-homework-create-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.learning-homework-create-actions>span{
+  color:#7d8e99;
+  font-size:8.5px;
+  line-height:1.45;
+}
+.learning-homework-row{
+  border-left:3px solid #79a9c7;
+}
+.learning-homework-row.awaiting_review{
+  border-left-color:#d6a84a;
+  background:#fffdf7;
+}
+.learning-homework-row.completed{
+  border-left-color:#62ad82;
+}
+.learning-subject-icon.homework,
+.learning-review-icon.homework{
+  background:#edf6fb;
+}
+.learning-homework-details{
+  color:#667f8f;
+  font-size:8.8px;
+  line-height:1.4;
+}
+.learning-status.homework-awaiting_review{
+  background:#fff1c6;
+  color:#7b6118;
+}
+.learning-status.homework-completed{
+  background:#e7f5ec;
+  color:#347554;
+}
+.learning-status.homework-assigned{
+  background:#edf3f7;
+  color:#587384;
+}
+.learning-review-actions{
+  display:flex;
+  gap:6px;
+  align-items:center;
+}
+.my-week-card.homework-assignment{
+  border-color:#cfe1eb;
+  background:linear-gradient(135deg,#fbfdff,#f6fbfe);
+}
+.my-week-card.homework-assignment.in_progress{
+  border-color:#e8d6a2;
+  background:linear-gradient(135deg,#fffdf7,#fffaf0);
+}
+.my-week-card.homework-assignment.completed{
+  border-color:#cce5d6;
+  background:linear-gradient(135deg,#f8fcfa,#f1faf5);
+}
+.my-week-card.homework-assignment .my-week-card-icon{
+  background:#eaf5fb;
+}
+@media(max-width:700px){
+  .learning-homework-form{grid-template-columns:1fr}
+  .learning-homework-form .wide{grid-column:auto}
+  .learning-homework-create-actions{align-items:stretch;flex-direction:column}
+  .learning-homework-create-actions button{width:100%}
+  .learning-review-actions{grid-column:1/-1;width:100%}
+  .learning-review-actions button{flex:1}
+}
+html[data-theme="dark"] .learning-homework-create,
+html[data-theme="dark"] .learning-homework-row,
+html[data-theme="dark"] .my-week-card.homework-assignment{
+  background:#1b2832!important;
+  border-color:#3a4d5a!important;
+}
+html[data-theme="dark"] .learning-homework-row.awaiting_review,
+html[data-theme="dark"] .my-week-card.homework-assignment.in_progress{
+  background:#2d2a1d!important;
+  border-left-color:#b79445!important;
+}
+html[data-theme="dark"] .learning-homework-row.completed,
+html[data-theme="dark"] .my-week-card.homework-assignment.completed{
+  background:#193129!important;
+  border-left-color:#5eaf80!important;
+}
+html[data-theme="dark"] .learning-homework-create-heading strong{
+  color:#eef4f7!important;
+}
+html[data-theme="dark"] .learning-homework-create-heading small,
+html[data-theme="dark"] .learning-homework-create-actions>span,
+html[data-theme="dark"] .learning-homework-details{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .learning-homework-icon,
+html[data-theme="dark"] .learning-subject-icon.homework,
+html[data-theme="dark"] .learning-review-icon.homework,
+html[data-theme="dark"] .my-week-card.homework-assignment .my-week-card-icon{
+  background:#243a48!important;
+}

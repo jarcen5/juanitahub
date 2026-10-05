@@ -60,6 +60,21 @@ type StudentAssignment = {
   minutes_spent: number | null
   staff_note: string | null
 }
+type HomeworkTask = {
+  id: number
+  child_id: number
+  week_start: string
+  due_date: string | null
+  school_subject: string
+  title: string
+  details: string | null
+  estimated_minutes: number | null
+  status: 'assigned' | 'awaiting_review' | 'completed'
+  student_marked_done_at: string | null
+  staff_verified_at: string | null
+  staff_verified_by: string | null
+  assigned_at: string
+}
 type ReadingLog = {
   id: number
   child_id: number
@@ -561,6 +576,7 @@ export default function LearningPage() {
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [library, setLibrary] = useState<LearningAssignment[]>([])
   const [weeklyAssignments, setWeeklyAssignments] = useState<StudentAssignment[]>([])
+  const [homeworkTasks, setHomeworkTasks] = useState<HomeworkTask[]>([])
   const [readingLogs, setReadingLogs] = useState<ReadingLog[]>([])
   const [notes, setNotes] = useState<LearningNote[]>([])
   const [typingAttempts, setTypingAttempts] = useState<TypingAttempt[]>([])
@@ -634,6 +650,14 @@ export default function LearningPage() {
   const [assignGrade, setAssignGrade] = useState('')
   const [assignDueDate, setAssignDueDate] = useState('')
 
+  const [homeworkOpen, setHomeworkOpen] = useState(false)
+  const [homeworkChildId, setHomeworkChildId] = useState<number | null>(null)
+  const [homeworkSubject, setHomeworkSubject] = useState('Math')
+  const [homeworkTitle, setHomeworkTitle] = useState('')
+  const [homeworkDetails, setHomeworkDetails] = useState('')
+  const [homeworkDueDate, setHomeworkDueDate] = useState('')
+  const [homeworkMinutes, setHomeworkMinutes] = useState('30')
+
   const [readingChildId, setReadingChildId] = useState<number | null>(null)
   const [readingDate, setReadingDate] = useState(localDate())
   const [readingTitle, setReadingTitle] = useState('')
@@ -690,12 +714,13 @@ export default function LearningPage() {
     setMessage('')
     const weekEnd = addDays(weekStart, 6)
 
-    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, readingResult, notesResult, usageResult, typingResult, quizResult, writingResult, readingAttemptResult, goalApprovalResult] = await Promise.all([
+    const [profileResult, childResult, registrationResult, libraryResult, weeklyResult, homeworkResult, readingResult, notesResult, usageResult, typingResult, quizResult, writingResult, readingAttemptResult, goalApprovalResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('children').select('id, first_name, last_name, active, is_demo').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
       supabase.from('learning_assignments').select('id, title, subject, assignment_type, skill, grade_levels, difficulty, delivery_format, instructions, estimated_minutes, resource_url, active, activity_config').order('subject').order('title'),
       supabase.from('learning_student_assignments').select('id, child_id, assignment_id, week_start, due_date, status, completed_at, score, max_score, minutes_spent, staff_note').eq('week_start', weekStart).order('child_id').order('id'),
+      supabase.from('learning_homework_tasks').select('id, child_id, week_start, due_date, school_subject, title, details, estimated_minutes, status, student_marked_done_at, staff_verified_at, staff_verified_by, assigned_at').eq('week_start', weekStart).order('child_id').order('id'),
       supabase.from('learning_reading_logs').select('id, child_id, read_on, title, minutes, pages, note, created_at').gte('read_on', weekStart).lte('read_on', weekEnd).order('read_on', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
       supabase.from('learning_student_assignments').select('assignment_id, child_id, status'),
@@ -711,6 +736,7 @@ export default function LearningPage() {
       ?? registrationResult.error
       ?? libraryResult.error
       ?? weeklyResult.error
+      ?? homeworkResult.error
       ?? readingResult.error
       ?? notesResult.error
       ?? usageResult.error
@@ -726,6 +752,7 @@ export default function LearningPage() {
     setRegistrations((registrationResult.data ?? []) as Registration[])
     setLibrary((libraryResult.data ?? []) as LearningAssignment[])
     setWeeklyAssignments((weeklyResult.data ?? []) as StudentAssignment[])
+    setHomeworkTasks((homeworkResult.data ?? []) as HomeworkTask[])
     setReadingLogs((readingResult.data ?? []) as ReadingLog[])
     setNotes((notesResult.data ?? []) as LearningNote[])
     setAssignmentUsageRows((usageResult.data ?? []) as { assignment_id: number; child_id: number; status: StudentAssignment['status'] }[])
@@ -735,6 +762,7 @@ export default function LearningPage() {
     setReadingAttempts((readingAttemptResult.data ?? []) as ReadingAttempt[])
     setGoalApprovals(((goalApprovalResult.data ?? []) as GoalApproval[]).map((goal) => ({ ...goal, reward_points: Number(goal.reward_points) })))
     setAssignChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
+    setHomeworkChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setMyWeekChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setReadingChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
     setNoteChildId((current) => current && nextChildren.some((child) => child.id === current) ? current : nextChildren[0]?.id ?? null)
@@ -866,6 +894,16 @@ export default function LearningPage() {
     return map
   }, [weeklyAssignments])
 
+  const homeworkByChild = useMemo(() => {
+    const map = new Map<number, HomeworkTask[]>()
+    for (const row of homeworkTasks) {
+      const current = map.get(row.child_id) ?? []
+      current.push(row)
+      map.set(row.child_id, current)
+    }
+    return map
+  }, [homeworkTasks])
+
   const readingByChild = useMemo(() => {
     const map = new Map<number, ReadingLog[]>()
     for (const row of readingLogs) {
@@ -876,16 +914,17 @@ export default function LearningPage() {
     return map
   }, [readingLogs])
 
-  const weeklyChildren = useMemo(() => children.filter((child) => (weeklyByChild.get(child.id)?.length ?? 0) > 0 || (readingByChild.get(child.id)?.length ?? 0) > 0), [children, weeklyByChild, readingByChild])
+  const weeklyChildren = useMemo(() => children.filter((child) => (weeklyByChild.get(child.id)?.length ?? 0) > 0 || (homeworkByChild.get(child.id)?.length ?? 0) > 0 || (readingByChild.get(child.id)?.length ?? 0) > 0), [children, weeklyByChild, homeworkByChild, readingByChild])
 
   const reportingWeeklyAssignments = useMemo(() => weeklyAssignments.filter((row) => reportingChildIds.has(row.child_id)), [weeklyAssignments, reportingChildIds])
+  const reportingHomeworkTasks = useMemo(() => homeworkTasks.filter((row) => reportingChildIds.has(row.child_id)), [homeworkTasks, reportingChildIds])
   const reportingReadingLogs = useMemo(() => readingLogs.filter((row) => reportingChildIds.has(row.child_id)), [readingLogs, reportingChildIds])
   const metrics = useMemo(() => ({
-    assigned: reportingWeeklyAssignments.length,
-    completed: reportingWeeklyAssignments.filter((row) => row.status === 'completed').length,
+    assigned: reportingWeeklyAssignments.length + reportingHomeworkTasks.length,
+    completed: reportingWeeklyAssignments.filter((row) => row.status === 'completed').length + reportingHomeworkTasks.filter((row) => row.status === 'completed').length,
     readingMinutes: reportingReadingLogs.reduce((sum, row) => sum + Number(row.minutes), 0),
-    children: new Set([...reportingWeeklyAssignments.map((row) => row.child_id), ...reportingReadingLogs.map((row) => row.child_id)]).size,
-  }), [reportingWeeklyAssignments, reportingReadingLogs])
+    children: new Set([...reportingWeeklyAssignments.map((row) => row.child_id), ...reportingHomeworkTasks.map((row) => row.child_id), ...reportingReadingLogs.map((row) => row.child_id)]).size,
+  }), [reportingWeeklyAssignments, reportingHomeworkTasks, reportingReadingLogs])
 
   const weeklyTypingAssignments = useMemo(() => weeklyAssignments.filter((row) => assignmentById.get(row.assignment_id)?.assignment_type === 'typing'), [weeklyAssignments, assignmentById])
   const weeklyTypingIds = useMemo(() => new Set(weeklyTypingAssignments.map((row) => row.id)), [weeklyTypingAssignments])
@@ -973,6 +1012,13 @@ export default function LearningPage() {
     .sort((a, b) => new Date(b.submitted_at ?? b.created_at).getTime() - new Date(a.submitted_at ?? a.created_at).getTime()), [readingAttempts, childById, assignmentById])
 
   const pendingGoalApprovals = useMemo(() => goalApprovals.filter((goal) => childById.has(goal.child_id)), [goalApprovals, childById])
+  const pendingHomeworkChecks = useMemo(() => homeworkTasks
+    .filter((task) => task.status === 'awaiting_review')
+    .flatMap((task) => {
+      const child = childById.get(task.child_id)
+      return child ? [{ task, child }] : []
+    })
+    .sort((a, b) => new Date(b.task.student_marked_done_at ?? b.task.assigned_at).getTime() - new Date(a.task.student_marked_done_at ?? a.task.assigned_at).getTime()), [homeworkTasks, childById])
 
   const currentWeekWritingDrafts = useMemo(() => writingSubmissions
     .filter((submission) => submission.status === 'draft')
@@ -1079,12 +1125,12 @@ export default function LearningPage() {
       .slice(0, 14)
   }, [typingAttempts, quizAttempts, writingSubmissions, readingAttempts, childById, assignmentById])
 
-  const reviewCount = pendingWritingReviews.length + pendingReadingReviews.length + pendingGoalApprovals.length
+  const reviewCount = pendingHomeworkChecks.length + pendingWritingReviews.length + pendingReadingReviews.length + pendingGoalApprovals.length
 
   const myWeekChild = useMemo(() => myWeekChildId ? childById.get(myWeekChildId) ?? null : null, [myWeekChildId, childById])
   const myWeekItems = useMemo<MyWeekItem[]>(() => {
     if (!myWeekChildId) return []
-    return (weeklyByChild.get(myWeekChildId) ?? []).flatMap((row) => {
+    const assignmentItems = (weeklyByChild.get(myWeekChildId) ?? []).flatMap((row) => {
       const assignment = assignmentById.get(row.assignment_id)
       if (!assignment) return []
       const writingSubmission = assignment.assignment_type === 'writing'
@@ -1094,6 +1140,7 @@ export default function LearningPage() {
         ? readingAttempts.find((attempt) => attempt.student_assignment_id === row.id) ?? null
         : null
       return [{
+        kind: 'assignment' as const,
         rowId: row.id,
         assignmentId: assignment.id,
         title: assignment.title,
@@ -1109,7 +1156,26 @@ export default function LearningPage() {
         readingReviewStatus: readingAttempt?.review_status ?? null,
       }]
     })
-  }, [myWeekChildId, weeklyByChild, assignmentById, writingSubmissions, readingAttempts])
+    const homeworkItems: MyWeekItem[] = (homeworkByChild.get(myWeekChildId) ?? []).map((task) => ({
+      kind: 'homework',
+      rowId: task.id,
+      assignmentId: null,
+      homeworkId: task.id,
+      title: task.title,
+      subject: 'general',
+      assignmentType: 'activity',
+      skill: task.details || 'School homework',
+      status: task.status === 'awaiting_review' ? 'in_progress' : task.status,
+      dueDate: task.due_date,
+      estimatedMinutes: task.estimated_minutes,
+      score: null,
+      maxScore: null,
+      homeworkStatus: task.status,
+      schoolSubject: task.school_subject,
+      details: task.details,
+    }))
+    return [...assignmentItems, ...homeworkItems]
+  }, [myWeekChildId, weeklyByChild, homeworkByChild, assignmentById, writingSubmissions, readingAttempts])
 
   function openLearningAssignment(row: StudentAssignment, child: Child, assignment: LearningAssignment) {
     if (assignment.assignment_type === 'typing') setTypingTarget({ row, child, assignment })
@@ -1575,6 +1641,117 @@ export default function LearningPage() {
     await loadData()
   }
 
+  async function addSchoolHomework() {
+    if (!session || !homeworkChildId || saving) return
+    const title = homeworkTitle.trim()
+    if (!title) return showMessage('Add a short homework title so the child knows what to work on.')
+    const minutes = homeworkMinutes.trim() ? Number(homeworkMinutes) : null
+    if (minutes != null && (!Number.isFinite(minutes) || minutes < 1 || minutes > 240)) return showMessage('Homework minutes should be between 1 and 240.')
+
+    setSaving(true)
+    const { error } = await supabase.from('learning_homework_tasks').insert({
+      child_id: homeworkChildId,
+      week_start: weekStart,
+      due_date: homeworkDueDate || null,
+      school_subject: homeworkSubject.trim() || 'Other',
+      title,
+      details: homeworkDetails.trim() || null,
+      estimated_minutes: minutes == null ? null : Math.round(minutes),
+      status: 'assigned',
+      assigned_by: session.user.id,
+      updated_by: session.user.id,
+    })
+    setSaving(false)
+    if (error) return showMessage(error.message)
+
+    setHomeworkTitle('')
+    setHomeworkDetails('')
+    setHomeworkDueDate('')
+    setMessage('School homework added to the student’s My Week.')
+    await loadData()
+  }
+
+  async function markHomeworkDone(task: HomeworkTask) {
+    if (!session || saving || task.status !== 'assigned') return
+    setSaving(true)
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('learning_homework_tasks').update({
+      status: 'awaiting_review',
+      student_marked_done_at: now,
+      staff_verified_at: null,
+      staff_verified_by: null,
+      updated_by: session.user.id,
+      updated_at: now,
+    }).eq('id', task.id)
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    setMessage('Homework marked finished. A staff member still needs to check it.')
+    await loadData()
+  }
+
+  async function confirmHomework(task: HomeworkTask) {
+    if (!session || saving || task.status !== 'awaiting_review') return
+    setSaving(true)
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('learning_homework_tasks').update({
+      status: 'completed',
+      staff_verified_at: now,
+      staff_verified_by: session.user.id,
+      updated_by: session.user.id,
+      updated_at: now,
+    }).eq('id', task.id).eq('status', 'awaiting_review')
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    setMessage('Homework checked and marked complete.')
+    await loadData()
+  }
+
+  async function sendHomeworkBack(task: HomeworkTask) {
+    if (!session || saving || task.status !== 'awaiting_review') return
+    setSaving(true)
+    const { error } = await supabase.from('learning_homework_tasks').update({
+      status: 'assigned',
+      student_marked_done_at: null,
+      staff_verified_at: null,
+      staff_verified_by: null,
+      updated_by: session.user.id,
+      updated_at: new Date().toISOString(),
+    }).eq('id', task.id).eq('status', 'awaiting_review')
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    setMessage('Homework was sent back to the student’s to-do list.')
+    await loadData()
+  }
+
+  async function reopenHomework(task: HomeworkTask) {
+    if (!session || saving || task.status !== 'completed') return
+    setSaving(true)
+    const { error } = await supabase.from('learning_homework_tasks').update({
+      status: 'assigned',
+      student_marked_done_at: null,
+      staff_verified_at: null,
+      staff_verified_by: null,
+      updated_by: session.user.id,
+      updated_at: new Date().toISOString(),
+    }).eq('id', task.id)
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    setMessage('Homework reopened.')
+    await loadData()
+  }
+
+  async function removeHomework(task: HomeworkTask) {
+    if (!session || saving || task.status !== 'assigned' || task.student_marked_done_at) return
+    if (!window.confirm('Remove "' + task.title + '" from this student’s homework list?')) return
+    setSaving(true)
+    const { data, error } = await supabase.from('learning_homework_tasks').delete().eq('id', task.id).select('id')
+    setSaving(false)
+    if (error) return showMessage(error.message)
+    if (!data?.length) return showMessage('This homework can no longer be removed because the student has already acted on it.')
+    setMessage('Homework removed.')
+    await loadData()
+  }
+
   async function addReadingLog() {
     if (!session || !readingChildId || saving) return
     const minutes = Number(readingMinutes)
@@ -1649,7 +1826,32 @@ export default function LearningPage() {
 
         {tab === 'week' && (
           <section className="learning-section">
-            <div className="learning-heading"><div><span className="learning-kicker">This week</span><h2>{weekLabel(weekStart)}</h2><p>One view of assigned practice and reading activity for the week.</p></div></div>
+            <div className="learning-heading">
+              <div><span className="learning-kicker">This week</span><h2>{weekLabel(weekStart)}</h2><p>One view of assigned practice, school homework, and reading activity for the week.</p></div>
+              <button className={homeworkOpen ? 'ghost' : 'primary'} type="button" onClick={() => setHomeworkOpen((open) => !open)}>{homeworkOpen ? 'Close homework form' : '＋ School homework'}</button>
+            </div>
+
+            {homeworkOpen && (
+              <section className="card learning-homework-create">
+                <div className="learning-homework-create-heading">
+                  <span className="learning-homework-icon">🏫</span>
+                  <div><strong>Add school homework</strong><small>Put outside schoolwork on a child’s My Week. The child marks it finished, then staff verifies it.</small></div>
+                </div>
+                <div className="learning-homework-form">
+                  <label className="field"><span>Student</span><select value={homeworkChildId ?? ''} onChange={(event) => setHomeworkChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{registrationByChild.get(child.id)?.grade ? ' • Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}</select></label>
+                  <label className="field"><span>School subject</span><select value={homeworkSubject} onChange={(event) => setHomeworkSubject(event.target.value)}><option>Math</option><option>Reading</option><option>ELA / English</option><option>Science</option><option>Social Studies</option><option>Other</option></select></label>
+                  <label className="field wide"><span>Homework title</span><input value={homeworkTitle} onChange={(event) => setHomeworkTitle(event.target.value)} placeholder="Example: Math worksheet pages 12–13" /></label>
+                  <label className="field wide"><span>What should they finish? <small>(optional)</small></span><textarea rows={3} value={homeworkDetails} onChange={(event) => setHomeworkDetails(event.target.value)} placeholder="Example: Finish problems 1–15 and show your work." /></label>
+                  <label className="field"><span>Due date <small>(optional)</small></span><input type="date" value={homeworkDueDate} onChange={(event) => setHomeworkDueDate(event.target.value)} /></label>
+                  <label className="field"><span>Estimated minutes</span><input type="number" min="1" max="240" value={homeworkMinutes} onChange={(event) => setHomeworkMinutes(event.target.value)} /></label>
+                </div>
+                <div className="learning-homework-create-actions">
+                  <span>After the student presses “I finished my homework,” it will appear in Learning Review for staff confirmation.</span>
+                  <button className="primary" type="button" disabled={saving || !homeworkChildId || !homeworkTitle.trim()} onClick={() => void addSchoolHomework()}>{saving ? 'Adding…' : 'Add to My Week'}</button>
+                </div>
+              </section>
+            )}
+
             <div className="learning-metrics">
               <article><strong>{metrics.assigned}</strong><span>Assignments</span><small>{metrics.completed} completed</small></article>
               <article><strong>{metrics.children}</strong><span>Students active</span><small>Assignments or reading</small></article>
@@ -1663,14 +1865,17 @@ export default function LearningPage() {
               <div className="learning-student-list">
                 {weeklyChildren.map((child) => {
                   const assignments = weeklyByChild.get(child.id) ?? []
+                  const homework = homeworkByChild.get(child.id) ?? []
                   const logs = readingByChild.get(child.id) ?? []
                   const minutes = logs.reduce((sum, row) => sum + Number(row.minutes), 0)
+                  const workTotal = assignments.length + homework.length
+                  const workDone = assignments.filter((row) => row.status === 'completed').length + homework.filter((task) => task.status === 'completed').length
                   return (
                     <article className="card learning-student-card" key={child.id}>
                       <header>
                         <span className="learning-avatar">{child.first_name[0]?.toUpperCase()}</span>
                         <span><strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong><small>{registrationByChild.get(child.id)?.grade ? 'Grade ' + registrationByChild.get(child.id)?.grade : 'Grade not recorded'} • {minutes} reading min</small></span>
-                        <span className="learning-progress">{assignments.filter((row) => row.status === 'completed').length}/{assignments.length} done</span>
+                        <span className="learning-progress">{workDone}/{workTotal} done</span>
                       </header>
                       <div className="learning-assignment-list">
                         {assignments.map((row) => {
@@ -1695,7 +1900,25 @@ export default function LearningPage() {
                             </div>
                           )
                         })}
-                        {assignments.length === 0 && <div className="learning-inline-empty">No assignments yet — reading activity only.</div>}
+                        {homework.map((task) => (
+                          <div className={'learning-assignment-row learning-homework-row ' + task.status} key={'homework-' + task.id}>
+                            <span className="learning-subject-icon homework">🏫</span>
+                            <span className="learning-assignment-copy">
+                              <strong>{task.title}</strong>
+                              <small>{task.school_subject} • School homework{task.due_date ? ' • Due ' + dateLabel(task.due_date) : ''}</small>
+                              {task.details && <span className="learning-homework-details">{task.details}</span>}
+                              {task.status === 'awaiting_review' && task.student_marked_done_at && <span className="learning-completion-meta">Student marked finished {new Date(task.student_marked_done_at).toLocaleString()} • Waiting for staff check</span>}
+                              {task.status === 'completed' && task.staff_verified_at && <span className="learning-completion-meta">Checked {new Date(task.staff_verified_at).toLocaleString()}</span>}
+                            </span>
+                            <span className={'learning-status homework-' + task.status}>{task.status === 'awaiting_review' ? 'Needs check' : task.status === 'completed' ? 'Completed' : 'Assigned'}</span>
+                            <span className="learning-row-actions">
+                              {task.status === 'awaiting_review' && <><button className="primary" type="button" disabled={saving} onClick={() => void confirmHomework(task)}>Confirm complete</button><button className="ghost" type="button" disabled={saving} onClick={() => void sendHomeworkBack(task)}>Send back</button></>}
+                              {task.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => void reopenHomework(task)}>Reopen</button>}
+                              {task.status === 'assigned' && !task.student_marked_done_at && <button className="ghost learning-unassign-button" type="button" disabled={saving} onClick={() => void removeHomework(task)}>Remove</button>}
+                            </span>
+                          </div>
+                        ))}
+                        {assignments.length === 0 && homework.length === 0 && <div className="learning-inline-empty">No assignments or school homework yet — reading activity only.</div>}
                       </div>
                     </article>
                   )
@@ -1716,7 +1939,7 @@ export default function LearningPage() {
             </div>
 
             <div className="learning-metrics learning-review-metrics">
-              <article><strong>{reviewCount}</strong><span>Needs review</span><small>{pendingWritingReviews.length} writing • {pendingReadingReviews.length} reading • {pendingGoalApprovals.length} goals</small></article>
+              <article><strong>{reviewCount}</strong><span>Needs review</span><small>{pendingHomeworkChecks.length} homework • {pendingWritingReviews.length} writing • {pendingReadingReviews.length} reading • {pendingGoalApprovals.length} goals</small></article>
               <article><strong>{currentWeekWritingDrafts.length}</strong><span>Drafts in progress</span><small>This week</small></article>
               <article><strong>{overdueAssignments.length}</strong><span>Overdue</span><small>Still unfinished</small></article>
               <article><strong>{supportFlags.length}</strong><span>May need support</span><small>Recent results below goal</small></article>
@@ -1730,6 +1953,17 @@ export default function LearningPage() {
                 </div>
 
                 <div className="learning-review-list">
+                  {pendingHomeworkChecks.map(({ task, child }) => (
+                    <article key={'homework-' + task.id}>
+                      <span className="learning-review-icon homework">🏫</span>
+                      <span className="learning-review-copy">
+                        <strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong>
+                        <small>{task.title} • {task.school_subject} school homework</small>
+                        <em>{task.student_marked_done_at ? 'Student marked finished ' + new Date(task.student_marked_done_at).toLocaleString() : 'Ready for staff check'}</em>
+                      </span>
+                      <span className="learning-review-actions"><button className="primary" type="button" disabled={saving} onClick={() => void confirmHomework(task)}>Confirm</button><button className="ghost" type="button" disabled={saving} onClick={() => void sendHomeworkBack(task)}>Send back</button></span>
+                    </article>
+                  ))}
                   {pendingWritingReviews.map((submission) => {
                     const child = childById.get(submission.child_id)!
                     const assignment = assignmentById.get(submission.assignment_id)!
@@ -1774,7 +2008,7 @@ export default function LearningPage() {
                       </article>
                     )
                   })}
-                  {reviewCount === 0 && <div className="learning-review-empty"><span>✓</span><strong>You're caught up.</strong><p>No writing, reading, or reached goals are waiting for review.</p></div>}
+                  {reviewCount === 0 && <div className="learning-review-empty"><span>✓</span><strong>You're caught up.</strong><p>No homework, writing, reading, or reached goals are waiting for review.</p></div>}
                 </div>
               </section>
 
@@ -1891,12 +2125,14 @@ export default function LearningPage() {
                 <div className="my-week-roster">
                   {children.map((child) => {
                     const rows = weeklyByChild.get(child.id) ?? []
-                    const done = rows.filter((row) => row.status === 'completed' || row.status === 'skipped').length
-                    const percent = rows.length ? Math.round((done / rows.length) * 100) : 0
+                    const homework = homeworkByChild.get(child.id) ?? []
+                    const total = rows.length + homework.length
+                    const done = rows.filter((row) => row.status === 'completed' || row.status === 'skipped').length + homework.filter((task) => task.status === 'completed').length
+                    const percent = total ? Math.round((done / total) * 100) : 0
                     return (
                       <button className={myWeekChildId === child.id ? 'active' : ''} type="button" key={child.id} onClick={() => setMyWeekChildId(child.id)}>
                         <span className="learning-avatar small">{child.first_name[0]?.toUpperCase()}</span>
-                        <span><strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong><small>{rows.length ? done + '/' + rows.length + ' completed' : 'No assignments this week'}</small></span>
+                        <span><strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong><small>{total ? done + '/' + total + ' completed' : 'No work this week'}</small></span>
                         <em>{percent}%</em>
                       </button>
                     )
@@ -2699,6 +2935,10 @@ export default function LearningPage() {
           weekLabel={weekLabel(weekStart)}
           items={myWeekItems}
           onLaunch={launchMyWeekItem}
+          onHomeworkDone={(item) => {
+            const task = homeworkTasks.find((row) => row.id === item.homeworkId)
+            if (task) void markHomeworkDone(task)
+          }}
           onExit={() => setMyWeekOpen(false)}
           isDemo={myWeekChild.is_demo}
           goals={myWeekGoals}

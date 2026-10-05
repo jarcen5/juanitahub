@@ -43,6 +43,19 @@ type LabAssignment = {
   active: boolean
 }
 
+type HomeworkTask = {
+  id: number
+  child_id: number
+  week_start: string
+  due_date: string | null
+  school_subject: string
+  title: string
+  details: string | null
+  estimated_minutes: number | null
+  status: 'assigned' | 'awaiting_review' | 'completed'
+  student_marked_done_at: string | null
+  staff_verified_at: string | null
+}
 type WritingState = {
   student_assignment_id: number
   status: 'draft' | 'submitted' | 'reviewed'
@@ -58,6 +71,7 @@ type WeekResponse = {
   assignments: LabAssignment[]
   writing: WritingState[]
   reading: ReadingState[]
+  homework: HomeworkTask[]
   goals: StudentGoalView[]
   achievements: StudentAchievementView[]
 }
@@ -103,7 +117,7 @@ export default function StudentLearningPage() {
   const [students, setStudents] = useState<LabStudent[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null)
   const [pin, setPin] = useState('')
-  const [week, setWeek] = useState<WeekResponse>({ rows: [], assignments: [], writing: [], reading: [], goals: [], achievements: [] })
+  const [week, setWeek] = useState<WeekResponse>({ rows: [], assignments: [], writing: [], reading: [], homework: [], goals: [], achievements: [] })
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
   const [message, setMessage] = useState('')
@@ -195,6 +209,7 @@ export default function StudentLearningPage() {
         assignments: data.assignments ?? [],
         writing: data.writing ?? [],
         reading: data.reading ?? [],
+        homework: data.homework ?? [],
         goals: data.goals ?? [],
         achievements: data.achievements ?? [],
       })
@@ -275,7 +290,7 @@ export default function StudentLearningPage() {
     setStudentToken('')
     setStudent(null)
     setActiveItem(null)
-    setWeek({ rows: [], assignments: [], writing: [], reading: [], goals: [], achievements: [] })
+    setWeek({ rows: [], assignments: [], writing: [], reading: [], homework: [], goals: [], achievements: [] })
     setMessage(inactive ? 'You were signed out after 30 minutes of inactivity.' : '')
     await loadStudents(deviceToken)
   }
@@ -394,33 +409,72 @@ export default function StudentLearningPage() {
   const writingByRow = useMemo(() => new Map(week.writing.map((item) => [item.student_assignment_id, item])), [week.writing])
   const readingByRow = useMemo(() => new Map(week.reading.map((item) => [item.student_assignment_id, item])), [week.reading])
 
-  const items = useMemo<MyWeekItem[]>(() => week.rows.flatMap((row) => {
-    const assignment = assignmentById.get(row.assignment_id)
-    if (!assignment) return []
-    return [{
-      rowId: row.id,
-      assignmentId: assignment.id,
-      title: assignment.title,
-      subject: assignment.subject,
-      assignmentType: assignment.assignment_type,
-      skill: assignment.skill,
-      status: row.status,
-      dueDate: row.due_date,
-      estimatedMinutes: assignment.estimated_minutes,
-      score: row.score,
-      maxScore: row.max_score,
-      writingStatus: writingByRow.get(row.id)?.status ?? null,
-      readingReviewStatus: readingByRow.get(row.id)?.review_status ?? null,
-      isJuanitaQuest: assignment.assignment_type === 'quiz' && assignment.activity_config?.experience === 'juanita_quest',
-    }]
-  }), [week.rows, assignmentById, writingByRow, readingByRow])
+  const items = useMemo<MyWeekItem[]>(() => {
+    const assignmentItems = week.rows.flatMap((row) => {
+      const assignment = assignmentById.get(row.assignment_id)
+      if (!assignment) return []
+      return [{
+        kind: 'assignment' as const,
+        rowId: row.id,
+        assignmentId: assignment.id,
+        title: assignment.title,
+        subject: assignment.subject,
+        assignmentType: assignment.assignment_type,
+        skill: assignment.skill,
+        status: row.status,
+        dueDate: row.due_date,
+        estimatedMinutes: assignment.estimated_minutes,
+        score: row.score,
+        maxScore: row.max_score,
+        writingStatus: writingByRow.get(row.id)?.status ?? null,
+        readingReviewStatus: readingByRow.get(row.id)?.review_status ?? null,
+        isJuanitaQuest: assignment.assignment_type === 'quiz' && assignment.activity_config?.experience === 'juanita_quest',
+      }]
+    })
+    const homeworkItems: MyWeekItem[] = week.homework.map((task) => ({
+      kind: 'homework',
+      rowId: task.id,
+      assignmentId: null,
+      homeworkId: task.id,
+      title: task.title,
+      subject: 'general',
+      assignmentType: 'activity',
+      skill: task.details || 'School homework',
+      status: task.status === 'awaiting_review' ? 'in_progress' : task.status,
+      dueDate: task.due_date,
+      estimatedMinutes: task.estimated_minutes,
+      score: null,
+      maxScore: null,
+      homeworkStatus: task.status,
+      schoolSubject: task.school_subject,
+      details: task.details,
+    }))
+    return [...assignmentItems, ...homeworkItems]
+  }, [week.rows, week.homework, assignmentById, writingByRow, readingByRow])
 
   function launchItem(item: MyWeekItem) {
     const row = week.rows.find((entry) => entry.id === item.rowId)
-    const assignment = assignmentById.get(item.assignmentId)
+    const assignment = item.assignmentId == null ? null : assignmentById.get(item.assignmentId)
     if (row && assignment && ['typing', 'quiz', 'writing', 'reading'].includes(assignment.assignment_type)) {
       setActiveItem({ row, assignment })
     }
+  }
+
+  async function markHomeworkDone(item: MyWeekItem) {
+    if (!deviceToken || !studentToken || !item.homeworkId || working || item.homeworkStatus !== 'assigned') return
+    setWorking(true)
+    setMessage('')
+    try {
+      await studentLearningRequest('mark_homework_done', {
+        device_token: deviceToken,
+        student_token: studentToken,
+        homework_id: item.homeworkId,
+      })
+      await loadWeek()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Homework could not be marked finished.')
+    }
+    setWorking(false)
   }
 
   const selectedStudent = students.find((item) => item.id === selectedStudentId) ?? null
@@ -512,6 +566,7 @@ export default function StudentLearningPage() {
         weekLabel={weekLabel(weekStart)}
         items={items}
         onLaunch={launchItem}
+        onHomeworkDone={(item) => void markHomeworkDone(item)}
         onExit={() => void signOutStudent(false)}
         exitLabel="Sign out"
         isDemo={student.is_demo}
