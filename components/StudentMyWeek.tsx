@@ -63,7 +63,7 @@ const subjectIcons: Record<MyWeekItem['subject'], string> = {
   grammar: '🔤',
   typing: '⌨️',
   math: '➗',
-  general: '📘',
+  general: '🌟',
 }
 
 const typeLabels: Partial<Record<MyWeekItem['assignmentType'], string>> = {

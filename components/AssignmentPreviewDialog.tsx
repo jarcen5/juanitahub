@@ -49,7 +49,7 @@ const subjectLabels: Record<PreviewAssignment['subject'], string> = {
   grammar: 'Grammar',
   typing: 'Typing',
   math: 'Math',
-  general: 'General',
+  general: 'Special',
 }
 
 const subjectIcons: Record<PreviewAssignment['subject'], string> = {
@@ -58,7 +58,7 @@ const subjectIcons: Record<PreviewAssignment['subject'], string> = {
   grammar: '🔤',
   typing: '⌨️',
   math: '➗',
-  general: '📘',
+  general: '🌟',
 }
 
 function formatLabel(value: PreviewAssignment['delivery_format']) {
