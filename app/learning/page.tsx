@@ -1186,7 +1186,7 @@ export default function LearningPage() {
   }
 
   function launchMyWeekItem(item: MyWeekItem) {
-    if (!myWeekChildId) return
+    if (!myWeekChildId || item.kind === 'homework' || item.assignmentId == null) return
     const child = childById.get(myWeekChildId)
     const row = weeklyAssignments.find((assignment) => assignment.id === item.rowId)
     const assignment = assignmentById.get(item.assignmentId)
