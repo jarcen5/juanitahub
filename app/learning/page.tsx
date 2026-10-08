@@ -661,7 +661,7 @@ export default function LearningPage() {
   const [assignDueDate, setAssignDueDate] = useState('')
   const [assignRepeat, setAssignRepeat] = useState<'once' | 'weekdays' | 'daily' | 'weekly' | 'custom'>('once')
   const [assignRepeatStart, setAssignRepeatStart] = useState(addDays(mondayFor(localDate()), 7))
-  const [assignRepeatEnd, setAssignRepeatEnd] = useState(addDays(mondayFor(localDate()), 62))
+  const [assignRepeatEnd, setAssignRepeatEnd] = useState(addDays(addDays(mondayFor(localDate()), 7), 55))
   const [assignRepeatDays, setAssignRepeatDays] = useState<number[]>([1, 3, 5])
 
   const [homeworkOpen, setHomeworkOpen] = useState(false)
