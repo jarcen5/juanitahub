@@ -25,6 +25,8 @@ type WeekRow = {
   assignment_id: number
   week_start: string
   due_date: string | null
+  schedule_id: number | null
+  occurrence_date: string | null
   status: 'assigned' | 'in_progress' | 'completed' | 'skipped'
   score: number | null
   max_score: number | null
@@ -232,7 +234,7 @@ export default function StudentLearningPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const session = sessionData.session
-      if (!session?.user) throw new Error('Please sign in as an admin, then return to Student Learning.')
+      if (!session?.user) throw new Error('Please sign in as a staff member, then return to Student Learning.')
 
       const { data: deviceId, error } = await supabase.rpc('activate_learning_lab_device_v2', {
         p_label: 'Computer Lab • ' + new Date().toLocaleDateString(),
@@ -423,6 +425,8 @@ export default function StudentLearningPage() {
         skill: assignment.skill,
         status: row.status,
         dueDate: row.due_date,
+        scheduleId: row.schedule_id,
+        occurrenceDate: row.occurrence_date,
         estimatedMinutes: assignment.estimated_minutes,
         score: row.score,
         maxScore: row.max_score,
