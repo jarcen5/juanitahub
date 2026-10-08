@@ -254,7 +254,7 @@ Deno.serve(async (req: Request) => {
     if (!validDate(weekStart)) return json({ error: 'Invalid week.' }, 400)
     const { data: rows, error: rowError } = await db
       .from('learning_student_assignments')
-      .select('id,assignment_id,week_start,due_date,status,score,max_score,minutes_spent,staff_note')
+      .select('id,assignment_id,week_start,due_date,schedule_id,occurrence_date,status,score,max_score,minutes_spent,staff_note')
       .eq('child_id', childId)
       .eq('week_start', weekStart)
       .order('id')

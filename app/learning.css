@@ -5618,3 +5618,156 @@ html[data-theme="dark"] .learning-assignment-history-row+.learning-assignment-hi
 html[data-theme="dark"] .learning-assignment-history-empty{
   border-color:#40525e!important;
 }
+
+
+/* Recurring Learning assignments */
+.learning-recurrence-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.learning-recurrence-days{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:5px;
+  margin:4px 0 8px;
+}
+.learning-recurrence-days button{
+  min-height:34px;
+  padding:5px 3px;
+  border:1px solid #dbe6ec;
+  border-radius:9px;
+  background:#f7fafc;
+  color:#6c8190;
+  font:inherit;
+  font-size:8px;
+  font-weight:900;
+}
+.learning-recurrence-days button.active{
+  border-color:#80b2d0;
+  background:#e8f4fb;
+  color:#2f6f98;
+}
+.learning-recurrence-preview{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:9px;
+  align-items:center;
+  margin:9px 0 10px;
+  padding:9px 10px;
+  border:1px solid #d8e6ee;
+  border-radius:11px;
+  background:#f8fbfd;
+}
+.learning-recurrence-preview>span{
+  width:31px;
+  height:31px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  background:#e9f4fb;
+}
+.learning-recurrence-preview>div{
+  display:grid;
+  gap:2px;
+}
+.learning-recurrence-preview strong{
+  color:#345d76;
+  font-size:9.5px;
+}
+.learning-recurrence-preview small{
+  color:#81919c;
+  font-size:8.2px;
+  line-height:1.4;
+}
+.learning-stop-recurring-button{
+  border-color:#d6c394!important;
+  color:#8a6a22!important;
+}
+.learning-stop-recurring-button:hover:not(:disabled){
+  background:#fff9ea!important;
+  border-color:#c9a95d!important;
+  color:#735616!important;
+}
+.my-week-recurring-days{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.my-week-recurring-days>span{
+  min-width:46px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:4px;
+  align-items:center;
+  padding:6px 7px;
+  border:1px solid #dbe5ea;
+  border-radius:9px;
+  background:#f6f9fb;
+}
+.my-week-recurring-days b{
+  color:#617989;
+  font-size:8px;
+}
+.my-week-recurring-days em{
+  color:#8da0ac;
+  font-size:10px;
+  font-style:normal;
+  font-weight:950;
+}
+.my-week-recurring-days>span.done{
+  border-color:#c8e3d3;
+  background:#edf8f1;
+}
+.my-week-recurring-days>span.done b,
+.my-week-recurring-days>span.done em{
+  color:#3f865e;
+}
+.my-week-recurring-days>span.today,
+.my-week-recurring-days>span.active{
+  border-color:#9fc8df;
+  background:#edf7fc;
+}
+.my-week-recurring-days>span.today b,
+.my-week-recurring-days>span.today em,
+.my-week-recurring-days>span.active b,
+.my-week-recurring-days>span.active em{
+  color:#35759b;
+}
+@media(max-width:620px){
+  .learning-recurrence-grid{grid-template-columns:1fr}
+  .learning-recurrence-days{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+html[data-theme="dark"] .learning-recurrence-days button,
+html[data-theme="dark"] .learning-recurrence-preview,
+html[data-theme="dark"] .my-week-recurring-days>span{
+  background:#1b2832!important;
+  border-color:#3a4d5a!important;
+  color:#d9e3e9!important;
+}
+html[data-theme="dark"] .learning-recurrence-days button.active,
+html[data-theme="dark"] .my-week-recurring-days>span.today,
+html[data-theme="dark"] .my-week-recurring-days>span.active{
+  background:#1b3a50!important;
+  border-color:#4d7794!important;
+}
+html[data-theme="dark"] .my-week-recurring-days>span.done{
+  background:#193529!important;
+  border-color:#3b6750!important;
+}
+html[data-theme="dark"] .learning-recurrence-preview>span{
+  background:#243a48!important;
+}
+html[data-theme="dark"] .learning-recurrence-preview strong,
+html[data-theme="dark"] .my-week-recurring-days b{
+  color:#edf4f7!important;
+}
+html[data-theme="dark"] .learning-recurrence-preview small{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .learning-stop-recurring-button{
+  background:#342f20!important;
+  border-color:#6c5d33!important;
+  color:#ead28b!important;
+}
