@@ -31,6 +31,7 @@ type ActivityConfig = TypingConfig & WritingConfig & {
   questions?: Array<QuizQuestion | ReadingQuestion>
   passing_score?: number
   show_explanations?: boolean
+  daily_practice?: boolean
 }
 type LearningAssignment = {
   id: number
@@ -53,6 +54,8 @@ type StudentAssignment = {
   assignment_id: number
   week_start: string
   due_date: string | null
+  schedule_id: number | null
+  occurrence_date: string | null
   status: 'assigned' | 'in_progress' | 'completed' | 'skipped'
   completed_at: string | null
   score: number | null
@@ -656,6 +659,10 @@ export default function LearningPage() {
   const [assignChildId, setAssignChildId] = useState<number | null>(null)
   const [assignGrade, setAssignGrade] = useState('')
   const [assignDueDate, setAssignDueDate] = useState('')
+  const [assignRepeat, setAssignRepeat] = useState<'once' | 'weekdays' | 'daily' | 'weekly' | 'custom'>('once')
+  const [assignRepeatStart, setAssignRepeatStart] = useState(addDays(mondayFor(localDate()), 7))
+  const [assignRepeatEnd, setAssignRepeatEnd] = useState(addDays(mondayFor(localDate()), 62))
+  const [assignRepeatDays, setAssignRepeatDays] = useState<number[]>([1, 3, 5])
 
   const [homeworkOpen, setHomeworkOpen] = useState(false)
   const [homeworkChildId, setHomeworkChildId] = useState<number | null>(null)
@@ -726,7 +733,7 @@ export default function LearningPage() {
       supabase.from('children').select('id, first_name, last_name, active, is_demo').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
       supabase.from('learning_assignments').select('id, title, subject, assignment_type, skill, grade_levels, difficulty, delivery_format, instructions, estimated_minutes, resource_url, active, activity_config').order('subject').order('title'),
-      supabase.from('learning_student_assignments').select('id, child_id, assignment_id, week_start, due_date, status, completed_at, score, max_score, minutes_spent, staff_note').eq('week_start', weekStart).order('child_id').order('id'),
+      supabase.from('learning_student_assignments').select('id, child_id, assignment_id, week_start, due_date, schedule_id, occurrence_date, status, completed_at, score, max_score, minutes_spent, staff_note').eq('week_start', weekStart).order('child_id').order('id'),
       supabase.from('learning_homework_tasks').select('id, child_id, week_start, due_date, school_subject, title, details, estimated_minutes, status, student_marked_done_at, staff_verified_at, staff_verified_by, assigned_at').eq('week_start', weekStart).order('child_id').order('id'),
       supabase.from('learning_reading_logs').select('id, child_id, read_on, title, minutes, pages, note, created_at').gte('read_on', weekStart).lte('read_on', weekEnd).order('read_on', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
@@ -876,6 +883,33 @@ export default function LearningPage() {
   }, [filteredLibrary])
 
   const selectedAssignment = useMemo(() => library.find((assignment) => assignment.id === selectedAssignmentId) ?? null, [library, selectedAssignmentId])
+
+  useEffect(() => {
+    if (!selectedAssignment?.activity_config?.daily_practice) return
+    setAssignRepeat('weekdays')
+    const start = addDays(mondayFor(localDate()), 7)
+    setAssignRepeatStart(start)
+    setAssignRepeatEnd(addDays(start, 55))
+  }, [selectedAssignment?.id])
+
+  const recurrenceOccurrenceCount = useMemo(() => {
+    if (assignRepeat === 'once' || !assignRepeatStart || !assignRepeatEnd || assignRepeatEnd < assignRepeatStart) return 0
+    const allowed = assignRepeat === 'daily'
+      ? new Set([0,1,2,3,4,5,6])
+      : assignRepeat === 'weekdays'
+        ? new Set([1,2,3,4,5])
+        : assignRepeat === 'weekly'
+          ? new Set([new Date(assignRepeatStart + 'T12:00:00').getDay()])
+          : new Set(assignRepeatDays)
+    let count = 0
+    const cursor = new Date(assignRepeatStart + 'T12:00:00')
+    const end = new Date(assignRepeatEnd + 'T12:00:00')
+    while (cursor <= end) {
+      if (allowed.has(cursor.getDay())) count += 1
+      cursor.setDate(cursor.getDate() + 1)
+    }
+    return count
+  }, [assignRepeat, assignRepeatStart, assignRepeatEnd, assignRepeatDays])
 
   const assignmentPreview = useMemo(() => {
     if (!selectedAssignment) return { total: 0, already: 0, willAssign: 0 }
@@ -1199,6 +1233,8 @@ export default function LearningPage() {
         skill: assignment.skill,
         status: row.status,
         dueDate: row.due_date,
+        scheduleId: row.schedule_id,
+        occurrenceDate: row.occurrence_date,
         estimatedMinutes: assignment.estimated_minutes,
         score: row.score,
         maxScore: row.max_score,
@@ -1624,6 +1660,35 @@ export default function LearningPage() {
 
     if (!targetChildIds.length) return showMessage(assignMode === 'grade' ? 'No active students are currently registered in that grade.' : 'Choose a student first.')
 
+    if (assignRepeat !== 'once') {
+      if (!assignRepeatStart || !assignRepeatEnd) return showMessage('Choose a start and end date for the recurring assignment.')
+      if (assignRepeatEnd < assignRepeatStart) return showMessage('The repeat-until date must be on or after the start date.')
+      if (assignRepeat === 'custom' && !assignRepeatDays.length) return showMessage('Choose at least one day for the custom schedule.')
+      if (!recurrenceOccurrenceCount) return showMessage('That recurrence does not create any assignment days in the selected date range.')
+
+      setSaving(true)
+      const { data, error } = await supabase.rpc('create_learning_recurring_assignments', {
+        p_assignment_id: selectedAssignment.id,
+        p_child_ids: targetChildIds,
+        p_start_date: assignRepeatStart,
+        p_end_date: assignRepeatEnd,
+        p_repeat_mode: assignRepeat,
+        p_days: assignRepeat === 'custom' ? assignRepeatDays : null,
+      })
+      setSaving(false)
+      if (error) return showMessage(error.message)
+
+      const result = (data ?? {}) as { schedules_created?: number; occurrences_created?: number; students_skipped?: number }
+      const schedules = Number(result.schedules_created ?? 0)
+      const occurrences = Number(result.occurrences_created ?? 0)
+      const skipped = Number(result.students_skipped ?? 0)
+      if (!schedules && skipped) return showMessage('Those students already have an overlapping recurring schedule for this assignment.')
+
+      setMessage('Recurring ' + selectedAssignment.title + ' created for ' + schedules + ' student' + (schedules === 1 ? '' : 's') + ' • ' + occurrences + ' daily occurrence' + (occurrences === 1 ? '' : 's') + (skipped ? ' • ' + skipped + ' overlapping schedule' + (skipped === 1 ? '' : 's') + ' skipped' : '') + '.')
+      await loadData()
+      return
+    }
+
     const existingKeys = new Set(weeklyAssignments.map((row) => row.child_id + ':' + row.assignment_id))
     const rows = targetChildIds
       .filter((childId) => !existingKeys.has(childId + ':' + selectedAssignment.id))
@@ -1644,6 +1709,24 @@ export default function LearningPage() {
     if (error) return showMessage(error.message)
 
     setMessage('Assigned ' + selectedAssignment.title + ' to ' + rows.length + ' student' + (rows.length === 1 ? '' : 's') + '.')
+    await loadData()
+  }
+
+  async function stopRecurringWork(row: StudentAssignment, child: Child, assignment: LearningAssignment) {
+    if (!session || saving || !row.schedule_id || !row.occurrence_date) return
+    const stopLabel = new Date(row.occurrence_date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    if (!window.confirm('Stop recurring "' + assignment.title + '" for ' + childName(child) + ' from ' + stopLabel + ' forward?\n\nCompleted work and attempts will be kept. Untouched future occurrences will be removed.')) return
+
+    setSaving(true)
+    const { data, error } = await supabase.rpc('stop_learning_assignment_schedule', {
+      p_schedule_id: row.schedule_id,
+      p_stop_date: row.occurrence_date,
+    })
+    setSaving(false)
+    if (error) return showMessage(error.message)
+
+    const result = (data ?? {}) as { future_occurrences_removed?: number }
+    setMessage('Recurring assignment stopped. Removed ' + Number(result.future_occurrences_removed ?? 0) + ' untouched future occurrence' + (Number(result.future_occurrences_removed ?? 0) === 1 ? '' : 's') + '.')
     await loadData()
   }
 
@@ -1934,7 +2017,7 @@ export default function LearningPage() {
                           return (
                             <div className="learning-assignment-row" key={row.id}>
                               <span className="learning-subject-icon">{subjectIcons[assignment.subject]}</span>
-                              <span className="learning-assignment-copy"><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small>{row.status === 'completed' && (row.score != null || row.minutes_spent != null || row.staff_note) && <span className="learning-completion-meta">{row.score != null && row.max_score != null ? `Score ${row.score}/${row.max_score} • ${Math.round((row.score / row.max_score) * 100)}%` : ''}{row.score != null && row.max_score != null && row.minutes_spent != null ? ' • ' : ''}{row.minutes_spent != null ? row.minutes_spent + ' min' : ''}{(row.score != null || row.minutes_spent != null) && row.staff_note ? ' • ' : ''}{row.staff_note || ''}</span>}</span>
+                              <span className="learning-assignment-copy"><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.schedule_id && row.occurrence_date ? ' • Recurring ' + new Date(row.occurrence_date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small>{row.status === 'completed' && (row.score != null || row.minutes_spent != null || row.staff_note) && <span className="learning-completion-meta">{row.score != null && row.max_score != null ? `Score ${row.score}/${row.max_score} • ${Math.round((row.score / row.max_score) * 100)}%` : ''}{row.score != null && row.max_score != null && row.minutes_spent != null ? ' • ' : ''}{row.minutes_spent != null ? row.minutes_spent + ' min' : ''}{(row.score != null || row.minutes_spent != null) && row.staff_note ? ' • ' : ''}{row.staff_note || ''}</span>}</span>
                               <span className={'learning-status ' + row.status}>{statusLabel(row.status)}</span>
                               <span className="learning-row-actions">
                                 {assignment.assignment_type === 'typing' && <button className="primary" type="button" disabled={saving} onClick={() => setTypingTarget({ row, child, assignment })}>{row.status === 'completed' ? 'Retry typing' : 'Launch typing'}</button>}
@@ -1946,6 +2029,7 @@ export default function LearningPage() {
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => setCompletionTarget({ row, child, assignment })}>Edit details</button>}
                                 {row.status === 'completed' && <button className="ghost" type="button" disabled={saving} onClick={() => void updateStatus(row, 'assigned')}>Reopen</button>}
                                 {canUnassign(row) && <button className="ghost learning-unassign-button" type="button" disabled={saving} onClick={() => void unassignWork(row, child, assignment)}>Unassign</button>}
+                                {row.schedule_id && assignments.find((entry) => entry.schedule_id === row.schedule_id)?.id === row.id && <button className="ghost learning-stop-recurring-button" type="button" disabled={saving} onClick={() => void stopRecurringWork(row, child, assignment)}>Stop recurrence</button>}
                               </span>
                             </div>
                           )
@@ -2625,16 +2709,46 @@ export default function LearningPage() {
                           return <option value={child.id} key={child.id}>{childName(child)}{child.is_demo ? ' • Demo' : ''}{registrationByChild.get(child.id)?.grade ? ' — Grade ' + registrationByChild.get(child.id)?.grade : ''}{historyHint}</option>
                         })}</select></label>
                       : <label className="field"><span>Grade</span><select value={assignGrade} onChange={(event) => setAssignGrade(event.target.value)}>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>}
-                    <label className="field"><span>Week</span><input type="date" value={weekStart} onChange={(event) => event.target.value && setWeekStart(mondayFor(event.target.value))} /></label>
-                    <label className="field"><span>Due date <small>(optional)</small></span><input type="date" value={assignDueDate} onChange={(event) => setAssignDueDate(event.target.value)} /></label>
+                    <label className="field"><span>Repeat</span><select value={assignRepeat} onChange={(event) => {
+                      const next = event.target.value as typeof assignRepeat
+                      setAssignRepeat(next)
+                      if (next !== 'once') {
+                        const start = addDays(mondayFor(localDate()), 7)
+                        setAssignRepeatStart(start)
+                        setAssignRepeatEnd(addDays(start, 55))
+                      }
+                    }}><option value="once">Once this week</option><option value="weekdays">Every weekday (Mon–Fri)</option><option value="daily">Every day</option><option value="weekly">Once each week</option><option value="custom">Specific days</option></select></label>
 
-                    <div className={'learning-assignment-preview ' + (assignmentPreview.willAssign ? 'ready' : 'already')}>
-                      {assignMode === 'grade'
-                        ? <><strong>{assignmentPreview.willAssign}</strong><span>of {assignmentPreview.total} Grade {assignGrade || '—'} students will receive this assignment.</span>{assignmentPreview.already > 0 && <small>{assignmentPreview.already} already assigned for this week.</small>}</>
-                        : <><strong>{assignmentPreview.already ? 'Already assigned' : assignmentPreview.total ? 'Ready to assign' : 'Choose a student'}</strong><span>{assignmentPreview.already ? 'This student already has the activity this week.' : assignmentPreview.total ? 'This assignment will be added to the selected student.' : 'Select a student to preview the assignment.'}</span></>}
-                    </div>
+                    {assignRepeat === 'once' ? <>
+                      <label className="field"><span>Week</span><input type="date" value={weekStart} onChange={(event) => event.target.value && setWeekStart(mondayFor(event.target.value))} /></label>
+                      <label className="field"><span>Due date <small>(optional)</small></span><input type="date" value={assignDueDate} onChange={(event) => setAssignDueDate(event.target.value)} /></label>
+                    </> : <>
+                      <div className="learning-recurrence-grid">
+                        <label className="field"><span>Starts</span><input type="date" value={assignRepeatStart} onChange={(event) => setAssignRepeatStart(event.target.value)} /></label>
+                        <label className="field"><span>Repeat until</span><input type="date" value={assignRepeatEnd} min={assignRepeatStart} onChange={(event) => setAssignRepeatEnd(event.target.value)} /></label>
+                      </div>
+                      {assignRepeat === 'custom' && <div className="learning-recurrence-days" aria-label="Choose repeat days">{[['Sun',0],['Mon',1],['Tue',2],['Wed',3],['Thu',4],['Fri',5],['Sat',6]].map(([label, value]) => {
+                        const day = Number(value)
+                        const selected = assignRepeatDays.includes(day)
+                        return <button type="button" className={selected ? 'active' : ''} key={day} onClick={() => setAssignRepeatDays((days) => selected ? days.filter((item) => item !== day) : [...days, day].sort())}>{label}</button>
+                      })}</div>}
+                      <div className="learning-recurrence-preview">
+                        <span>🔁</span>
+                        <div><strong>{recurrenceOccurrenceCount} occurrence{recurrenceOccurrenceCount === 1 ? '' : 's'} per student</strong><small>{assignRepeat === 'weekdays' ? 'Monday–Friday' : assignRepeat === 'daily' ? 'Every day' : assignRepeat === 'weekly' ? 'Once each week' : 'Your selected days'} • each day is tracked separately.</small></div>
+                      </div>
+                    </>}
 
-                    <button className="primary" type="button" disabled={saving || assignmentPreview.willAssign === 0} onClick={() => void assignWork()}>{saving ? 'Assigning…' : assignMode === 'grade' ? 'Assign to ' + assignmentPreview.willAssign + ' student' + (assignmentPreview.willAssign === 1 ? '' : 's') : 'Assign to student'}</button>
+                    {assignRepeat === 'once' ? (
+                      <div className={'learning-assignment-preview ' + (assignmentPreview.willAssign ? 'ready' : 'already')}>
+                        {assignMode === 'grade'
+                          ? <><strong>{assignmentPreview.willAssign}</strong><span>of {assignmentPreview.total} Grade {assignGrade || '—'} students will receive this assignment.</span>{assignmentPreview.already > 0 && <small>{assignmentPreview.already} already assigned for this week.</small>}</>
+                          : <><strong>{assignmentPreview.already ? 'Already assigned' : assignmentPreview.total ? 'Ready to assign' : 'Choose a student'}</strong><span>{assignmentPreview.already ? 'This student already has the activity this week.' : assignmentPreview.total ? 'This assignment will be added to the selected student.' : 'Select a student to preview the assignment.'}</span></>}
+                      </div>
+                    ) : (
+                      <div className="learning-assignment-preview ready"><strong>{assignmentPreview.total}</strong><span>{assignMode === 'grade' ? 'Grade ' + (assignGrade || '—') + ' students selected for recurring work.' : assignmentPreview.total ? 'Student selected for recurring work.' : 'Choose a student.'}</span><small>Overlapping recurring schedules will be skipped automatically.</small></div>
+                    )}
+
+                    <button className="primary" type="button" disabled={saving || (assignRepeat === 'once' ? assignmentPreview.willAssign === 0 : assignmentPreview.total === 0 || recurrenceOccurrenceCount === 0)} onClick={() => void assignWork()}>{saving ? 'Assigning…' : assignRepeat === 'once' ? (assignMode === 'grade' ? 'Assign to ' + assignmentPreview.willAssign + ' student' + (assignmentPreview.willAssign === 1 ? '' : 's') : 'Assign to student') : 'Create recurring assignment'}</button>
                   </> : (
                     <div className="learning-archived-message"><strong>Archived assignment</strong><p>This activity stays in student history but cannot be newly assigned until it is reactivated.</p></div>
                   )}
