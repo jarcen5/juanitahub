@@ -5430,3 +5430,191 @@ html[data-theme="dark"] .learning-review-icon.homework,
 html[data-theme="dark"] .my-week-card.homework-assignment .my-week-card-icon{
   background:#243a48!important;
 }
+
+
+/* Assignment Library student completion history */
+.learning-assignment-history{
+  display:grid;
+  gap:9px;
+  padding:11px;
+  border:1px solid #d9e5ec;
+  border-radius:13px;
+  background:#f8fbfd;
+}
+.learning-assignment-history-heading{
+  display:grid;
+  gap:8px;
+}
+.learning-assignment-history-heading>div:first-child{
+  display:grid;
+  gap:2px;
+}
+.learning-assignment-history-heading strong{
+  color:#34586f;
+  font-size:10.5px;
+}
+.learning-assignment-history-heading small{
+  color:#7c8e9a;
+  font-size:8.7px;
+  line-height:1.4;
+}
+.learning-assignment-history-stats{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.learning-assignment-history-stats span{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:5px 7px;
+  border-radius:999px;
+  font-size:8.2px;
+  font-weight:850;
+}
+.learning-assignment-history-stats span.completed{
+  background:#e8f5ed;
+  color:#387a56;
+}
+.learning-assignment-history-stats span.active{
+  background:#eaf3fa;
+  color:#376e91;
+}
+.learning-assignment-history-stats b{
+  font-size:9px;
+}
+.learning-assignment-history-group{
+  border:1px solid #e0e9ef;
+  border-radius:10px;
+  overflow:hidden;
+  background:#fff;
+}
+.learning-assignment-history-group summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:8px 9px;
+  color:#506e81;
+  font-size:9px;
+  font-weight:900;
+  cursor:pointer;
+  list-style:none;
+}
+.learning-assignment-history-group summary::-webkit-details-marker{
+  display:none;
+}
+.learning-assignment-history-group summary::after{
+  content:'▾';
+  margin-left:auto;
+  color:#8aa0ad;
+  transition:transform .15s ease;
+}
+.learning-assignment-history-group:not([open]) summary::after{
+  transform:rotate(-90deg);
+}
+.learning-assignment-history-group summary span{
+  min-width:21px;
+  padding:2px 6px;
+  border-radius:999px;
+  background:#edf3f6;
+  color:#658091;
+  text-align:center;
+  font-size:8px;
+}
+.learning-assignment-history-list{
+  display:grid;
+  max-height:190px;
+  overflow:auto;
+  border-top:1px solid #e6edf1;
+}
+.learning-assignment-history-row{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  padding:8px 9px;
+}
+.learning-assignment-history-row+.learning-assignment-history-row{
+  border-top:1px solid #eef2f5;
+}
+.learning-avatar.tiny{
+  width:27px;
+  height:27px;
+  font-size:9px;
+}
+.learning-assignment-history-row>span:nth-child(2){
+  display:grid;
+  gap:1px;
+  min-width:0;
+}
+.learning-assignment-history-row strong{
+  overflow:hidden;
+  color:#3b5c72;
+  font-size:9px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.learning-assignment-history-row small{
+  color:#82939e;
+  font-size:8px;
+}
+.learning-assignment-history-row em{
+  color:#4d9c6c;
+  font-size:11px;
+  font-style:normal;
+  font-weight:950;
+}
+.learning-assignment-history-row em.active-dot{
+  color:#4e8fb8;
+  font-size:18px;
+  line-height:1;
+}
+.learning-assignment-history-empty{
+  padding:8px 9px;
+  border:1px dashed #d7e1e7;
+  border-radius:9px;
+  color:#84939d;
+  font-size:8.5px;
+  text-align:center;
+}
+
+html[data-theme="dark"] .learning-assignment-history{
+  background:#182630!important;
+  border-color:#3a4d5a!important;
+}
+html[data-theme="dark"] .learning-assignment-history-heading strong,
+html[data-theme="dark"] .learning-assignment-history-row strong{
+  color:#edf4f7!important;
+}
+html[data-theme="dark"] .learning-assignment-history-heading small,
+html[data-theme="dark"] .learning-assignment-history-row small,
+html[data-theme="dark"] .learning-assignment-history-empty{
+  color:#b8c6cf!important;
+}
+html[data-theme="dark"] .learning-assignment-history-stats span.completed{
+  background:#19372b!important;
+  color:#a9dfc0!important;
+}
+html[data-theme="dark"] .learning-assignment-history-stats span.active{
+  background:#1b3a50!important;
+  color:#acd7f7!important;
+}
+html[data-theme="dark"] .learning-assignment-history-group{
+  background:#1b2832!important;
+  border-color:#3a4d5a!important;
+}
+html[data-theme="dark"] .learning-assignment-history-group summary{
+  color:#d8e3e9!important;
+}
+html[data-theme="dark"] .learning-assignment-history-group summary span{
+  background:#263844!important;
+  color:#c7d5dd!important;
+}
+html[data-theme="dark"] .learning-assignment-history-list,
+html[data-theme="dark"] .learning-assignment-history-row+.learning-assignment-history-row{
+  border-color:#31434f!important;
+}
+html[data-theme="dark"] .learning-assignment-history-empty{
+  border-color:#40525e!important;
+}

@@ -60,6 +60,13 @@ type StudentAssignment = {
   minutes_spent: number | null
   staff_note: string | null
 }
+type AssignmentUsageRow = {
+  assignment_id: number
+  child_id: number
+  status: StudentAssignment['status']
+  week_start: string
+  completed_at: string | null
+}
 type HomeworkTask = {
   id: number
   child_id: number
@@ -597,7 +604,7 @@ export default function LearningPage() {
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | Difficulty>('all')
   const [formatFilter, setFormatFilter] = useState<'all' | DeliveryFormat>('all')
   const [libraryStatusFilter, setLibraryStatusFilter] = useState<'active' | 'archived' | 'all'>('active')
-  const [assignmentUsageRows, setAssignmentUsageRows] = useState<{ assignment_id: number; child_id: number; status: StudentAssignment['status'] }[]>([])
+  const [assignmentUsageRows, setAssignmentUsageRows] = useState<AssignmentUsageRow[]>([])
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
   const [starterAdding, setStarterAdding] = useState(false)
@@ -723,7 +730,7 @@ export default function LearningPage() {
       supabase.from('learning_homework_tasks').select('id, child_id, week_start, due_date, school_subject, title, details, estimated_minutes, status, student_marked_done_at, staff_verified_at, staff_verified_by, assigned_at').eq('week_start', weekStart).order('child_id').order('id'),
       supabase.from('learning_reading_logs').select('id, child_id, read_on, title, minutes, pages, note, created_at').gte('read_on', weekStart).lte('read_on', weekEnd).order('read_on', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
-      supabase.from('learning_student_assignments').select('assignment_id, child_id, status'),
+      supabase.from('learning_student_assignments').select('assignment_id, child_id, status, week_start, completed_at'),
       supabase.from('learning_typing_attempts').select('id, student_assignment_id, child_id, assignment_id, wpm, accuracy, duration_seconds, correct_characters, typed_characters, activity_mode, focus_keys, mistake_counts, created_at').order('created_at', { ascending: false }).limit(80),
       supabase.from('learning_quiz_attempts').select('id, student_assignment_id, child_id, assignment_id, correct_count, question_count, percent, duration_seconds, created_at').order('created_at', { ascending: false }).limit(80),
       supabase.from('learning_writing_submissions').select('id, student_assignment_id, child_id, assignment_id, content, word_count, status, started_at, submitted_at, last_saved_at, active_seconds, staff_feedback, rubric_scores, reviewed_at, updated_at').order('updated_at', { ascending: false }).limit(120),
@@ -755,7 +762,7 @@ export default function LearningPage() {
     setHomeworkTasks((homeworkResult.data ?? []) as HomeworkTask[])
     setReadingLogs((readingResult.data ?? []) as ReadingLog[])
     setNotes((notesResult.data ?? []) as LearningNote[])
-    setAssignmentUsageRows((usageResult.data ?? []) as { assignment_id: number; child_id: number; status: StudentAssignment['status'] }[])
+    setAssignmentUsageRows((usageResult.data ?? []) as AssignmentUsageRow[])
     setTypingAttempts((typingResult.data ?? []) as TypingAttempt[])
     setQuizAttempts((quizResult.data ?? []) as QuizAttempt[])
     setWritingSubmissions((writingResult.data ?? []) as WritingSubmission[])
@@ -883,6 +890,49 @@ export default function LearningPage() {
     const already = targetIds.filter((id) => assignedIds.has(id)).length
     return { total: targetIds.length, already, willAssign: targetIds.length - already }
   }, [selectedAssignment, assignMode, assignChildId, assignGrade, children, registrationByChild, weeklyAssignments])
+
+  const selectedAssignmentHistory = useMemo(() => {
+    const byChild = new Map<number, {
+      completedCount: number
+      lastCompletedAt: string | null
+      currentWeekStatus: StudentAssignment['status'] | null
+    }>()
+    if (!selectedAssignment) return { byChild, completed: [] as Array<{ child: Child; completedCount: number; lastCompletedAt: string | null }>, activeThisWeek: [] as Array<{ child: Child; status: StudentAssignment['status'] }> }
+
+    for (const row of assignmentUsageRows) {
+      if (row.assignment_id !== selectedAssignment.id) continue
+      const current = byChild.get(row.child_id) ?? { completedCount: 0, lastCompletedAt: null, currentWeekStatus: null }
+
+      if (row.status === 'completed') {
+        current.completedCount += 1
+        if (row.completed_at && (!current.lastCompletedAt || new Date(row.completed_at).getTime() > new Date(current.lastCompletedAt).getTime())) {
+          current.lastCompletedAt = row.completed_at
+        }
+      }
+
+      if (row.week_start === weekStart) {
+        current.currentWeekStatus = row.status
+      }
+
+      byChild.set(row.child_id, current)
+    }
+
+    const completed = children
+      .flatMap((child) => {
+        const history = byChild.get(child.id)
+        return history?.completedCount ? [{ child, completedCount: history.completedCount, lastCompletedAt: history.lastCompletedAt }] : []
+      })
+      .sort((a, b) => childName(a.child).localeCompare(childName(b.child)))
+
+    const activeThisWeek = children
+      .flatMap((child) => {
+        const status = byChild.get(child.id)?.currentWeekStatus
+        return status && status !== 'completed' && status !== 'skipped' ? [{ child, status }] : []
+      })
+      .sort((a, b) => childName(a.child).localeCompare(childName(b.child)))
+
+    return { byChild, completed, activeThisWeek }
+  }, [selectedAssignment, assignmentUsageRows, weekStart, children])
 
   const weeklyByChild = useMemo(() => {
     const map = new Map<number, StudentAssignment[]>()
@@ -2505,13 +2555,75 @@ export default function LearningPage() {
 
                   {selectedAssignment.active ? <>
                     <div className="learning-assign-divider" />
+
+                    <section className="learning-assignment-history">
+                      <div className="learning-assignment-history-heading">
+                        <div>
+                          <strong>Student history</strong>
+                          <small>See who has already completed or currently has this activity.</small>
+                        </div>
+                        <div className="learning-assignment-history-stats">
+                          <span className="completed"><b>{selectedAssignmentHistory.completed.length}</b> completed</span>
+                          <span className="active"><b>{selectedAssignmentHistory.activeThisWeek.length}</b> active this week</span>
+                        </div>
+                      </div>
+
+                      {selectedAssignmentHistory.completed.length > 0 ? (
+                        <details className="learning-assignment-history-group" open={selectedAssignmentHistory.completed.length <= 5}>
+                          <summary>Completed students <span>{selectedAssignmentHistory.completed.length}</span></summary>
+                          <div className="learning-assignment-history-list">
+                            {selectedAssignmentHistory.completed.map(({ child, completedCount, lastCompletedAt }) => (
+                              <div className="learning-assignment-history-row" key={'completed-' + child.id}>
+                                <span className="learning-avatar tiny">{child.first_name[0]?.toUpperCase()}</span>
+                                <span>
+                                  <strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong>
+                                  <small>{lastCompletedAt ? 'Last completed ' + new Date(lastCompletedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Completed'}{completedCount > 1 ? ' • ' + completedCount + ' completions' : ''}</small>
+                                </span>
+                                <em>✓</em>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      ) : (
+                        <div className="learning-assignment-history-empty">No students have completed this activity yet.</div>
+                      )}
+
+                      {selectedAssignmentHistory.activeThisWeek.length > 0 && (
+                        <details className="learning-assignment-history-group">
+                          <summary>Assigned this week <span>{selectedAssignmentHistory.activeThisWeek.length}</span></summary>
+                          <div className="learning-assignment-history-list">
+                            {selectedAssignmentHistory.activeThisWeek.map(({ child, status }) => (
+                              <div className="learning-assignment-history-row" key={'active-' + child.id}>
+                                <span className="learning-avatar tiny">{child.first_name[0]?.toUpperCase()}</span>
+                                <span>
+                                  <strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong>
+                                  <small>{statusLabel(status)} for {weekLabel(weekStart)}</small>
+                                </span>
+                                <em className="active-dot">•</em>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                    </section>
+
+                    <div className="learning-assign-divider" />
                     <span className="learning-kicker">Assign this week</span>
                     <div className="learning-toggle">
                       <button type="button" className={assignMode === 'child' ? 'active' : ''} onClick={() => setAssignMode('child')}>One student</button>
                       <button type="button" className={assignMode === 'grade' ? 'active' : ''} onClick={() => setAssignMode('grade')}>Whole grade</button>
                     </div>
                     {assignMode === 'child'
-                      ? <label className="field"><span>Student</span><select value={assignChildId ?? ''} onChange={(event) => setAssignChildId(Number(event.target.value))}>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{child.is_demo ? ' • Demo' : ''}{registrationByChild.get(child.id)?.grade ? ' — Grade ' + registrationByChild.get(child.id)?.grade : ''}</option>)}</select></label>
+                      ? <label className="field"><span>Student</span><select value={assignChildId ?? ''} onChange={(event) => setAssignChildId(Number(event.target.value))}>{children.map((child) => {
+                          const history = selectedAssignmentHistory.byChild.get(child.id)
+                          const currentStatus = history?.currentWeekStatus
+                          const historyHint = currentStatus && currentStatus !== 'skipped'
+                            ? ' — ' + statusLabel(currentStatus) + ' this week'
+                            : history?.completedCount
+                              ? ' — Completed' + (history.completedCount > 1 ? ' ' + history.completedCount + '×' : '')
+                              : ''
+                          return <option value={child.id} key={child.id}>{childName(child)}{child.is_demo ? ' • Demo' : ''}{registrationByChild.get(child.id)?.grade ? ' — Grade ' + registrationByChild.get(child.id)?.grade : ''}{historyHint}</option>
+                        })}</select></label>
                       : <label className="field"><span>Grade</span><select value={assignGrade} onChange={(event) => setAssignGrade(event.target.value)}>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>}
                     <label className="field"><span>Week</span><input type="date" value={weekStart} onChange={(event) => event.target.value && setWeekStart(mondayFor(event.target.value))} /></label>
                     <label className="field"><span>Due date <small>(optional)</small></span><input type="date" value={assignDueDate} onChange={(event) => setAssignDueDate(event.target.value)} /></label>
