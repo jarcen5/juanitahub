@@ -885,11 +885,15 @@ export default function LearningPage() {
   const selectedAssignment = useMemo(() => library.find((assignment) => assignment.id === selectedAssignmentId) ?? null, [library, selectedAssignmentId])
 
   useEffect(() => {
-    if (!selectedAssignment?.activity_config?.daily_practice) return
-    setAssignRepeat('weekdays')
-    const start = addDays(mondayFor(localDate()), 7)
-    setAssignRepeatStart(start)
-    setAssignRepeatEnd(addDays(start, 55))
+    if (!selectedAssignment) return
+    if (selectedAssignment.activity_config?.daily_practice) {
+      setAssignRepeat('weekdays')
+      const start = addDays(mondayFor(localDate()), 7)
+      setAssignRepeatStart(start)
+      setAssignRepeatEnd(addDays(start, 55))
+    } else {
+      setAssignRepeat('once')
+    }
   }, [selectedAssignment?.id])
 
   const recurrenceOccurrenceCount = useMemo(() => {
@@ -1714,13 +1718,15 @@ export default function LearningPage() {
 
   async function stopRecurringWork(row: StudentAssignment, child: Child, assignment: LearningAssignment) {
     if (!session || saving || !row.schedule_id || !row.occurrence_date) return
-    const stopLabel = new Date(row.occurrence_date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    const today = localDate()
+    const stopDate = row.occurrence_date < today ? today : row.occurrence_date
+    const stopLabel = new Date(stopDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
     if (!window.confirm('Stop recurring "' + assignment.title + '" for ' + childName(child) + ' from ' + stopLabel + ' forward?\n\nCompleted work and attempts will be kept. Untouched future occurrences will be removed.')) return
 
     setSaving(true)
     const { data, error } = await supabase.rpc('stop_learning_assignment_schedule', {
       p_schedule_id: row.schedule_id,
-      p_stop_date: row.occurrence_date,
+      p_stop_date: stopDate,
     })
     setSaving(false)
     if (error) return showMessage(error.message)
