@@ -1,6 +1,6 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 
 export type MyWeekItem = {
   rowId: number
@@ -16,6 +16,16 @@ export type MyWeekItem = {
   skill: string | null
   status: 'assigned' | 'in_progress' | 'completed' | 'skipped'
   dueDate: string | null
+  scheduleId?: number | null
+  occurrenceDate?: string | null
+  recurringOccurrences?: Array<{
+    rowId: number
+    date: string
+    status: 'assigned' | 'in_progress' | 'completed' | 'skipped'
+    score: number | null
+    maxScore: number | null
+  }>
+  recurringTodayRowId?: number | null
   estimatedMinutes: number | null
   score: number | null
   maxScore: number | null
@@ -82,7 +92,18 @@ const typeLabels: Partial<Record<MyWeekItem['assignmentType'], string>> = {
   activity: 'Activity',
 }
 
+function localDate() {
+  const now = new Date()
+  return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
+}
+
 function statusFor(item: MyWeekItem) {
+  if (item.recurringOccurrences?.length) {
+    const done = item.recurringOccurrences.filter((day) => day.status === 'completed' || day.status === 'skipped').length
+    if (done === item.recurringOccurrences.length) return { key: 'completed', label: done + '/' + item.recurringOccurrences.length + ' days complete' }
+    if (done > 0 || item.recurringOccurrences.some((day) => day.status === 'in_progress')) return { key: 'in_progress', label: done + '/' + item.recurringOccurrences.length + ' days complete' }
+    return { key: 'assigned', label: 'Daily practice' }
+  }
   if (item.kind === 'homework') {
     if (item.homeworkStatus === 'completed') return { key: 'completed', label: 'Checked by staff' }
     if (item.homeworkStatus === 'awaiting_review') return { key: 'in_progress', label: 'Waiting for staff check' }
@@ -122,11 +143,22 @@ function goalProgressLabel(goal: StudentGoalView) {
 
 function isInteractive(item: MyWeekItem) {
   if (item.kind === 'homework') return item.homeworkStatus === 'assigned'
+  if (item.recurringOccurrences?.length) {
+    const today = item.recurringOccurrences.find((day) => day.date === localDate())
+    return Boolean(today && today.status !== 'completed' && today.status !== 'skipped' && ['typing', 'quiz', 'writing', 'reading'].includes(item.assignmentType))
+  }
   return ['typing', 'quiz', 'writing', 'reading'].includes(item.assignmentType)
 }
 
 function actionLabel(item: MyWeekItem) {
   const status = statusFor(item)
+  if (item.recurringOccurrences?.length) {
+    const today = item.recurringOccurrences.find((day) => day.date === localDate())
+    if (!today) return 'No practice today'
+    if (today.status === 'completed' || today.status === 'skipped') return 'Done today ✓'
+    if (today.status === 'in_progress') return 'Continue today'
+    return 'Start today’s practice'
+  }
   if (item.kind === 'homework') {
     if (item.homeworkStatus === 'awaiting_review') return 'Waiting for staff'
     if (item.homeworkStatus === 'completed') return 'Checked ✓'
@@ -145,12 +177,56 @@ function actionLabel(item: MyWeekItem) {
 }
 
 export default function StudentMyWeek({ studentName, grade, weekLabel, items, onLaunch, onHomeworkDone, onExit, exitLabel = 'Back to staff view', isDemo = false, goals = [], achievements = [] }: Props) {
-  const completed = items.filter((item) => ['completed', 'skipped'].includes(item.status) || item.writingStatus === 'submitted' || item.writingStatus === 'reviewed' || item.readingReviewStatus === 'pending' || item.readingReviewStatus === 'reviewed').length
-  const inProgress = items.filter((item) => statusFor(item).key === 'in_progress').length
-  const todo = Math.max(0, items.length - completed - inProgress)
-  const progress = items.length ? Math.round((completed / items.length) * 100) : 0
+  const displayItems = useMemo(() => {
+    const recurringGroups = new Map<number, MyWeekItem[]>()
+    const standalone: MyWeekItem[] = []
 
-  const ordered = [...items].sort((a, b) => {
+    for (const item of items) {
+      if (item.kind !== 'homework' && item.scheduleId && item.occurrenceDate) {
+        recurringGroups.set(item.scheduleId, [...(recurringGroups.get(item.scheduleId) ?? []), item])
+      } else {
+        standalone.push(item)
+      }
+    }
+
+    for (const [, group] of recurringGroups) {
+      const sorted = [...group].sort((a, b) => String(a.occurrenceDate).localeCompare(String(b.occurrenceDate)))
+      const today = sorted.find((item) => item.occurrenceDate === localDate()) ?? null
+      const anchor = today ?? sorted[0]
+      const done = sorted.filter((item) => item.status === 'completed' || item.status === 'skipped').length
+      const aggregateStatus: MyWeekItem['status'] = done === sorted.length
+        ? 'completed'
+        : done > 0 || sorted.some((item) => item.status === 'in_progress')
+          ? 'in_progress'
+          : 'assigned'
+
+      standalone.push({
+        ...anchor,
+        rowId: today?.rowId ?? anchor.rowId,
+        dueDate: today?.dueDate ?? null,
+        score: today?.score ?? null,
+        maxScore: today?.maxScore ?? null,
+        status: aggregateStatus,
+        recurringTodayRowId: today?.rowId ?? null,
+        recurringOccurrences: sorted.map((item) => ({
+          rowId: item.rowId,
+          date: item.occurrenceDate!,
+          status: item.status,
+          score: item.score,
+          maxScore: item.maxScore,
+        })),
+      })
+    }
+
+    return standalone
+  }, [items])
+
+  const completed = displayItems.filter((item) => statusFor(item).key === 'completed' || item.writingStatus === 'submitted' || item.writingStatus === 'reviewed' || item.readingReviewStatus === 'pending' || item.readingReviewStatus === 'reviewed').length
+  const inProgress = displayItems.filter((item) => statusFor(item).key === 'in_progress').length
+  const todo = Math.max(0, displayItems.length - completed - inProgress)
+  const progress = displayItems.length ? Math.round((completed / displayItems.length) * 100) : 0
+
+  const ordered = [...displayItems].sort((a, b) => {
     const order = { in_progress: 0, assigned: 1, completed: 2 } as const
     const aKey = statusFor(a).key as keyof typeof order
     const bKey = statusFor(b).key as keyof typeof order
@@ -180,7 +256,7 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
           </div>
           <div className="my-week-progress-card">
             <div className="my-week-progress-ring" style={{ '--my-week-progress': progress + '%' } as CSSProperties}><strong>{progress}%</strong></div>
-            <span>{completed} of {items.length} finished</span>
+            <span>{completed} of {displayItems.length} finished</span>
           </div>
         </section>
 
@@ -225,7 +301,7 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
           </section>
         )}
 
-        {items.length === 0 ? (
+        {displayItems.length === 0 ? (
           <section className="my-week-empty">
             <span>🌟</span>
             <h2>Nothing assigned yet!</h2>
@@ -248,9 +324,20 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
                     </div>
                     <h2>{item.title}</h2>
                     <p>{isHomework ? (item.details || 'Complete your school homework, then tell Juanita Hub when you are finished.') : (item.skill || 'Learning practice')}</p>
+                    {item.recurringOccurrences?.length ? (
+                      <div className="my-week-recurring-days" aria-label="Daily practice progress">
+                        {item.recurringOccurrences.map((day) => {
+                          const dayDate = new Date(day.date + 'T12:00:00')
+                          const isToday = day.date === localDate()
+                          const state = day.status === 'completed' || day.status === 'skipped' ? 'done' : day.status === 'in_progress' ? 'active' : isToday ? 'today' : 'pending'
+                          return <span className={state} key={day.rowId}><b>{dayDate.toLocaleDateString(undefined, { weekday: 'short' })}</b><em>{state === 'done' ? '✓' : isToday ? '•' : ''}</em></span>
+                        })}
+                      </div>
+                    ) : null}
                     <div className="my-week-card-meta">
                       {isHomework && item.schoolSubject && <span>📚 {item.schoolSubject}</span>}
-                      {due && <span>📅 Due {due}</span>}
+                      {!item.recurringOccurrences?.length && due && <span>📅 Due {due}</span>}
+                      {item.recurringOccurrences?.length && <span>🔁 Daily practice • one check-in per scheduled day</span>}
                       {item.estimatedMinutes != null && <span>⏱ About {item.estimatedMinutes} min</span>}
                       {item.score != null && item.maxScore != null && <span>✓ {item.score}/{item.maxScore}</span>}
                     </div>
