@@ -332,7 +332,7 @@ function FreeSpinsPanel({ session }: { session: Session }) {
 
   async function loadBase() {
     const [childrenResult, categoryResult, tierResult, staffResult] = await Promise.all([
-      supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
+      supabase.from('children').select('id, first_name, last_name, active').eq('active', true).eq('is_demo', false).order('first_name').order('last_name'),
       supabase.from('wheel_categories').select('id, slug, name, display_order').eq('active', true).order('display_order'),
       supabase.from('wheel_tiers').select('id, slug, name, min_spins, display_order').eq('active', true).order('display_order'),
       supabase.from('staff_profiles').select('user_id, display_name').eq('active', true),
