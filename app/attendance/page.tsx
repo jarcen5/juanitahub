@@ -137,6 +137,7 @@ export default function AttendancePage() {
         .from('children')
         .select('id, first_name, last_name, active, is_demo')
         .eq('active', true)
+        .eq('is_demo', false)
         .order('first_name')
         .order('last_name'),
       supabase
