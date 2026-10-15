@@ -794,6 +794,8 @@ export default function LearningPage() {
   const registrationByChild = useMemo(() => new Map(registrations.map((registration) => [registration.child_id, registration])), [registrations])
   const assignmentById = useMemo(() => new Map(library.map((assignment) => [assignment.id, assignment])), [library])
   const gradeOptions = useMemo(() => [...new Set(registrations.map((registration) => registration.grade?.trim()).filter((grade): grade is string => Boolean(grade)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [registrations])
+  // Keep grades 1–7 browsable even before students in those grades are registered.
+  const libraryGradeOptions = useMemo(() => [...new Set([...Array.from({ length: 7 }, (_, i) => String(i + 1)), ...gradeOptions])].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [gradeOptions])
 
   useEffect(() => {
     if (!assignGrade && gradeOptions.length) setAssignGrade(gradeOptions[0])
@@ -805,6 +807,8 @@ export default function LearningPage() {
       if (raw) {
         const prefs = JSON.parse(raw) as {
           grade?: string
+          search?: string
+          status?: string
           subject?: string
           difficulty?: string
           format?: string
@@ -812,6 +816,8 @@ export default function LearningPage() {
           favorites?: number[]
         }
         if (typeof prefs.grade === 'string') setGradeFilter(prefs.grade)
+        if (typeof prefs.search === 'string') setLibrarySearch(prefs.search)
+        if (['active', 'archived', 'all'].includes(String(prefs.status))) setLibraryStatusFilter(prefs.status as typeof libraryStatusFilter)
         if (prefs.subject === 'all' || (typeof prefs.subject === 'string' && prefs.subject in subjectLabels)) setSubjectFilter(prefs.subject as typeof subjectFilter)
         if (['all','support','standard','challenge'].includes(String(prefs.difficulty))) setDifficultyFilter(prefs.difficulty as typeof difficultyFilter)
         if (['all','digital','printable','either'].includes(String(prefs.format))) setFormatFilter(prefs.format as typeof formatFilter)
@@ -828,13 +834,15 @@ export default function LearningPage() {
     if (!libraryPrefsLoaded) return
     window.localStorage.setItem('juanita-learning-library-prefs', JSON.stringify({
       grade: gradeFilter,
+      search: librarySearch,
+      status: libraryStatusFilter,
       subject: subjectFilter,
       difficulty: difficultyFilter,
       format: formatFilter,
       view: libraryView,
       favorites: favoriteAssignmentIds,
     }))
-  }, [libraryPrefsLoaded, gradeFilter, subjectFilter, difficultyFilter, formatFilter, libraryView, favoriteAssignmentIds])
+  }, [libraryPrefsLoaded, gradeFilter, librarySearch, libraryStatusFilter, subjectFilter, difficultyFilter, formatFilter, libraryView, favoriteAssignmentIds])
 
   useEffect(() => {
     if (!myWeekChildId || !session) {
@@ -2638,12 +2646,12 @@ export default function LearningPage() {
                 </div>
                 <div className="learning-library-grade-chips" aria-label="Quick grade filter">
                   <button className={gradeFilter === 'all' ? 'active' : ''} type="button" onClick={() => setGradeFilter('all')}>All grades</button>
-                  {gradeOptions.map((grade) => <button className={gradeFilter === grade ? 'active' : ''} type="button" key={grade} onClick={() => setGradeFilter(grade)}>Grade {grade}</button>)}
+                  {libraryGradeOptions.map((grade) => <button className={gradeFilter === grade ? 'active' : ''} type="button" key={grade} onClick={() => setGradeFilter(grade)}>Grade {grade}</button>)}
                 </div>
               </div>
               <div className="learning-library-filters v2">
                 <label className="field search"><span>Search</span><input type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="Title, skill, or instructions…" /></label>
-                <label className="field"><span>Grade</span><select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>
+                <label className="field"><span>Grade</span><select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option value="all">All grades</option>{libraryGradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>
                 <label className="field"><span>Subject</span><select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value as typeof subjectFilter)}><option value="all">All subjects</option>{Object.entries(subjectLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
                 <label className="field"><span>Skill</span><select value={skillFilter} onChange={(event) => setSkillFilter(event.target.value)}><option value="all">All skills</option>{skillOptions.map((skill) => <option value={skill} key={skill}>{skill}</option>)}</select></label>
                 <label className="field"><span>Difficulty</span><select value={difficultyFilter} onChange={(event) => setDifficultyFilter(event.target.value as typeof difficultyFilter)}><option value="all">All levels</option><option value="support">Support</option><option value="standard">Standard</option><option value="challenge">Challenge</option></select></label>
