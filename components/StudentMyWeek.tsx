@@ -237,6 +237,60 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
     return a.title.localeCompare(b.title)
   })
 
+  const today = localDate()
+  const todayItems = ordered.filter((item) => {
+    if (item.kind === 'homework') return false
+    if (item.recurringOccurrences?.some((day) => day.date === today)) return true
+    if (item.occurrenceDate === today) return true
+    if (statusFor(item).key === 'in_progress') return true
+    return Boolean(item.dueDate && item.dueDate <= today && statusFor(item).key !== 'completed')
+  })
+  const homeworkItems = ordered.filter((item) => item.kind === 'homework')
+  const todayKeys = new Set(todayItems.map((item) => (item.kind ?? 'assignment') + ':' + item.rowId))
+  const laterItems = ordered.filter((item) => item.kind !== 'homework' && !todayKeys.has((item.kind ?? 'assignment') + ':' + item.rowId))
+
+  const renderItemCard = (item: MyWeekItem) => {
+    const displayStatus = statusFor(item)
+    const due = formatDue(item.dueDate)
+    const interactive = isInteractive(item) && (item.kind !== 'homework' || Boolean(onHomeworkDone))
+    const isHomework = item.kind === 'homework'
+    return (
+      <article className={'my-week-card ' + displayStatus.key + (item.isJuanitaQuest ? ' quest-assignment' : '') + (isHomework ? ' homework-assignment' : '')} key={(item.kind ?? 'assignment') + '-' + item.rowId}>
+        <div className="my-week-card-icon">{isHomework ? '🏫' : item.isJuanitaQuest ? '🗺️' : subjectIcons[item.subject]}</div>
+        <div className="my-week-card-copy">
+          <div className="my-week-card-eyebrow">
+            <span>{isHomework ? '🏫 School Homework' : item.isJuanitaQuest ? '🎮 Juanita Quest' : (typeLabels[item.assignmentType] ?? 'Learning activity')}</span>
+            <em className={'my-week-status ' + displayStatus.key}>{displayStatus.label}</em>
+          </div>
+          <h2>{item.title}</h2>
+          <p>{isHomework ? (item.details || 'Complete your school homework, then tell Juanita Hub when you are finished.') : (item.skill || 'Learning practice')}</p>
+          {item.recurringOccurrences?.length ? (
+            <div className="my-week-recurring-days" aria-label="Daily practice progress">
+              {item.recurringOccurrences.map((day) => {
+                const dayDate = new Date(day.date + 'T12:00:00')
+                const isToday = day.date === localDate()
+                const state = day.status === 'completed' || day.status === 'skipped' ? 'done' : day.status === 'in_progress' ? 'active' : isToday ? 'today' : 'pending'
+                return <span className={state} key={day.rowId}><b>{dayDate.toLocaleDateString(undefined, { weekday: 'short' })}</b><em>{state === 'done' ? '✓' : isToday ? '•' : ''}</em></span>
+              })}
+            </div>
+          ) : null}
+          <div className="my-week-card-meta">
+            {isHomework && item.schoolSubject && <span>📚 {item.schoolSubject}</span>}
+            {!item.recurringOccurrences?.length && due && <span>📅 Due {due}</span>}
+            {item.recurringOccurrences?.length && <span>🔁 Daily practice • one check-in per scheduled day</span>}
+            {item.estimatedMinutes != null && <span>⏱ About {item.estimatedMinutes} min</span>}
+            {item.score != null && item.maxScore != null && <span>✓ {item.score}/{item.maxScore}</span>}
+          </div>
+        </div>
+        <button className={interactive ? 'primary' : 'ghost'} type="button" disabled={!interactive} onClick={() => {
+          if (!interactive) return
+          if (isHomework) onHomeworkDone?.(item)
+          else onLaunch(item)
+        }}>{actionLabel(item)}</button>
+      </article>
+    )
+  }
+
   return (
     <div className="my-week-backdrop">
       <main className="my-week-shell">
@@ -308,48 +362,39 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
             <p>There isn’t any learning work on your list for this week.</p>
           </section>
         ) : (
-          <section className="my-week-list">
-            {ordered.map((item) => {
-              const displayStatus = statusFor(item)
-              const due = formatDue(item.dueDate)
-              const interactive = isInteractive(item) && (item.kind !== 'homework' || Boolean(onHomeworkDone))
-              const isHomework = item.kind === 'homework'
-              return (
-                <article className={'my-week-card ' + displayStatus.key + (item.isJuanitaQuest ? ' quest-assignment' : '') + (isHomework ? ' homework-assignment' : '')} key={(item.kind ?? 'assignment') + '-' + item.rowId}>
-                  <div className="my-week-card-icon">{isHomework ? '🏫' : item.isJuanitaQuest ? '🗺️' : subjectIcons[item.subject]}</div>
-                  <div className="my-week-card-copy">
-                    <div className="my-week-card-eyebrow">
-                      <span>{isHomework ? '🏫 School Homework' : item.isJuanitaQuest ? '🎮 Juanita Quest' : (typeLabels[item.assignmentType] ?? 'Learning activity')}</span>
-                      <em className={'my-week-status ' + displayStatus.key}>{displayStatus.label}</em>
-                    </div>
-                    <h2>{item.title}</h2>
-                    <p>{isHomework ? (item.details || 'Complete your school homework, then tell Juanita Hub when you are finished.') : (item.skill || 'Learning practice')}</p>
-                    {item.recurringOccurrences?.length ? (
-                      <div className="my-week-recurring-days" aria-label="Daily practice progress">
-                        {item.recurringOccurrences.map((day) => {
-                          const dayDate = new Date(day.date + 'T12:00:00')
-                          const isToday = day.date === localDate()
-                          const state = day.status === 'completed' || day.status === 'skipped' ? 'done' : day.status === 'in_progress' ? 'active' : isToday ? 'today' : 'pending'
-                          return <span className={state} key={day.rowId}><b>{dayDate.toLocaleDateString(undefined, { weekday: 'short' })}</b><em>{state === 'done' ? '✓' : isToday ? '•' : ''}</em></span>
-                        })}
-                      </div>
-                    ) : null}
-                    <div className="my-week-card-meta">
-                      {isHomework && item.schoolSubject && <span>📚 {item.schoolSubject}</span>}
-                      {!item.recurringOccurrences?.length && due && <span>📅 Due {due}</span>}
-                      {item.recurringOccurrences?.length && <span>🔁 Daily practice • one check-in per scheduled day</span>}
-                      {item.estimatedMinutes != null && <span>⏱ About {item.estimatedMinutes} min</span>}
-                      {item.score != null && item.maxScore != null && <span>✓ {item.score}/{item.maxScore}</span>}
-                    </div>
-                  </div>
-                  <button className={interactive ? 'primary' : 'ghost'} type="button" disabled={!interactive} onClick={() => {
-                    if (!interactive) return
-                    if (isHomework) onHomeworkDone?.(item)
-                    else onLaunch(item)
-                  }}>{actionLabel(item)}</button>
-                </article>
-              )
-            })}
+          <section className="my-week-list grouped">
+            {todayItems.length > 0 && (
+              <section className="my-week-work-group today">
+                <header className="my-week-work-group-heading">
+                  <span>☀️</span>
+                  <div><strong>Today</strong><small>Start here — work that is due, in progress, or scheduled for today.</small></div>
+                  <em>{todayItems.length}</em>
+                </header>
+                <div className="my-week-work-group-list">{todayItems.map(renderItemCard)}</div>
+              </section>
+            )}
+
+            {homeworkItems.length > 0 && (
+              <section className="my-week-work-group homework">
+                <header className="my-week-work-group-heading">
+                  <span>🏫</span>
+                  <div><strong>School Homework</strong><small>Finish your schoolwork, then mark it ready for a staff check.</small></div>
+                  <em>{homeworkItems.length}</em>
+                </header>
+                <div className="my-week-work-group-list">{homeworkItems.map(renderItemCard)}</div>
+              </section>
+            )}
+
+            {laterItems.length > 0 && (
+              <section className="my-week-work-group later">
+                <header className="my-week-work-group-heading">
+                  <span>📅</span>
+                  <div><strong>Later This Week</strong><small>Upcoming work and activities you have already finished.</small></div>
+                  <em>{laterItems.length}</em>
+                </header>
+                <div className="my-week-work-group-list">{laterItems.map(renderItemCard)}</div>
+              </section>
+            )}
           </section>
         )}
 
