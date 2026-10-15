@@ -607,6 +607,9 @@ export default function LearningPage() {
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | Difficulty>('all')
   const [formatFilter, setFormatFilter] = useState<'all' | DeliveryFormat>('all')
   const [libraryStatusFilter, setLibraryStatusFilter] = useState<'active' | 'archived' | 'all'>('active')
+  const [libraryView, setLibraryView] = useState<'all' | 'favorites' | 'recent'>('all')
+  const [favoriteAssignmentIds, setFavoriteAssignmentIds] = useState<number[]>([])
+  const [libraryPrefsLoaded, setLibraryPrefsLoaded] = useState(false)
   const [assignmentUsageRows, setAssignmentUsageRows] = useState<AssignmentUsageRow[]>([])
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
@@ -786,7 +789,8 @@ export default function LearningPage() {
   }
 
   const childById = useMemo(() => new Map(children.map((child) => [child.id, child])), [children])
-  const reportingChildIds = useMemo(() => new Set(children.filter((child) => !child.is_demo).map((child) => child.id)), [children])
+  const reportingChildren = useMemo(() => children.filter((child) => !child.is_demo), [children])
+  const reportingChildIds = useMemo(() => new Set(reportingChildren.map((child) => child.id)), [reportingChildren])
   const registrationByChild = useMemo(() => new Map(registrations.map((registration) => [registration.child_id, registration])), [registrations])
   const assignmentById = useMemo(() => new Map(library.map((assignment) => [assignment.id, assignment])), [library])
   const gradeOptions = useMemo(() => [...new Set(registrations.map((registration) => registration.grade?.trim()).filter((grade): grade is string => Boolean(grade)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [registrations])
@@ -794,6 +798,43 @@ export default function LearningPage() {
   useEffect(() => {
     if (!assignGrade && gradeOptions.length) setAssignGrade(gradeOptions[0])
   }, [gradeOptions, assignGrade])
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('juanita-learning-library-prefs')
+      if (raw) {
+        const prefs = JSON.parse(raw) as {
+          grade?: string
+          subject?: string
+          difficulty?: string
+          format?: string
+          view?: string
+          favorites?: number[]
+        }
+        if (typeof prefs.grade === 'string') setGradeFilter(prefs.grade)
+        if (prefs.subject === 'all' || (typeof prefs.subject === 'string' && prefs.subject in subjectLabels)) setSubjectFilter(prefs.subject as typeof subjectFilter)
+        if (['all','support','standard','challenge'].includes(String(prefs.difficulty))) setDifficultyFilter(prefs.difficulty as typeof difficultyFilter)
+        if (['all','digital','printable','either'].includes(String(prefs.format))) setFormatFilter(prefs.format as typeof formatFilter)
+        if (['all','favorites','recent'].includes(String(prefs.view))) setLibraryView(prefs.view as typeof libraryView)
+        if (Array.isArray(prefs.favorites)) setFavoriteAssignmentIds(prefs.favorites.filter((id): id is number => Number.isInteger(id)))
+      }
+    } catch {
+      // Ignore a malformed local preference and keep safe defaults.
+    }
+    setLibraryPrefsLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (!libraryPrefsLoaded) return
+    window.localStorage.setItem('juanita-learning-library-prefs', JSON.stringify({
+      grade: gradeFilter,
+      subject: subjectFilter,
+      difficulty: difficultyFilter,
+      format: formatFilter,
+      view: libraryView,
+      favorites: favoriteAssignmentIds,
+    }))
+  }, [libraryPrefsLoaded, gradeFilter, subjectFilter, difficultyFilter, formatFilter, libraryView, favoriteAssignmentIds])
 
   useEffect(() => {
     if (!myWeekChildId || !session) {
@@ -832,6 +873,26 @@ export default function LearningPage() {
     if (skillFilter !== 'all' && !skillOptions.includes(skillFilter)) setSkillFilter('all')
   }, [skillOptions, skillFilter])
 
+  const favoriteAssignmentSet = useMemo(() => new Set(favoriteAssignmentIds), [favoriteAssignmentIds])
+
+  const recentAssignmentIds = useMemo(() => {
+    const latestByAssignment = new Map<number, number>()
+    for (const row of assignmentUsageRows) {
+      if (!reportingChildIds.has(row.child_id)) continue
+      const timestamp = row.completed_at
+        ? new Date(row.completed_at).getTime()
+        : new Date(row.week_start + 'T12:00:00').getTime()
+      const current = latestByAssignment.get(row.assignment_id) ?? 0
+      if (timestamp > current) latestByAssignment.set(row.assignment_id, timestamp)
+    }
+    return new Set(
+      [...latestByAssignment.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 24)
+        .map(([assignmentId]) => assignmentId),
+    )
+  }, [assignmentUsageRows, reportingChildIds])
+
   const filteredLibrary = useMemo(() => {
     const needle = librarySearch.trim().toLowerCase()
     return library.filter((assignment) => {
@@ -842,13 +903,15 @@ export default function LearningPage() {
       if (skillFilter !== 'all' && assignment.skill !== skillFilter) return false
       if (difficultyFilter !== 'all' && assignment.difficulty !== difficultyFilter) return false
       if (formatFilter !== 'all' && assignment.delivery_format !== formatFilter) return false
+      if (libraryView === 'favorites' && !favoriteAssignmentSet.has(assignment.id)) return false
+      if (libraryView === 'recent' && !recentAssignmentIds.has(assignment.id)) return false
       if (!needle) return true
       return [assignment.title, assignment.skill ?? '', assignment.instructions ?? '', subjectLabels[assignment.subject]]
         .join(' ')
         .toLowerCase()
         .includes(needle)
     })
-  }, [library, librarySearch, subjectFilter, gradeFilter, skillFilter, difficultyFilter, formatFilter, libraryStatusFilter])
+  }, [library, librarySearch, subjectFilter, gradeFilter, skillFilter, difficultyFilter, formatFilter, libraryStatusFilter, libraryView, favoriteAssignmentSet, recentAssignmentIds])
 
   const usageByAssignment = useMemo(() => {
     const map = new Map<number, { assigned: number; completed: number }>()
@@ -1214,6 +1277,29 @@ export default function LearningPage() {
   }, [typingAttempts, quizAttempts, writingSubmissions, readingAttempts, childById, assignmentById])
 
   const reviewCount = pendingHomeworkChecks.length + pendingWritingReviews.length + pendingReadingReviews.length + pendingGoalApprovals.length
+
+  const staffAttention = useMemo(() => {
+    const noWork = reportingChildren.filter((child) => {
+      const assignmentCount = weeklyByChild.get(child.id)?.length ?? 0
+      const homeworkCount = homeworkByChild.get(child.id)?.length ?? 0
+      return assignmentCount + homeworkCount === 0
+    })
+    const noCompletions = reportingChildren.filter((child) => {
+      const assignments = weeklyByChild.get(child.id) ?? []
+      const homework = homeworkByChild.get(child.id) ?? []
+      const total = assignments.length + homework.length
+      if (!total) return false
+      return assignments.every((row) => row.status !== 'completed')
+        && homework.every((task) => task.status !== 'completed')
+    })
+    const reviews = pendingHomeworkChecks.filter(({ child }) => !child.is_demo).length
+      + pendingWritingReviews.filter((submission) => !childById.get(submission.child_id)?.is_demo).length
+      + pendingReadingReviews.filter((attempt) => !childById.get(attempt.child_id)?.is_demo).length
+      + pendingGoalApprovals.filter((goal) => !childById.get(goal.child_id)?.is_demo).length
+    const overdue = overdueAssignments.filter(({ child }) => !child.is_demo)
+
+    return { noWork, noCompletions, reviews, overdue }
+  }, [reportingChildren, weeklyByChild, homeworkByChild, pendingHomeworkChecks, pendingWritingReviews, pendingReadingReviews, pendingGoalApprovals, overdueAssignments, childById])
 
   const myWeekChild = useMemo(() => myWeekChildId ? childById.get(myWeekChildId) ?? null : null, [myWeekChildId, childById])
   const myWeekItems = useMemo<MyWeekItem[]>(() => {
@@ -1991,6 +2077,29 @@ export default function LearningPage() {
               </section>
             )}
 
+            <section className="card learning-attention-snapshot">
+              <div className="learning-attention-heading">
+                <div>
+                  <span className="learning-kicker">Needs attention</span>
+                  <strong>Quick staff check</strong>
+                  <small>What may need a follow-up before you start opening student cards.</small>
+                </div>
+                <button className="ghost" type="button" onClick={() => setTab('review')}>Open Review Center</button>
+              </div>
+              <div className="learning-attention-grid">
+                <article className={staffAttention.reviews ? 'attention' : ''}><strong>{staffAttention.reviews}</strong><span>Waiting for review</span><small>Homework, writing, reading, or goals</small></article>
+                <article className={staffAttention.noWork.length ? 'attention' : ''}><strong>{staffAttention.noWork.length}</strong><span>No work assigned</span><small>{staffAttention.noWork.length ? staffAttention.noWork.slice(0, 3).map(childName).join(', ') + (staffAttention.noWork.length > 3 ? ' +' + (staffAttention.noWork.length - 3) : '') : 'Everyone has work this week'}</small></article>
+                <article><strong>{staffAttention.noCompletions.length}</strong><span>No completions yet</span><small>{staffAttention.noCompletions.length ? 'Students with work but nothing finished yet' : 'Everyone with work has completed something'}</small></article>
+                <article className={staffAttention.overdue.length ? 'attention' : ''}><strong>{staffAttention.overdue.length}</strong><span>Overdue</span><small>{staffAttention.overdue.length ? 'Past due and still unfinished' : 'Nothing overdue'}</small></article>
+              </div>
+              {staffAttention.noWork.length > 0 && (
+                <div className="learning-attention-actions">
+                  <span><strong>Assign next:</strong> {staffAttention.noWork.slice(0, 6).map(childName).join(' • ')}</span>
+                  <button className="primary" type="button" onClick={() => setTab('library')}>Go to Assignment Library</button>
+                </div>
+              )}
+            </section>
+
             <div className="learning-metrics">
               <article><strong>{metrics.assigned}</strong><span>Assignments</span><small>{metrics.completed} completed</small></article>
               <article><strong>{metrics.children}</strong><span>Students active</span><small>Assignments or reading</small></article>
@@ -2521,6 +2630,17 @@ export default function LearningPage() {
                 <div><strong>{filteredLibrary.length}</strong><span>shown</span></div>
                 <p>Browse path: <strong>{gradeFilter === 'all' ? 'All grades' : 'Grade ' + gradeFilter}</strong> → <strong>{subjectFilter === 'all' ? 'All subjects' : subjectLabels[subjectFilter]}</strong> → <strong>{skillFilter === 'all' ? 'All skills' : skillFilter}</strong></p>
               </div>
+              <div className="learning-library-quickbar">
+                <div className="learning-library-view-chips" aria-label="Assignment views">
+                  <button className={libraryView === 'all' ? 'active' : ''} type="button" onClick={() => setLibraryView('all')}>All assignments</button>
+                  <button className={libraryView === 'favorites' ? 'active' : ''} type="button" onClick={() => setLibraryView('favorites')}>★ Favorites <span>{favoriteAssignmentIds.length}</span></button>
+                  <button className={libraryView === 'recent' ? 'active' : ''} type="button" onClick={() => setLibraryView('recent')}>↻ Recently used <span>{recentAssignmentIds.size}</span></button>
+                </div>
+                <div className="learning-library-grade-chips" aria-label="Quick grade filter">
+                  <button className={gradeFilter === 'all' ? 'active' : ''} type="button" onClick={() => setGradeFilter('all')}>All grades</button>
+                  {gradeOptions.map((grade) => <button className={gradeFilter === grade ? 'active' : ''} type="button" key={grade} onClick={() => setGradeFilter(grade)}>Grade {grade}</button>)}
+                </div>
+              </div>
               <div className="learning-library-filters v2">
                 <label className="field search"><span>Search</span><input type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="Title, skill, or instructions…" /></label>
                 <label className="field"><span>Grade</span><select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>
@@ -2529,7 +2649,7 @@ export default function LearningPage() {
                 <label className="field"><span>Difficulty</span><select value={difficultyFilter} onChange={(event) => setDifficultyFilter(event.target.value as typeof difficultyFilter)}><option value="all">All levels</option><option value="support">Support</option><option value="standard">Standard</option><option value="challenge">Challenge</option></select></label>
                 <label className="field"><span>Format</span><select value={formatFilter} onChange={(event) => setFormatFilter(event.target.value as typeof formatFilter)}><option value="all">All formats</option><option value="digital">Digital</option><option value="printable">Printable</option><option value="either">Either</option></select></label>
                 <label className="field"><span>Status</span><select value={libraryStatusFilter} onChange={(event) => setLibraryStatusFilter(event.target.value as typeof libraryStatusFilter)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">Active + archived</option></select></label>
-                <button className="ghost learning-filter-clear" type="button" onClick={() => { setLibrarySearch(''); setGradeFilter('all'); setSubjectFilter('all'); setSkillFilter('all'); setDifficultyFilter('all'); setFormatFilter('all'); setLibraryStatusFilter('active') }}>Clear filters</button>
+                <button className="ghost learning-filter-clear" type="button" onClick={() => { setLibrarySearch(''); setGradeFilter('all'); setSubjectFilter('all'); setSkillFilter('all'); setDifficultyFilter('all'); setFormatFilter('all'); setLibraryStatusFilter('active'); setLibraryView('all') }}>Clear filters</button>
               </div>
             </section>
 
@@ -2555,6 +2675,13 @@ export default function LearningPage() {
                                       <span className="learning-library-usage">{usage.assigned} assigned • {usage.completed} completed{usage.assigned ? ' • ' + Math.round((usage.completed / usage.assigned) * 100) + '% completion' : ''}</span>
                                     </span>
                                   </button>
+                                  <button
+                                    className={'learning-library-favorite ' + (favoriteAssignmentSet.has(assignment.id) ? 'active' : '')}
+                                    type="button"
+                                    aria-label={favoriteAssignmentSet.has(assignment.id) ? 'Remove from favorites' : 'Add to favorites'}
+                                    title={favoriteAssignmentSet.has(assignment.id) ? 'Remove from favorites' : 'Add to favorites'}
+                                    onClick={() => setFavoriteAssignmentIds((ids) => ids.includes(assignment.id) ? ids.filter((id) => id !== assignment.id) : [...ids, assignment.id])}
+                                  >★</button>
                                   {profile.role === 'admin' && (
                                     <div className="learning-library-item-actions">
                                       <button className="ghost" type="button" onClick={() => setPreviewAssignment(assignment)}>Preview</button>
