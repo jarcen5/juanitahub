@@ -66,6 +66,62 @@ export default function RewardWheel({
 }: Props) {
   const presentationRef = useRef<HTMLDivElement | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [celebrating, setCelebrating] = useState(false)
+  const audioRef = useRef<AudioContext | null>(null)
+  const previousSpinRef = useRef(false)
+
+  function playTone(frequency: number, duration: number, delay = 0, volume = 0.035) {
+    if (!soundEnabled) return
+    try {
+      const context = audioRef.current ?? new AudioContext()
+      audioRef.current = context
+      if (context.state === 'suspended') void context.resume()
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      const start = context.currentTime + delay
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(frequency, start)
+      gain.gain.setValueAtTime(0.001, start)
+      gain.gain.exponentialRampToValueAtTime(volume, start + 0.012)
+      gain.gain.exponentialRampToValueAtTime(0.001, start + duration)
+      oscillator.connect(gain)
+      gain.connect(context.destination)
+      oscillator.start(start)
+      oscillator.stop(start + duration + 0.01)
+    } catch {
+      // Audio is optional: browsers without support can spin silently.
+    }
+  }
+
+  useEffect(() => {
+    if (spinning) {
+      setCelebrating(false)
+      previousSpinRef.current = true
+      if (!soundEnabled) return
+      const timer = window.setInterval(() => playTone(440, 0.035, 0, 0.015), 160)
+      return () => window.clearInterval(timer)
+    }
+    if (previousSpinRef.current && resultName) {
+      previousSpinRef.current = false
+      setCelebrating(true)
+      playTone(523, 0.18)
+      playTone(659, 0.18, 0.14)
+      playTone(784, 0.32, 0.29)
+      const timeout = window.setTimeout(() => setCelebrating(false), 2600)
+      return () => window.clearTimeout(timeout)
+    }
+    if (!resultName) previousSpinRef.current = false
+  }, [spinning, resultName, soundEnabled])
+
+  useEffect(() => () => { if (audioRef.current) void audioRef.current.close() }, [])
+
+  function triggerAction() {
+    if (soundEnabled && !audioRef.current) {
+      try { audioRef.current = new AudioContext() } catch { /* silent fallback */ }
+    }
+    onAction?.()
+  }
 
   const totalWeight = useMemo(
     () => prizes.reduce((sum, prize) => sum + Math.max(0, Number(prize.weight || 0)), 0),
@@ -111,14 +167,15 @@ export default function RewardWheel({
     <div ref={presentationRef} className={`reward-wheel-presentation ${fullscreen ? 'is-fullscreen' : ''}`}>
       <div className="reward-wheel-presentation-bar">
         <div><strong>{title}</strong><small>{prizes.length} available prize{prizes.length === 1 ? '' : 's'}</small></div>
-        <button className="ghost reward-fullscreen-button" type="button" onClick={() => void toggleFullscreen()}>
+        <div className="reward-wheel-toolbar"><button className="ghost reward-sound-button" type="button" aria-pressed={soundEnabled} onClick={() => setSoundEnabled((enabled) => !enabled)}>{soundEnabled ? "🔊 Sound on" : "🔇 Sound off"}</button><button className="ghost reward-fullscreen-button" type="button" onClick={() => void toggleFullscreen()}>
           {fullscreen ? 'Exit full screen' : '⛶ Full screen'}
-        </button>
+        </button></div>
       </div>
 
       <div className="reward-wheel-layout">
         <div className="reward-wheel-stage" aria-live="polite">
           <div className="reward-wheel-pointer" aria-hidden="true">▼</div>
+          {celebrating && <div className="reward-wheel-confetti" aria-hidden="true">{Array.from({ length: 36 }, (_, i) => <i key={i} style={{ left: ((i * 41) % 100) + '%', animationDelay: ((i % 9) * 0.09) + 's', animationDuration: (1.7 + (i % 5) * 0.22) + 's', backgroundColor: ['#4d9ddd', '#f6bc4f', '#eb6991', '#6bbf8c', '#9f80db'][i % 5] }} />)}</div>}
           <div
             className={`reward-wheel-rotator ${spinning ? 'is-spinning' : ''}`}
             style={{ transform: `rotate(${rotation}deg)` }}
@@ -176,7 +233,7 @@ export default function RewardWheel({
 
       {actionLabel && onAction && (
         <div className="reward-wheel-action">
-          <button className="primary" type="button" disabled={actionDisabled} onClick={onAction}>{actionLabel}</button>
+          <button className="primary" type="button" disabled={actionDisabled} onClick={triggerAction}>{actionLabel}</button>
         </div>
       )}
     </div>
