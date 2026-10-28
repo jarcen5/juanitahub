@@ -57,6 +57,8 @@ export default function RewardWheel({
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [celebrating, setCelebrating] = useState(false)
   const [winnerDismissed, setWinnerDismissed] = useState(false)
+  const [heldPrizes, setHeldPrizes] = useState<WheelPrize[] | null>(null)
+  const spinWasActive = useRef(false)
   const audioRef = useRef<AudioContext | null>(null)
   const previousSpinRef = useRef(false)
   const lastTickAt = useRef(0)
@@ -168,26 +170,36 @@ export default function RewardWheel({
     onAction?.()
   }
 
+  // Preserve the visible set of prizes until a winning announcement is dismissed.
+  // A real spin may use the last item in stock, removing it from the new live list.
+  useEffect(() => {
+    if (spinning && !spinWasActive.current) setHeldPrizes(prizes.map((prize) => ({ ...prize })))
+    else if (!spinning && !resultName) setHeldPrizes(null)
+    spinWasActive.current = spinning
+  }, [spinning, resultName, prizes])
+
+  const displayPrizes = heldPrizes ?? prizes
+
   const totalWeight = useMemo(
-    () => prizes.reduce((sum, prize) => sum + Math.max(0, Number(prize.weight || 0)), 0),
-    [prizes],
+    () => displayPrizes.reduce((sum, prize) => sum + Math.max(0, Number(prize.weight || 0)), 0),
+    [displayPrizes],
   )
 
   const segments = useMemo(() => {
     let cursor = 0
-    return prizes.map((prize, index) => {
+    return displayPrizes.map((prize, index) => {
       // Keep the visual wedges evenly spaced like the reference. Actual odds remain
       // controlled by the weighted draw and are displayed separately in the legend.
-      const portion = 1 / Math.max(prizes.length, 1)
+      const portion = 1 / Math.max(displayPrizes.length, 1)
       const startAngle = cursor
-      const endAngle = index === prizes.length - 1 ? 360 : cursor + portion * 360
+      const endAngle = index === displayPrizes.length - 1 ? 360 : cursor + portion * 360
       cursor = endAngle
       const middle = (startAngle + endAngle) / 2
       const labelPoint = polar(160, 160, 98, middle)
-      const chance = totalWeight > 0 ? (Number(prize.weight) / totalWeight) * 100 : 100 / Math.max(prizes.length, 1)
+      const chance = totalWeight > 0 ? (Number(prize.weight) / totalWeight) * 100 : 100 / Math.max(displayPrizes.length, 1)
       return { prize, startAngle, endAngle, middle, labelPoint, index, chance }
     })
-  }, [prizes, totalWeight])
+  }, [displayPrizes, totalWeight])
 
   // Prize selection and odds are unchanged; this identifies only the winning visual segment.
   const winningIndex = resultName
@@ -214,14 +226,14 @@ export default function RewardWheel({
     await presentationRef.current.requestFullscreen()
   }
 
-  if (prizes.length === 0) {
+  if (displayPrizes.length === 0) {
     return <div className="reward-wheel-empty">No in-stock prizes are configured for this wheel yet.</div>
   }
 
   return (
     <div ref={presentationRef} className={`reward-wheel-presentation reward-wheel-reference ${fullscreen ? 'is-fullscreen' : ''}`}>
       <div className="reward-wheel-presentation-bar">
-        <div><strong>{title}</strong><small>{prizes.length} available prize{prizes.length === 1 ? '' : 's'}</small></div>
+        <div><strong>{title}</strong><small>{displayPrizes.length} available prize{displayPrizes.length === 1 ? '' : 's'}</small></div>
         <div className="reward-wheel-toolbar"><button className="ghost reward-sound-button" type="button" aria-pressed={soundEnabled} onClick={() => setSoundEnabled((enabled) => !enabled)}>{soundEnabled ? "🔊 Sound on" : "🔇 Sound off"}</button><button className="ghost reward-fullscreen-button" type="button" onClick={() => void toggleFullscreen()}>
           {fullscreen ? 'Exit full screen' : '⛶ Full screen'}
         </button></div>
@@ -283,7 +295,7 @@ export default function RewardWheel({
               <span className="reward-wheel-win-sparkle" aria-hidden="true">✦</span>
               <strong>{winningPrize.prize.name}</strong>
             </div>
-            <button className="reward-wheel-win-close" type="button" onClick={() => setWinnerDismissed(true)}>
+            <button className="reward-wheel-win-close" type="button" onClick={() => { setWinnerDismissed(true); setHeldPrizes(null) }}>
               Close
             </button>
           </div>
