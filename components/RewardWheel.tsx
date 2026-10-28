@@ -19,6 +19,7 @@ type Props = {
   actionLabel?: string
   actionDisabled?: boolean
   nextSpinLabel?: string
+  actionButtonText?: string
   onAction?: () => void
 }
 
@@ -52,6 +53,7 @@ export default function RewardWheel({
   actionLabel,
   actionDisabled = false,
   nextSpinLabel = 'Spin again',
+  actionButtonText = 'Spin',
   onAction,
 }: Props) {
   const presentationRef = useRef<HTMLDivElement | null>(null)
@@ -282,7 +284,7 @@ export default function RewardWheel({
                 <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
                   <path d="M60 3 L92 48 C108 70 107 96 89 109 C72 121 48 121 31 109 C13 97 12 71 28 48 Z" fill="currentColor" stroke="#fff" strokeWidth="5" strokeLinejoin="round" />
                 </svg>
-                <strong>{spinning ? '•••' : 'Spin'}</strong>
+                <strong>{spinning ? '•••' : actionButtonText}</strong>
               </button>
             ) : (
               <div className="reward-wheel-center-static">
