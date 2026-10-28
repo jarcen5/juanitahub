@@ -324,3 +324,26 @@ html[data-theme="dark"] .reward-wheel-presentation{background:radial-gradient(ci
  .reward-wheel-center-spin{transition:none}
 }
 html[data-theme="dark"] .reward-wheel-center-hub{background:#e7edf7}
+
+/* Reference-inspired wheel: bright color blocks, translucent outer band, radial lettering. */
+.reward-wheel-presentation{background:linear-gradient(180deg,#fff 0%,#f9fbff 100%)}
+.reward-wheel-svg{border:0;box-shadow:0 12px 35px rgba(32,49,80,.13)}
+.reward-wheel-slice{stroke:#fff;stroke-width:.5;filter:saturate(1.15)}
+.reward-slice-1,.reward-dot-1{fill:#5579cd;background:#5579cd}
+.reward-slice-2,.reward-dot-2{fill:#de625d;background:#de625d}
+.reward-slice-3,.reward-dot-3{fill:#59ad71;background:#59ad71}
+.reward-slice-4,.reward-dot-4{fill:#f0c65b;background:#f0c65b}
+.reward-slice-5,.reward-dot-5{fill:#587acb;background:#587acb}
+.reward-slice-6,.reward-dot-6{fill:#dc605b;background:#dc605b}
+.reward-slice-7,.reward-dot-7{fill:#5aac6d;background:#5aac6d}
+.reward-slice-8,.reward-dot-8{fill:#edc660;background:#edc660}
+.reward-wheel-label{font-size:10px;font-weight:800;stroke:rgba(40,50,65,.18);stroke-width:.8;paint-order:stroke;letter-spacing:.02em}
+.reward-wheel-center-hub{width:22%;background:#fff;box-shadow:0 4px 14px rgba(19,32,44,.15)}
+.reward-wheel-center-spin{background:#050607;color:#fff;clip-path:polygon(50% 0%,68% 23%,87% 39%,100% 61%,95% 80%,81% 96%,50% 100%,18% 96%,3% 82%,0% 61%,13% 39%,32% 23%);border-radius:35%;font-weight:900}
+.reward-wheel-center-spin:hover:not(:disabled){background:#20242a}
+.reward-wheel-center-spin strong{font-size:clamp(15px,2.3vw,31px);letter-spacing:-.035em}
+.reward-wheel-pointer{color:#171e28}
+.reward-wheel-stage:after{content:'';position:absolute;inset:calc(12px + 4%);border-radius:50%;border:12px solid rgba(255,255,255,.22);pointer-events:none;z-index:2}
+.reward-history-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.reward-history-actions button{font-size:12px}
+@media(max-width:680px){.reward-history-actions{justify-content:flex-start}}
