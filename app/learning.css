@@ -6130,3 +6130,140 @@ html[data-theme="dark"] .learning-labs-subnav button.active{background:#26465b;c
 .learning-week-search-actions span{font-size:12px;color:#6f8392}
 .learning-week-search-actions button{min-height:36px;padding:7px 12px;font-size:12px}
 @media(max-width:620px){.learning-week-search-actions{width:100%;justify-content:space-between}}
+
+/* Keep the primary library search visible; tuck detailed filters away. */
+.learning-library-search-row{
+  display:flex;
+  align-items:end;
+  gap:12px;
+  margin:12px 0;
+}
+.learning-library-search-row .field{
+  flex:1 1 420px;
+  min-width:0;
+  margin:0;
+}
+.learning-library-search-row input{
+  width:100%;
+}
+.learning-library-search-row > button{
+  flex:0 0 auto;
+  min-height:42px;
+}
+.learning-library-filters.v2{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  margin-top:10px;
+  margin-bottom:12px;
+}
+@media(max-width:700px){
+  .learning-library-search-row{flex-wrap:wrap;}
+  .learning-library-search-row > button{width:100%;}
+  .learning-library-filters.v2{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media(max-width:520px){
+  .learning-library-filters.v2{grid-template-columns:1fr;}
+}
+
+/* Lightweight staff suggestions: selection never assigns automatically. */
+.learning-recommendations{display:grid;gap:10px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #dce6eb}
+.learning-recommendations>p{margin:0;color:#607988}
+.learning-recommendation-list{display:grid;gap:8px}
+.learning-recommendation-option{display:grid;gap:5px;text-align:left;border:1px solid #dce6eb;border-radius:12px;padding:12px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.learning-recommendation-option:hover,.learning-recommendation-option:focus-visible{border-color:#78aac7;background:rgba(120,170,199,.09)}
+.learning-recommendation-option small{color:#607988}
+.learning-recommendation-option span{font-size:12px;font-weight:700;color:#397da9}
+
+/* Recommendation cards: align with the Learning panel visual language.
+   Specific selectors override global button rules, including mobile layouts. */
+.learning-assign-card .learning-recommendations{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  min-width:0;
+  gap:12px;
+  margin:0 0 20px;
+  padding:0 0 20px;
+  border-bottom:1px solid #dce6eb;
+}
+.learning-assign-card .learning-recommendations .field{min-width:0;margin:0}
+.learning-assign-card .learning-recommendations > p{
+  font-size:12px;
+  line-height:1.6;
+  color:#6b8191;
+}
+.learning-assign-card .learning-recommendation-list{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:10px;
+  min-width:0;
+}
+.learning-assign-card button.learning-recommendation-option{
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  width:100%;
+  min-width:0;
+  height:auto;
+  min-height:0;
+  gap:7px;
+  padding:14px 15px;
+  border:1px solid #dbe6ee;
+  border-radius:12px;
+  background:#f8fbfd;
+  color:#2d465c;
+  font:inherit;
+  text-align:left;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  line-height:1.4;
+  box-shadow:none;
+}
+.learning-assign-card button.learning-recommendation-option strong{
+  display:block;
+  width:100%;
+  font-size:13px;
+  font-weight:800;
+  line-height:1.35;
+  color:#304f69;
+  text-align:left;
+}
+.learning-assign-card button.learning-recommendation-option small{
+  display:block;
+  width:100%;
+  font-size:11px;
+  font-weight:500;
+  line-height:1.5;
+  color:#697f8e;
+  text-align:left;
+}
+.learning-assign-card button.learning-recommendation-option span{
+  display:block;
+  width:100%;
+  margin-top:2px;
+  font-size:11px;
+  font-weight:750;
+  line-height:1.45;
+  color:#3f7da7;
+  text-align:left;
+}
+.learning-assign-card button.learning-recommendation-option:hover,
+.learning-assign-card button.learning-recommendation-option:focus-visible{
+  border-color:#8ab5d0;
+  background:#eef7fd;
+  outline-offset:2px;
+}
+html[data-theme="dark"] .learning-assign-card button.learning-recommendation-option{
+  background:#1d2b36!important;
+  border-color:#354c5b!important;
+  color:#dce9f2!important;
+}
+html[data-theme="dark"] .learning-assign-card button.learning-recommendation-option strong{
+  color:#e4f0f8!important;
+}
+html[data-theme="dark"] .learning-assign-card button.learning-recommendation-option small{
+  color:#b6c8d4!important;
+}
+html[data-theme="dark"] .learning-assign-card button.learning-recommendation-option span{
+  color:#9cc9ed!important;
+}
