@@ -174,7 +174,9 @@ export default function RewardWheel({
   const segments = useMemo(() => {
     let cursor = 0
     return prizes.map((prize, index) => {
-      const portion = totalWeight > 0 ? Number(prize.weight) / totalWeight : 1 / Math.max(prizes.length, 1)
+      // Keep the visual wedges evenly spaced like the reference. Actual odds remain
+      // controlled by the weighted draw and are displayed separately in the legend.
+      const portion = 1 / Math.max(prizes.length, 1)
       const startAngle = cursor
       const endAngle = index === prizes.length - 1 ? 360 : cursor + portion * 360
       cursor = endAngle
@@ -232,7 +234,7 @@ export default function RewardWheel({
                       d={arcPath(startAngle, endAngle)}
                       className={`reward-wheel-slice reward-slice-${(index % 4) + 1}`}
                     />
-                    {chance >= 2.3 && (
+                    {(
                       <text
                         x={labelPoint.x}
                         y={labelPoint.y}
@@ -271,6 +273,7 @@ export default function RewardWheel({
 
         <aside className="reward-wheel-legend" aria-label="Wheel prize chances">
           <h3>Wheel chances</h3>
+          <p className="reward-wheel-odds-note">Slices are evenly spaced for display; the listed percentages determine prize chances.</p>
           {segments.map(({ prize, index, chance }) => (
             <div className="reward-wheel-legend-row" key={prize.id}>
               <span className={`reward-wheel-dot reward-dot-${(index % 4) + 1}`} aria-hidden="true" />
