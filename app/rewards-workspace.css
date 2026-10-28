@@ -357,6 +357,7 @@
   background:#f8fafc;
 }
 .reward-wheel-reference .reward-wheel-legend h3{font-size:14px;margin:0 0 8px}
+.reward-wheel-reference .reward-wheel-odds-note{margin:-3px 0 8px;font-size:10px;line-height:1.45;color:#8192a1}
 .reward-wheel-reference .reward-wheel-legend-row{border-color:#e5ebf2;border-radius:10px}
 .reward-wheel-reference .reward-wheel-result-footer{
   display:flex;
