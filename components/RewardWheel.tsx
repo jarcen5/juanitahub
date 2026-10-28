@@ -60,26 +60,72 @@ export default function RewardWheel({
   const previousSpinRef = useRef(false)
   const lastTickAt = useRef(0)
 
-  function playTone(frequency: number, duration: number, delay = 0, volume = 0.035) {
-    if (!soundEnabled) return
+  function audioContext() {
+    if (!soundEnabled || typeof window === 'undefined') return null
     try {
       const context = audioRef.current ?? new AudioContext()
       audioRef.current = context
       if (context.state === 'suspended') void context.resume()
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
-      const start = context.currentTime + delay
-      oscillator.type = duration <= 0.09 ? 'triangle' : 'sine'
-      oscillator.frequency.setValueAtTime(frequency, start)
-      gain.gain.setValueAtTime(0.001, start)
-      gain.gain.exponentialRampToValueAtTime(volume, start + 0.012)
-      gain.gain.exponentialRampToValueAtTime(0.001, start + duration)
-      oscillator.connect(gain)
-      gain.connect(context.destination)
-      oscillator.start(start)
-      oscillator.stop(start + duration + 0.01)
+      return context
     } catch {
-      // Audio is optional: browsers without support can spin silently.
+      // Muted or unsupported browsers can still use every wheel feature.
+      return null
+    }
+  }
+
+  // A soft ratchet-like click (short filtered percussion), not an electronic beep.
+  function playWheelClick() {
+    const context = audioContext()
+    if (!context) return
+    const duration = 0.048
+    const count = Math.ceil(context.sampleRate * duration)
+    const buffer = context.createBuffer(1, count, context.sampleRate)
+    const samples = buffer.getChannelData(0)
+    for (let i = 0; i < count; i++) {
+      const progress = i / count
+      const decay = Math.pow(1 - progress, 5)
+      samples[i] = (Math.random() * 2 - 1) * decay
+    }
+    const source = context.createBufferSource()
+    source.buffer = buffer
+    const filter = context.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.value = 1500
+    filter.Q.value = 0.8
+    const gain = context.createGain()
+    gain.gain.value = 0.09
+    source.connect(filter)
+    filter.connect(gain)
+    gain.connect(context.destination)
+    source.start()
+    source.stop(context.currentTime + duration)
+  }
+
+  // Original bell-like fanfare; no third-party or unlicensed audio assets.
+  function playWinningChime() {
+    const context = audioContext()
+    if (!context) return
+    const notes = [
+      { frequency: 523.25, delay: 0, length: 0.25 },
+      { frequency: 659.25, delay: 0.14, length: 0.27 },
+      { frequency: 783.99, delay: 0.28, length: 0.3 },
+      { frequency: 1046.5, delay: 0.43, length: 0.75 },
+    ]
+    for (const note of notes) {
+      const start = context.currentTime + note.delay
+      for (const harmonic of [1, 2.01]) {
+        const tone = context.createOscillator()
+        const gain = context.createGain()
+        tone.type = 'sine'
+        tone.frequency.setValueAtTime(note.frequency * harmonic, start)
+        gain.gain.setValueAtTime(0.001, start)
+        gain.gain.exponentialRampToValueAtTime(harmonic === 1 ? 0.065 : 0.012, start + 0.012)
+        gain.gain.exponentialRampToValueAtTime(0.001, start + note.length)
+        tone.connect(gain)
+        gain.connect(context.destination)
+        tone.start(start)
+        tone.stop(start + note.length + 0.01)
+      }
     }
   }
 
@@ -89,23 +135,22 @@ export default function RewardWheel({
       previousSpinRef.current = true
       if (!soundEnabled) return
       const startedAt = performance.now()
+      lastTickAt.current = -110
       const timer = window.setInterval(() => {
         const elapsed = performance.now() - startedAt
-        const interval = elapsed < 2000 ? 130 : elapsed < 3300 ? 220 : 370
+        const slowDown = Math.min(elapsed / 4100, 1)
+        const interval = 85 + 320 * Math.pow(slowDown, 2.4)
         if (elapsed - lastTickAt.current >= interval) {
           lastTickAt.current = elapsed
-          playTone(410 + (Math.round(elapsed / 130) % 3) * 80, 0.045, 0, 0.026)
+          playWheelClick()
         }
-      }, 35)
+      }, 28)
       return () => window.clearInterval(timer)
     }
     if (previousSpinRef.current && resultName) {
       previousSpinRef.current = false
       setCelebrating(true)
-      playTone(523, 0.19, 0, 0.06)
-      playTone(659, 0.19, 0.13, 0.06)
-      playTone(784, 0.22, 0.25, 0.07)
-      playTone(1047, 0.5, 0.39, 0.055)
+      playWinningChime()
       const timeout = window.setTimeout(() => setCelebrating(false), 2600)
       return () => window.clearTimeout(timeout)
     }
@@ -194,7 +239,7 @@ export default function RewardWheel({
                         transform={`rotate(${middle + 90} ${labelPoint.x} ${labelPoint.y})`}
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        fontSize={fontSize}
+                        style={{ fontSize }}
                         className="reward-wheel-label"
                       >
                         {text}
