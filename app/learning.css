@@ -6124,3 +6124,9 @@ html[data-theme="dark"] .learning-labs-subnav{background:#1b2832;border-color:#3
 html[data-theme="dark"] .learning-labs-subnav button{color:#c9d5dc}
 html[data-theme="dark"] .learning-labs-subnav button.active{background:#26465b;color:#d9efff;border-color:#537d99}
 @media(max-width:620px){.learning-labs-subnav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.learning-week-search .field{max-width:none}}
+
+/* Weekly student search: accessible result count and reset */
+.learning-week-search-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.learning-week-search-actions span{font-size:12px;color:#6f8392}
+.learning-week-search-actions button{min-height:36px;padding:7px 12px;font-size:12px}
+@media(max-width:620px){.learning-week-search-actions{width:100%;justify-content:space-between}}
