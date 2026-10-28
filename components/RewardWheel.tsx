@@ -56,6 +56,7 @@ export default function RewardWheel({
   const [fullscreen, setFullscreen] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [celebrating, setCelebrating] = useState(false)
+  const [winnerDismissed, setWinnerDismissed] = useState(false)
   const audioRef = useRef<AudioContext | null>(null)
   const previousSpinRef = useRef(false)
   const lastTickAt = useRef(0)
@@ -131,6 +132,7 @@ export default function RewardWheel({
 
   useEffect(() => {
     if (spinning) {
+      setWinnerDismissed(false)
       setCelebrating(false)
       previousSpinRef.current = true
       if (!soundEnabled) return
@@ -187,6 +189,14 @@ export default function RewardWheel({
     })
   }, [prizes, totalWeight])
 
+  // Prize selection and odds are unchanged; this identifies only the winning visual segment.
+  const winningIndex = resultName
+    ? segments.findIndex(({ prize }) => prize.name.trim().toLocaleLowerCase() === resultName.trim().toLocaleLowerCase())
+    : -1
+  const showWinner = !spinning && !winnerDismissed && winningIndex >= 0
+  const winningPrize = showWinner ? segments[winningIndex] : null
+  const winningColor = winningPrize ? ['#5f80cd', '#d9635b', '#5db577', '#f4c95e'][winningPrize.index % 4] : '#5db577'
+
   useEffect(() => {
     function handleFullscreenChange() {
       setFullscreen(document.fullscreenElement === presentationRef.current)
@@ -218,24 +228,23 @@ export default function RewardWheel({
       </div>
 
       <div className="reward-wheel-layout">
-        <div className="reward-wheel-stage" aria-live="polite">
+        <div className="reward-wheel-stage">
           {celebrating && <div className="reward-wheel-confetti" aria-hidden="true">{Array.from({ length: 36 }, (_, i) => <i key={i} style={{ left: ((i * 41) % 100) + '%', animationDelay: ((i % 9) * 0.09) + 's', animationDuration: (1.7 + (i % 5) * 0.22) + 's', backgroundColor: ['#4d9ddd', '#f6bc4f', '#eb6991', '#6bbf8c', '#9f80db'][i % 5] }} />)}</div>}
           <div
-            className={`reward-wheel-rotator ${spinning ? 'is-spinning' : ''}`}
+            className={`reward-wheel-rotator ${spinning ? 'is-spinning' : ''} ${showWinner ? 'has-winner' : ''}`}
             style={{ transform: `rotate(${rotation}deg)` }}
           >
             <svg className="reward-wheel-svg" viewBox="0 0 320 320" role="img" aria-label={title}>
-              {segments.map(({ prize, startAngle, endAngle, middle, labelPoint, index, chance }) => {
+              {segments.map(({ prize, startAngle, endAngle, middle, labelPoint, index }) => {
                 const text = readableLabel(prize.name)
                 const fontSize = text.length > 18 ? 8 : text.length > 12 ? 9 : 10.5
                 return (
-                  <g key={prize.id}>
+                  <g key={prize.id} className={`reward-wheel-segment ${showWinner ? (index === winningIndex ? 'is-winner' : 'is-muted') : ''}`}>
                     <path
                       d={arcPath(startAngle, endAngle)}
                       className={`reward-wheel-slice reward-slice-${(index % 4) + 1}`}
                     />
-                    {(
-                      <text
+                    <text
                         x={labelPoint.x}
                         y={labelPoint.y}
                         transform={`rotate(${middle + 90} ${labelPoint.x} ${labelPoint.y})`}
@@ -246,7 +255,6 @@ export default function RewardWheel({
                       >
                         {text}
                       </text>
-                    )}
                   </g>
                 )
               })}
@@ -256,7 +264,7 @@ export default function RewardWheel({
           </div>
           <div className="reward-wheel-center-hub">
             {actionLabel && onAction ? (
-              <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning} onClick={triggerAction} aria-label={actionLabel}>
+              <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning || showWinner} onClick={triggerAction} aria-label={actionLabel}>
                 <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
                   <path d="M60 3 L92 48 C108 70 107 96 89 109 C72 121 48 121 31 109 C13 97 12 71 28 48 Z" fill="currentColor" stroke="#fff" strokeWidth="5" strokeLinejoin="round" />
                 </svg>
@@ -269,21 +277,20 @@ export default function RewardWheel({
               </div>
             )}
           </div>
+        {showWinner && winningPrize && (
+          <div className="reward-wheel-win-popup" role="status" aria-label={`Prize won: ${winningPrize.prize.name}`}>
+            <div className="reward-wheel-win-title" style={{ backgroundColor: winningColor }}>
+              <span className="reward-wheel-win-sparkle" aria-hidden="true">✦</span>
+              <strong>{winningPrize.prize.name}</strong>
+            </div>
+            <button className="reward-wheel-win-close" type="button" onClick={() => setWinnerDismissed(true)}>
+              Close
+            </button>
+          </div>
+        )}
         </div>
 
-        <aside className="reward-wheel-legend" aria-label="Wheel prize chances">
-          <h3>Wheel chances</h3>
-          <p className="reward-wheel-odds-note">Slices are evenly spaced for display; the listed percentages determine prize chances.</p>
-          {segments.map(({ prize, index, chance }) => (
-            <div className="reward-wheel-legend-row" key={prize.id}>
-              <span className={`reward-wheel-dot reward-dot-${(index % 4) + 1}`} aria-hidden="true" />
-              <span><strong>{prize.name}</strong>{prize.detail && <small>{prize.detail}</small>}</span>
-              <b>{chance.toFixed(chance >= 10 ? 0 : 1)}%</b>
-            </div>
-          ))}
-        </aside>
-      </div>
-      {resultName && !spinning && <div className="reward-wheel-result-footer" role="status">🎉 <strong>{resultName}</strong> <span>Congratulations!</span></div>}
+
     </div>
   )
 }
