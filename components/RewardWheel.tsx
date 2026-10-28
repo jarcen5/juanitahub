@@ -211,11 +211,10 @@ export default function RewardWheel({
                   </g>
                 )
               })}
-              <circle cx="160" cy="160" r="36" className="reward-wheel-hub" />
-              <text x="160" y="156" textAnchor="middle" dominantBaseline="middle" className="reward-wheel-hub-label">{centerLabel}</text>
-              <text x="160" y="174" textAnchor="middle" dominantBaseline="middle" className="reward-wheel-hub-sub">SPIN</text>
+
             </svg>
           </div>
+          <div className="reward-wheel-center-hub">{actionLabel && onAction ? <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning} onClick={triggerAction} aria-label={actionLabel}><span>✦</span><strong>{spinning ? "SPINNING" : "SPIN"}</strong><small>{spinning ? "Good luck!" : centerLabel}</small></button> : <div className="reward-wheel-center-static"><strong>{centerLabel}</strong><small>SPIN</small></div>}</div>
           {resultName && !spinning && <div className="reward-result-banner">🎉 Won: <strong>{resultName}</strong></div>}
         </div>
 
@@ -231,11 +230,7 @@ export default function RewardWheel({
         </aside>
       </div>
 
-      {actionLabel && onAction && (
-        <div className="reward-wheel-action">
-          <button className="primary" type="button" disabled={actionDisabled} onClick={triggerAction}>{actionLabel}</button>
-        </div>
-      )}
+
     </div>
   )
 }
