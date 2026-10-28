@@ -307,6 +307,8 @@ function MonthlySpinsPanel({ session, isAdmin }: { session: Session; isAdmin: bo
             title={(category?.name ?? 'Reward') + ' wheel'}
             actionLabel={spinning ? 'Selecting reward…' : selectedChild?.remaining_spins ? 'SPIN • ' + selectedChild.remaining_spins + ' remaining' : 'No spins remaining'}
             actionDisabled={loading || spinning || !selectedChild || selectedChild.remaining_spins <= 0 || !available.length}
+            actionButtonText={loading ? 'Wait…' : !selectedChild ? 'Spin' : selectedChild.remaining_spins <= 0 ? 'No spins' : !available.length ? 'No prizes' : 'Spin'}
+            nextSpinLabel="Use another spin"
             onAction={() => void spin()}
           />
         </section>
@@ -434,6 +436,8 @@ function FreeSpinsPanel({ session }: { session: Session }) {
             title={categoryName + ' free-spin wheel'}
             actionLabel={spinning ? 'Selecting free reward…' : 'FREE SPIN • ' + tierName}
             actionDisabled={spinning || !selectedChild || !available.length}
+            actionButtonText={!available.length ? 'No prizes' : 'Spin'}
+            nextSpinLabel="Award another free spin"
             onAction={() => void spin()}
           />
         </section>
@@ -527,6 +531,8 @@ function TestWheelPanel() {
             title={(selectedCategory?.name ?? 'Reward') + ' test wheel'}
             actionLabel={spinning ? 'Testing spin…' : 'TEST REAL WHEEL'}
             actionDisabled={spinning || !available.length}
+            actionButtonText={!available.length ? 'No prizes' : 'Spin'}
+            nextSpinLabel="Test spin again"
             onAction={spin}
           />
           {history.length > 0 && <div className="reward-test-history" style={{ marginTop: 14 }}>{history.map((name, index) => <span key={index}>#{history.length - index} {name}</span>)}</div>}
