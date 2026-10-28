@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import ChildLearningPanel from '@/components/ChildLearningPanel'
@@ -91,6 +91,8 @@ export default function ChildrenPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
+  const [showDemoStudents, setShowDemoStudents] = useState(false)
+  const profileDialogRef = useRef<HTMLElement | null>(null)
   const [gradeFilter, setGradeFilter] = useState('all')
   const [registrationFilter, setRegistrationFilter] = useState<'all' | 'current' | 'missing'>('all')
   const [rosterFilter, setRosterFilter] = useState<'active' | 'archived' | 'all'>('active')
@@ -165,9 +167,10 @@ export default function ChildrenPage() {
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
   }, [registrations])
 
+  const directoryChildren = useMemo(() => children.filter((child) => showDemoStudents || !child.is_demo), [children, showDemoStudents])
   const visibleChildren = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return children.filter((child) => {
+    return directoryChildren.filter((child) => {
       const registration = registrationByChild.get(child.id)
       const matchesSearch = !q || [childName(child), registration?.school ?? '', registration?.grade ?? ''].some((value) => value.toLowerCase().includes(q))
       const matchesGrade = gradeFilter === 'all' || registration?.grade === gradeFilter
@@ -180,7 +183,23 @@ export default function ChildrenPage() {
         : child.active
       return matchesSearch && matchesGrade && matchesRegistration && matchesRoster
     })
-  }, [children, registrationByChild, search, gradeFilter, registrationFilter, rosterFilter, profile?.role])
+  }, [directoryChildren, registrationByChild, search, gradeFilter, registrationFilter, rosterFilter, profile?.role])
+
+  const filtersApplied = Boolean(search.trim()) || gradeFilter !== 'all' || registrationFilter !== 'all' || (profile?.role === 'admin' && rosterFilter !== 'active') || showDemoStudents
+  const selectedVisibleIndex = selectedChild ? visibleChildren.findIndex((child) => child.id === selectedChild.id) : -1
+  const previousDirectoryChild = selectedVisibleIndex > 0 ? visibleChildren[selectedVisibleIndex - 1] : null
+  const nextDirectoryChild = selectedVisibleIndex >= 0 && selectedVisibleIndex < visibleChildren.length - 1 ? visibleChildren[selectedVisibleIndex + 1] : null
+  function goToDirectoryChild(child: Child) {
+    setSelectedChild(child)
+    if (profileDialogRef.current) profileDialogRef.current.scrollTop = 0
+  }
+  function resetDirectoryFilters() {
+    setSearch('')
+    setGradeFilter('all')
+    setRegistrationFilter('all')
+    setRosterFilter('active')
+    setShowDemoStudents(false)
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined' || children.length === 0) return
@@ -374,10 +393,25 @@ export default function ChildrenPage() {
     <header className="topbar"><div className="brand">Juanita Hub<small>Student Directory</small></div><div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span></div></header>
     <main className="main children-page">
       <section className="hero children-hero"><div><span className="children-eyebrow">Students</span><h1>Student Directory</h1><p className="subtle">Find a child once, then open their school-year profile, routine, registration details, and connected Juanita Hub tools.</p></div><div className="children-hero-actions">{profile.role === 'admin' && <><button className="ghost" type="button" onClick={() => setAccessOpen(true)}>🎓 Learning Access</button><button className="primary" type="button" onClick={() => setAddingStudent(true)}>＋ Add Student</button></>}<div className="children-security-pill">🔒 Sensitive details restricted</div></div></section>
-      {message && <div className="notice">{message}</div>}
-      <section className="card children-directory-toolbar"><div className="children-directory-controls"><label className="children-search"><span>Search students</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, school, or grade…" /></label><label className="children-filter"><span>Grade</span><select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>{grade}</option>)}</select></label><label className="children-filter"><span>Registration</span><select value={registrationFilter} onChange={(e) => setRegistrationFilter(e.target.value as typeof registrationFilter)}><option value="all">All students</option><option value="current">Current registration</option><option value="missing">Needs registration</option></select></label>{profile.role === 'admin' && <label className="children-filter"><span>Status</span><select value={rosterFilter} onChange={(e) => setRosterFilter(e.target.value as typeof rosterFilter)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">Active + archived</option></select></label>}</div><div className="children-directory-count"><strong>{visibleChildren.length}</strong><span>{children.filter((child) => child.active).length} active{profile.role === 'admin' ? ` • ${children.filter((child) => !child.active).length} archived` : ''}</span></div></section>
+      {message && <div className="notice" role="status" aria-live="polite">{message}</div>}
+      <section className="card children-directory-toolbar">
+        <div className="children-directory-controls">
+          <label className="children-search"><span>Search students</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, school, or grade…" aria-label="Search students by name, school, or grade" /></label>
+          <label className="children-filter"><span>Grade</span><select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>{grade}</option>)}</select></label>
+          <label className="children-filter"><span>Registration</span><select value={registrationFilter} onChange={(e) => setRegistrationFilter(e.target.value as typeof registrationFilter)}><option value="all">All registrations</option><option value="current">Current registration</option><option value="missing">Needs registration</option></select></label>
+          {profile.role === 'admin' && <label className="children-filter"><span>Status</span><select value={rosterFilter} onChange={(e) => setRosterFilter(e.target.value as typeof rosterFilter)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">Active + archived</option></select></label>}
+        </div>
+        <div className="children-directory-tools-bottom">
+          <label className="children-demo-visibility"><input type="checkbox" checked={showDemoStudents} onChange={(e) => setShowDemoStudents(e.target.checked)} /><span>Include demo/test students</span></label>
+          {filtersApplied && <button className="ghost children-directory-reset" type="button" onClick={resetDirectoryFilters}>Clear filters</button>}
+          <div className="children-directory-count" role="status" aria-live="polite">
+            <strong>{visibleChildren.length}</strong>
+            <span>shown of {directoryChildren.filter((child) => profile.role === 'admin' ? rosterFilter === 'all' || (rosterFilter === 'active' ? child.active : !child.active) : child.active).length} in selected status<br />{directoryChildren.filter((child) => child.active).length} active{profile.role === 'admin' ? ` • ${directoryChildren.filter((child) => !child.active).length} archived` : ''}</span>
+          </div>
+        </div>
+      </section>
       <section className="children-grid">{visibleChildren.map((child) => { const r = registrationByChild.get(child.id); const age = calculateAge(r?.birth_date ?? null); return <button type="button" className="card child-profile-card" key={child.id} onClick={() => { setProfileTab('profile'); setSelectedChild(child) }}><span className="child-profile-avatar">{child.first_name[0]?.toUpperCase()}</span><span className="child-profile-card-copy"><strong>{childName(child)} {child.is_demo && <span className="children-demo-badge small">Demo</span>} {!child.active && <span className="children-archived-badge">Archived</span>}</strong>{r ? <><small>{[r.grade ? `Grade ${r.grade}` : '', r.school ?? ''].filter(Boolean).join(' • ') || 'School details not added'}</small><span>{formatBirthday(r.birth_date)}{age != null ? ` • Age ${age}` : ''}</span></> : <><small>No current registration</small><span>Open profile to add school-year details</span></>}</span><span className={`child-registration-status ${r ? 'current' : 'missing'}`}>{r ? 'Current' : 'Needs registration'}</span></button> })}</section>
-      {visibleChildren.length === 0 && <section className="card children-empty">No children match that search.</section>}
+      {visibleChildren.length === 0 && <section className="card children-empty" role="status"><strong>No students found</strong><p>{filtersApplied ? 'Try a different name, grade, registration status, or include demo/test students.' : 'No students are available in the current roster.'}</p>{filtersApplied && <button className="ghost" type="button" onClick={resetDirectoryFilters}>Clear filters</button>}</section>}
       <section className="card children-retention-note"><strong>School-year privacy</strong><p>Annual registrations are separate from the permanent child roster so old family, health, schedule, dismissal, and consent information can later be expired and purged under the center’s retention policy.</p></section>
     </main>
 
@@ -394,13 +428,18 @@ export default function ChildrenPage() {
       <div className="children-editor-actions"><button type="button" className="ghost" disabled={saving} onClick={() => setAddingStudent(false)}>Cancel</button><button type="button" className="primary" disabled={saving || !newStudent.first_name.trim() || !newStudent.birth_date} onClick={() => void createStudent()}>{saving ? 'Creating…' : 'Create student'}</button></div>
     </section></div>}
 
-    {selectedChild && !editing && <div className="children-modal-backdrop" role="presentation" onClick={closeProfile}><section className="card children-profile-modal" role="dialog" aria-modal="true" aria-labelledby="child-profile-title" onClick={(e) => e.stopPropagation()}><button type="button" className="children-modal-close" onClick={closeProfile}>×</button>
+    {selectedChild && !editing && <div className="children-modal-backdrop" role="presentation" onClick={closeProfile}><section className="card children-profile-modal" ref={profileDialogRef} role="dialog" aria-modal="true" aria-labelledby="child-profile-title" onClick={(e) => e.stopPropagation()}><button type="button" className="children-modal-close" onClick={closeProfile}>×</button>
       <div className="children-profile-heading"><span className="child-profile-avatar large">{selectedChild.first_name[0]?.toUpperCase()}</span><div><span className="children-eyebrow">Child profile</span><h2 id="child-profile-title">{childName(selectedChild)} {selectedChild.is_demo && <span className="children-demo-badge">Demo/Test</span>} {!selectedChild.active && <span className="children-archived-badge">Archived</span>}</h2><p>{selectedRegistration ? `${selectedRegistration.school_year} ${selectedRegistration.status === 'active' ? 'registration' : 'historical registration'}` : 'No registration record available'}</p></div>{profile.role === 'admin' && <div className="children-profile-heading-actions"><button type="button" className={selectedChild.active ? 'ghost danger-button' : 'primary'} onClick={() => void setChildActive(selectedChild, !selectedChild.active)}>{selectedChild.active ? 'Archive student' : 'Reactivate student'}</button><button type="button" className="ghost" onClick={() => void toggleDemoStudent(selectedChild)}>{selectedChild.is_demo ? 'Include in reports' : 'Mark as Demo/Test'}</button><button type="button" className="primary" onClick={() => openEditor(selectedChild)}>{selectedRegistration ? 'Edit registration' : 'Add registration'}</button></div>}</div>
+      <div className="children-profile-student-nav" aria-label="Browse students in current directory results">
+        <button type="button" className="ghost" disabled={!previousDirectoryChild} onClick={() => previousDirectoryChild && goToDirectoryChild(previousDirectoryChild)} aria-label={previousDirectoryChild ? `Previous student: ${childName(previousDirectoryChild)}` : 'No previous student'}>← Previous</button>
+        <span>{selectedVisibleIndex >= 0 ? `Student ${selectedVisibleIndex + 1} of ${visibleChildren.length}` : 'Opened directly from student link'}</span>
+        <button type="button" className="ghost" disabled={!nextDirectoryChild} onClick={() => nextDirectoryChild && goToDirectoryChild(nextDirectoryChild)} aria-label={nextDirectoryChild ? `Next student: ${childName(nextDirectoryChild)}` : 'No next student'}>Next →</button>
+      </div>
       <nav className="children-profile-tabs" aria-label="Student profile views">
-        <button type="button" className={profileTab === 'profile' ? 'active' : ''} onClick={() => setProfileTab('profile')}>Profile</button>
-        <button type="button" className={profileTab === 'behavior' ? 'active' : ''} onClick={() => setProfileTab('behavior')}>Behavior</button>
-        <button type="button" className={profileTab === 'rewards' ? 'active' : ''} onClick={() => setProfileTab('rewards')}>Rewards</button>
-        <button type="button" className={profileTab === 'progress' ? 'active' : ''} onClick={() => setProfileTab('progress')}>Progress</button>
+        <button type="button" className={profileTab === 'profile' ? 'active' : ''} aria-current={profileTab === 'profile' ? 'page' : undefined} onClick={() => setProfileTab('profile')}>Profile</button>
+        <button type="button" className={profileTab === 'behavior' ? 'active' : ''} aria-current={profileTab === 'behavior' ? 'page' : undefined} onClick={() => setProfileTab('behavior')}>Behavior</button>
+        <button type="button" className={profileTab === 'rewards' ? 'active' : ''} aria-current={profileTab === 'rewards' ? 'page' : undefined} onClick={() => setProfileTab('rewards')}>Rewards</button>
+        <button type="button" className={profileTab === 'progress' ? 'active' : ''} aria-current={profileTab === 'progress' ? 'page' : undefined} onClick={() => setProfileTab('progress')}>Progress</button>
       </nav>
       <nav className={`children-profile-shortcuts ${profileTab === 'profile' ? '' : 'children-profile-hidden'}`} aria-label={`${childName(selectedChild)} profile shortcuts`}><Link href="/attendance"><span>✓</span><strong>Attendance</strong><small>Sign-ins & visits</small></Link><Link href="/card-tracking"><span>◆</span><strong>Behavior</strong><small>Cards & history</small></Link><Link href="/rewards"><span>★</span><strong>Rewards</strong><small>Spins & prizes</small></Link><a href="#child-learning-profile"><span>📘</span><strong>Learning</strong><small>Progress & weekly work</small></a></nav>
       <div className={`children-profile-sections ${profileTab === 'profile' ? '' : 'children-profile-hidden'}`}>

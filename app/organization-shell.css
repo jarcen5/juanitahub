@@ -993,3 +993,17 @@ body:has(.jh-workspace-bar) .topbar{
     grid-template-columns:1fr;
   }
 }
+
+/* Shared navigation accessibility polish */
+.jh-workspace-link:focus-visible,
+.jh-nav-section button:focus-visible,
+.jh-home-link:focus-visible{
+  outline:3px solid #5d9cc7;
+  outline-offset:2px;
+}
+@media (prefers-reduced-motion: reduce){
+  .jh-workspace-link, .jh-nav-section button, .jh-home-link{
+    scroll-behavior:auto;
+    transition:none!important;
+  }
+}

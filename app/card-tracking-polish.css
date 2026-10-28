@@ -1,0 +1,151 @@
+/* Card Tracking: compact staff-facing daily roster controls */
+.card-tracking-today-controls{display:grid;gap:10px;margin:0 0 17px}
+.card-tracking-search{display:block;width:min(470px,100%)}
+.card-tracking-search input{
+  box-sizing:border-box;width:100%;min-height:46px;
+  border:1px solid #cadce9;border-radius:12px;
+  padding:10px 14px;background:#fff;color:#243b53;
+  font:inherit;font-size:15px
+}
+.card-tracking-filter-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.card-tracking-filter-chips button{
+  display:inline-flex;align-items:center;justify-content:center;
+  gap:8px;min-height:39px;padding:8px 13px;border:1px solid #d5e2ed;
+  border-radius:999px;background:#f7fafc;color:#49687f;
+  font:inherit;font-size:13px;font-weight:750;cursor:pointer
+}
+.card-tracking-filter-chips button span{
+  display:inline-grid;place-items:center;min-width:25px;height:23px;
+  padding:0 6px;box-sizing:border-box;border-radius:999px;
+  background:#e7eef5;color:#4a667c;font-size:11px;font-weight:750
+}
+.card-tracking-filter-chips button.active{
+  border-color:#87b7d8;background:#eaf5fd;color:#245d86
+}
+.card-tracking-filter-chips button.active span{background:#d7e9f7;color:#245d86}
+.card-tracking-filter-status{
+  display:flex;flex-wrap:wrap;justify-content:space-between;
+  align-items:center;gap:9px;min-height:27px;
+  color:#6c8293;font-size:12px
+}
+.card-tracking-filter-status .compact-button{min-height:32px;font-size:12px;padding:6px 10px}
+.card-tracking-today-roster{scroll-margin-top:18px}
+.card-tracking-filter-chips button:focus-visible,
+.card-tracking-search input:focus-visible,
+.card-tracking-filter-status button:focus-visible{
+  outline:3px solid #5895c7;outline-offset:2px
+}
+.card-tracking-today-roster .behavior-button:disabled{
+  cursor:not-allowed;opacity:.65
+}
+.card-tracking-today-roster .behavior-button.selected:disabled{
+  opacity:1;cursor:default
+}
+@media(max-width:620px){
+  .card-tracking-search{width:100%}
+  .card-tracking-filter-chips button{flex:1 1 auto;padding:9px 11px}
+}
+html[data-theme="dark"] .card-tracking-search input{
+  background:#223744;border-color:#46657a;color:#edf5fb
+}
+html[data-theme="dark"] .card-tracking-filter-chips button{
+  border-color:#466174;background:#243a49;color:#d5e5ef
+}
+html[data-theme="dark"] .card-tracking-filter-chips button.active{
+  border-color:#79afd6;background:#2a536c;color:#ecf8ff
+}
+html[data-theme="dark"] .card-tracking-filter-chips button span{background:#385368;color:#d6e9f6}
+html[data-theme="dark"] .card-tracking-filter-status{color:#adc2d0}
+
+/* Missed-card follow-up filters use today's existing attendance sign-ins. */
+.card-tracking-missed-filters{
+  display:grid;
+  gap:8px;
+  padding:12px 14px;
+  border:1px solid #d9e5f0;
+  border-radius:13px;
+  background:#f8fbfe;
+}
+.card-tracking-missed-label{
+  color:#375f7f;
+  font-size:12px;
+  font-weight:850;
+}
+.card-tracking-missed-filters small{
+  color:#718699;
+  font-size:12px;
+  line-height:1.5;
+}
+.card-tracking-missed-filters .card-tracking-filter-chips button{
+  font-size:12px;
+  min-height:35px;
+}
+html[data-theme="dark"] .card-tracking-missed-filters{
+  border-color:#405b6e;
+  background:#223542;
+}
+html[data-theme="dark"] .card-tracking-missed-label{
+  color:#c9e2f7;
+}
+html[data-theme="dark"] .card-tracking-missed-filters small{
+  color:#adbfcd;
+}
+
+/* Students > Missed Cards: historical backfill filters */
+.missed-card-roster-tools{display:grid;gap:12px;margin:4px 0 20px}
+.missed-card-search{display:grid;gap:5px;width:min(480px,100%);font-weight:750;color:#405975;font-size:13px}
+.missed-card-search input{
+  box-sizing:border-box;width:100%;min-height:45px;
+  padding:10px 13px;border:1px solid #c9d9e7;
+  border-radius:11px;background:#fff;color:#263f56;font:inherit;font-size:15px
+}
+.missed-card-filter-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.missed-card-filter-chips button{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:39px;padding:8px 12px;border:1px solid #d5e2ed;
+  border-radius:999px;background:#f8fafc;color:#496880;
+  font:inherit;font-size:12px;font-weight:750;cursor:pointer
+}
+.missed-card-filter-chips button span{
+  display:inline-grid;place-items:center;min-width:24px;height:23px;
+  box-sizing:border-box;padding:0 6px;border-radius:999px;
+  background:#e7eef5;color:#44657f;font-size:11px;font-weight:800
+}
+.missed-card-filter-chips button.active{
+  background:#e8f3fd;border-color:#81acd4;color:#255a88
+}
+.missed-card-filter-chips button.active span{background:#d4e8f7;color:#245a86}
+.missed-card-filter-chips button:focus-visible,
+.missed-card-search input:focus-visible,
+.missed-card-result-status button:focus-visible{
+  outline:3px solid #5798ca;outline-offset:2px
+}
+.missed-card-attendance-filters{
+  display:grid;gap:9px;padding:13px 15px;
+  border:1px solid #dce7f0;border-radius:13px;background:#f8fbfe
+}
+.missed-card-attendance-filters strong{font-size:12px;color:#466a85}
+.missed-card-attendance-filters p{margin:0;color:#748a9c;font-size:12px}
+.missed-card-result-status{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:9px;min-height:32px;color:#70869a;font-size:12px
+}
+.missed-card-result-status .compact-button{min-height:32px;padding:6px 12px;font-size:12px}
+.missed-card-roster-tools>.subtle{margin:0;font-size:12px}
+@media(max-width:650px){
+  .missed-card-search{width:100%}
+  .missed-card-filter-chips button{flex:1 1 auto}
+}
+html[data-theme="dark"] .missed-card-search input{
+  border-color:#486276;background:#233844;color:#eef7ff
+}
+html[data-theme="dark"] .missed-card-attendance-filters{
+  background:#223847;border-color:#435d70
+}
+html[data-theme="dark"] .missed-card-attendance-filters strong{color:#b9d6e9}
+html[data-theme="dark"] .missed-card-filter-chips button{
+  border-color:#456173;background:#273f4d;color:#d3e7f4
+}
+html[data-theme="dark"] .missed-card-filter-chips button.active{
+  border-color:#76a7c9;background:#2d5771;color:#fff
+}

@@ -76,10 +76,7 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
       { href: '/learning#goals', label: 'Goals' },
       { href: '/learning#my-week', label: 'My Week' },
       { href: '/learning#library', label: 'Assignment Library' },
-      { href: '/learning#typing', label: 'Typing Lab' },
-      { href: '/learning#quizzes', label: 'Quiz Lab' },
-      { href: '/learning#writing', label: 'Writing Lab' },
-      { href: '/learning#reading', label: 'Reading Lab' },
+      { href: '/learning#labs', label: 'Labs' },
       { href: '/learning#notes', label: 'Notes' },
     ],
   },
@@ -512,7 +509,7 @@ export default function SiteNavigation() {
               const defaultTab = firstHashLink?.split('#')[1] ?? ''
               const currentTab = locationHash || defaultTab
               const active = itemTab
-                ? pathname === itemBase && currentTab === itemTab
+                ? pathname === itemBase && (currentTab === itemTab || (itemTab === 'labs' && ['typing', 'quizzes', 'writing', 'reading'].includes(currentTab)))
                 : activeWorkspaceRouteHref === item.href
 
               if (itemTab) {

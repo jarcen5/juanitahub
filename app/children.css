@@ -88,3 +88,126 @@
 @media(max-width:430px){
   .children-profile-shortcuts{grid-template-columns:1fr}
 }
+
+/* Directory staff usability: clear result feedback and profile-to-profile navigation. */
+.children-page .children-directory-toolbar{
+  align-items:stretch;
+  flex-direction:column;
+  gap:12px;
+}
+.children-page .children-directory-controls{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:end;
+  gap:12px;
+  width:100%;
+}
+.children-page .children-directory-controls .children-search{
+  flex:2 1 320px;
+  min-width:min(100%,280px);
+  grid-column:auto;
+}
+.children-page .children-directory-controls .children-filter{
+  flex:1 1 155px;
+}
+.children-directory-tools-bottom{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:12px;
+  padding-top:12px;
+  border-top:1px solid #e3ebf1;
+}
+.children-demo-visibility{
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  color:#536b81;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+}
+.children-demo-visibility input{
+  width:18px;
+  height:18px;
+  accent-color:#397fba;
+}
+.children-directory-reset{
+  min-height:36px;
+  padding:7px 12px;
+  font-size:12px;
+}
+.children-directory-tools-bottom .children-directory-count{
+  margin-left:auto;
+  align-items:center;
+  text-align:right;
+}
+.children-directory-tools-bottom .children-directory-count span{
+  line-height:1.5;
+  font-size:12px;
+}
+.children-empty{
+  display:grid;
+  justify-items:start;
+  gap:9px;
+}
+.children-empty p{margin:0;color:#637a90}
+.children-empty .ghost{min-height:38px}
+.children-profile-student-nav{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin:0 0 12px;
+  padding:9px 12px;
+  border:1px solid #dce7f1;
+  border-radius:12px;
+  background:#f7fafc;
+}
+.children-profile-student-nav span{
+  text-align:center;
+  color:#657d90;
+  font-size:12px;
+  font-weight:750;
+}
+.children-profile-student-nav button{
+  min-height:36px!important;
+  padding:6px 12px;
+  white-space:nowrap;
+  font-size:12px;
+}
+.children-profile-student-nav button:disabled{opacity:.42;cursor:not-allowed}
+.children-demo-visibility input:focus-visible,
+.children-profile-student-nav button:focus-visible,
+.children-directory-reset:focus-visible{
+  outline:3px solid #5795c8;
+  outline-offset:2px;
+}
+@media(max-width:760px){
+  .children-page .children-directory-controls .children-search{
+    flex:1 1 100%;
+    min-width:0;
+  }
+  .children-page .children-directory-controls .children-filter{
+    flex:1 1 135px;
+  }
+  .children-directory-tools-bottom .children-directory-count{
+    flex:1 1 100%;
+    justify-content:flex-start;
+    text-align:left;
+    margin-left:0;
+  }
+  .children-profile-student-nav{gap:5px;padding:8px}
+  .children-profile-student-nav button{padding:6px 8px;font-size:11px}
+  .children-profile-student-nav span{font-size:11px}
+}
+@media(max-width:460px){
+  .children-page .children-directory-controls .children-filter{flex:1 1 100%}
+}
+html[data-theme="dark"] .children-directory-tools-bottom{border-color:#3e5361}
+html[data-theme="dark"] .children-demo-visibility{color:#c4d7e5}
+html[data-theme="dark"] .children-profile-student-nav{
+  background:#203645;
+  border-color:#3c5b71;
+}
+html[data-theme="dark"] .children-profile-student-nav span{color:#bdd0dd}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import HistoryEntryList from '@/components/HistoryEntryList'
 import { supabase } from '@/lib/supabase'
@@ -50,6 +50,8 @@ type AppSettings = {
 }
 
 type ViewName = 'today' | 'summary' | 'history' | 'children'
+type TodayRosterFilter = 'all' | 'needs-card' | 'recorded'
+type MissedCardFilter = 'all' | 'attended' | 'not-signed-in'
 
 const cards: { name: CardName; label: string; points: number; symbol: string }[] = [
   { name: 'diamond', label: 'Diamond', points: 2, symbol: '◆' },
@@ -132,6 +134,12 @@ export default function Home() {
   const [password, setPassword] = useState('')
   const [newChildName, setNewChildName] = useState('')
   const [activeView, setActiveView] = useState<ViewName>('today')
+  const [todaySearch, setTodaySearch] = useState('')
+  const [todayRosterFilter, setTodayRosterFilter] = useState<TodayRosterFilter>('all')
+  const [missedCardFilter, setMissedCardFilter] = useState<MissedCardFilter>('all')
+  const [signedInTodayIds, setSignedInTodayIds] = useState<Set<number> | null>(null)
+  const [savingTodayChildId, setSavingTodayChildId] = useState<number | null>(null)
+  const dailySaveLock = useRef(false)
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey())
   const [selectedChildId, setSelectedChildId] = useState<number | null>(null)
   const [editingChildId, setEditingChildId] = useState<number | null>(null)
@@ -172,10 +180,10 @@ export default function Home() {
 
     setLoading(true)
 
-    const [profileResult, settingsResult, childrenResult, entriesResult, bonusResult] = await Promise.all([
+    const [profileResult, settingsResult, childrenResult, entriesResult, bonusResult, attendanceResult] = await Promise.all([
       supabase.from('staff_profiles').select('display_name, role, active').eq('user_id', session.user.id).maybeSingle(),
       supabase.from('app_settings').select('wheel_rule_mode, points_per_spin, wheel_rule_notes').eq('id', 1).maybeSingle(),
-      supabase.from('children').select('id, first_name, last_name, active, is_demo').order('first_name').order('last_name'),
+      supabase.from('children').select('id, first_name, last_name, active, is_demo').eq('is_demo', false).order('first_name').order('last_name'),
       supabase
         .from('behavior_entries')
         .select('id, child_id, entry_date, entry_type, card, day_status, points, note, recorded_by')
@@ -188,11 +196,20 @@ export default function Home() {
         .gte('awarded_on', bounds.start)
         .lte('awarded_on', bounds.end)
         .order('awarded_on', { ascending: false }),
+      supabase
+        .from('attendance_visits')
+        .select('child_id')
+        .eq('service_date', today)
+        .eq('participant_type', 'child')
+        .eq('status', 'active'),
     ])
 
     setProfile(profileResult.data as StaffProfile | null)
     setSettings(settingsResult.data as AppSettings | null)
     setChildren((childrenResult.data ?? []) as Child[])
+    // Attendance is only used to prioritize missed cards. If unavailable,
+    // show all missing entries rather than incorrectly categorizing children.
+    setSignedInTodayIds(attendanceResult.error ? null : new Set((attendanceResult.data ?? []).flatMap((visit) => visit.child_id == null ? [] : [visit.child_id])))
     const nextEntries = (entriesResult.data ?? []) as Entry[]
     setEntries(nextEntries)
     setDailyNotes((current) => ({ ...current, ...Object.fromEntries(nextEntries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry.note ?? ''])) }))
@@ -219,76 +236,67 @@ export default function Home() {
     else setMessage('Account created. If email confirmation is enabled, check your inbox. An administrator must also activate your staff profile.')
   }
 
-  async function saveBehavior(childId: number, card: CardName) {
-    if (!session || !profile?.active) return
+  async function saveTodaySelection(childId: number, selection: { card: CardName } | { status: string }) {
+    if (!session || !profile?.active || dailySaveLock.current) return
+    dailySaveLock.current = true
+    setSavingTodayChildId(childId)
+    setMessage('')
 
-    const existing = todayEntries.get(childId)
-    const result = existing
-      ? await supabase
-          .from('behavior_entries')
-          .update({ entry_type: 'behavior', card, day_status: null, note: (dailyNotes[childId] ?? existing.note ?? '').trim() || null })
-          .eq('id', existing.id)
-      : await supabase
-          .from('behavior_entries')
-          .insert({
+    try {
+      const existing = todayEntries.get(childId)
+      const isCard = 'card' in selection
+      const values = {
+        entry_type: isCard ? 'behavior' : 'status',
+        card: isCard ? selection.card : null,
+        day_status: isCard ? null : selection.status,
+        note: (dailyNotes[childId] ?? existing?.note ?? '').trim() || null,
+      }
+      const result = existing
+        ? await supabase.from('behavior_entries').update(values).eq('id', existing.id)
+        : await supabase.from('behavior_entries').insert({
             child_id: childId,
             entry_date: today,
-            entry_type: 'behavior',
-            card,
-            day_status: null,
-            note: (dailyNotes[childId] ?? '').trim() || null,
+            ...values,
             recorded_by: session.user.id,
           })
 
-    if (result.error) {
-      setMessage(result.error.message)
-      return
+      if (result.error) {
+        setMessage(result.error.message)
+        return
+      }
+
+      setMessage(existing
+        ? isCard ? 'Behavior card corrected. The change was added to the audit trail.' : 'Daily status corrected. The change was added to the audit trail.'
+        : isCard ? 'Behavior card saved.' : 'Daily status saved.')
+      await loadAppData()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not save this entry. Please try again.')
+    } finally {
+      dailySaveLock.current = false
+      setSavingTodayChildId(null)
     }
-
-    setMessage(existing ? 'Behavior card corrected. The change was added to the audit trail.' : 'Behavior card saved.')
-    await loadAppData()
-  }
-
-  async function saveStatus(childId: number, status: string) {
-    if (!session || !profile?.active) return
-
-    const existing = todayEntries.get(childId)
-    const result = existing
-      ? await supabase
-          .from('behavior_entries')
-          .update({ entry_type: 'status', card: null, day_status: status, note: (dailyNotes[childId] ?? existing.note ?? '').trim() || null })
-          .eq('id', existing.id)
-      : await supabase
-          .from('behavior_entries')
-          .insert({
-            child_id: childId,
-            entry_date: today,
-            entry_type: 'status',
-            card: null,
-            day_status: status,
-            note: (dailyNotes[childId] ?? '').trim() || null,
-            recorded_by: session.user.id,
-          })
-
-    if (result.error) {
-      setMessage(result.error.message)
-      return
-    }
-
-    setMessage(existing ? 'Daily status corrected. The change was added to the audit trail.' : 'Daily status saved.')
-    await loadAppData()
   }
 
   async function saveTodayNote(childId: number) {
+    if (dailySaveLock.current) return
     const existing = todayEntries.get(childId)
     if (!existing) {
       setMessage('Choose a card or status first. The note will save with that daily entry.')
       return
     }
-    const { error } = await supabase.from('behavior_entries').update({ note: (dailyNotes[childId] ?? '').trim() || null }).eq('id', existing.id)
-    if (error) { setMessage(error.message); return }
-    setMessage('Daily note saved.')
-    await loadAppData()
+    dailySaveLock.current = true
+    setSavingTodayChildId(childId)
+    try {
+      const { error } = await supabase.from('behavior_entries').update({ note: (dailyNotes[childId] ?? '').trim() || null }).eq('id', existing.id)
+      if (error) { setMessage(error.message); return }
+      setMessage('Daily note saved.')
+      await loadAppData()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not save this note. Please try again.')
+    } finally {
+      dailySaveLock.current = false
+      setSavingTodayChildId(null)
+    }
   }
 
   async function addChild() {
@@ -406,6 +414,35 @@ export default function Home() {
     () => new Map(entries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry])),
     [entries, today],
   )
+
+  const recordedActiveCount = useMemo(
+    () => activeChildren.filter((child) => todayEntries.has(child.id)).length,
+    [activeChildren, todayEntries],
+  )
+  const missingActiveCount = activeChildren.length - recordedActiveCount
+  const visibleTodayChildren = useMemo(() => {
+    const query = todaySearch.trim().toLocaleLowerCase()
+    return activeChildren
+      .filter((child) => {
+        const hasEntry = todayEntries.has(child.id)
+        const matchesMissedAttendance = todayRosterFilter !== 'needs-card' || missedCardFilter === 'all' || signedInTodayIds === null
+          || (missedCardFilter === 'attended' ? signedInTodayIds.has(child.id) : !signedInTodayIds.has(child.id))
+        return (!query || childFullName(child).toLocaleLowerCase().includes(query))
+          && (todayRosterFilter === 'all' || (todayRosterFilter === 'recorded' ? hasEntry : !hasEntry))
+          && matchesMissedAttendance
+      })
+      .sort((a, b) => {
+        if (todayRosterFilter === 'all') {
+          const aRecorded = Number(todayEntries.has(a.id))
+          const bRecorded = Number(todayEntries.has(b.id))
+          if (aRecorded !== bRecorded) return aRecorded - bRecorded
+        }
+        return childFullName(a).localeCompare(childFullName(b))
+      })
+  }, [activeChildren, todayEntries, todaySearch, todayRosterFilter, missedCardFilter, signedInTodayIds])
+
+  const missedAttendedCount = activeChildren.filter((child) => !todayEntries.has(child.id) && signedInTodayIds?.has(child.id)).length
+  const missedNotSignedInCount = activeChildren.filter((child) => !todayEntries.has(child.id) && signedInTodayIds && !signedInTodayIds.has(child.id)).length
 
   const monthlyPoints = useMemo(
     () => reportingEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
@@ -583,7 +620,7 @@ export default function Home() {
           </section>
         )}
 
-        {message && <div className="notice">{message}</div>}
+        {message && <div className="notice" role="status" aria-live="polite">{message}</div>}
 
         <section className="grid stats">
           <div className="card stat"><span className="subtle">Active children</span><strong>{reportingActiveChildren.length}</strong></div>
@@ -601,14 +638,41 @@ export default function Home() {
               <h2>Daily cards</h2>
               <p className="subtle">Choose one behavior card or a non-behavior status for each child. Selecting again replaces today's entry and records the correction in the audit trail. Diamond cards add +2 points and 1 bonus monthly spin.</p>
             </div>
-            <div className="roster">
+            <div className="card-tracking-today-controls">
+              <label className="card-tracking-search">
+                <span className="sr-only">Find a child</span>
+                <input type="search" value={todaySearch} onChange={(event) => setTodaySearch(event.target.value)} placeholder="Find a child by name…" aria-label="Search daily card roster" />
+              </label>
+              <div className="card-tracking-filter-chips" role="group" aria-label="Filter daily cards">
+                <button type="button" className={todayRosterFilter === 'all' ? 'active' : ''} aria-pressed={todayRosterFilter === 'all'} onClick={() => setTodayRosterFilter('all')}>All <span>{activeChildren.length}</span></button>
+                <button type="button" className={todayRosterFilter === 'needs-card' ? 'active' : ''} aria-pressed={todayRosterFilter === 'needs-card'} onClick={() => setTodayRosterFilter('needs-card')}>Missed cards <span>{missingActiveCount}</span></button>
+                <button type="button" className={todayRosterFilter === 'recorded' ? 'active' : ''} aria-pressed={todayRosterFilter === 'recorded'} onClick={() => setTodayRosterFilter('recorded')}>Recorded <span>{recordedActiveCount}</span></button>
+              </div>
+              {todayRosterFilter === 'needs-card' && <div className="card-tracking-missed-filters">
+                <span className="card-tracking-missed-label">Missed-card follow-up</span>
+                <div className="card-tracking-filter-chips" role="group" aria-label="Filter missed cards by attendance">
+                  <button type="button" className={missedCardFilter === 'all' ? 'active' : ''} aria-pressed={missedCardFilter === 'all'} onClick={() => setMissedCardFilter('all')}>All missing <span>{missingActiveCount}</span></button>
+                  {signedInTodayIds !== null && <>
+                    <button type="button" className={missedCardFilter === 'attended' ? 'active' : ''} aria-pressed={missedCardFilter === 'attended'} onClick={() => setMissedCardFilter('attended')}>Signed in today <span>{missedAttendedCount}</span></button>
+                    <button type="button" className={missedCardFilter === 'not-signed-in' ? 'active' : ''} aria-pressed={missedCardFilter === 'not-signed-in'} onClick={() => setMissedCardFilter('not-signed-in')}>Not signed in <span>{missedNotSignedInCount}</span></button>
+                  </>}
+                </div>
+                <small>{signedInTodayIds === null ? 'Attendance data is unavailable. Showing all unrecorded children.' : 'Only active, non-demo children without a card or daily status are listed. Signed-in children may need follow-up first.'}</small>
+              </div>}
+              <div className="card-tracking-filter-status" role="status" aria-live="polite">
+                Showing {visibleTodayChildren.length} of {activeChildren.length} active children
+                {(todaySearch || todayRosterFilter !== 'all' || missedCardFilter !== 'all') && <button type="button" className="ghost compact-button" onClick={() => { setTodaySearch(''); setTodayRosterFilter('all'); setMissedCardFilter('all') }}>Clear filters</button>}
+              </div>
+            </div>
+            <div className="roster card-tracking-today-roster">
               {activeChildren.length === 0 && <div className="empty">No active children yet. An admin can add or reactivate students from the Student Directory.</div>}
-              {activeChildren.map((child) => {
+              {activeChildren.length > 0 && visibleTodayChildren.length === 0 && <div className="empty">{todaySearch ? 'No active children match your search and selected filters.' : todayRosterFilter === 'needs-card' ? missedCardFilter === 'attended' ? 'Every signed-in child has a card or daily status recorded.' : missedCardFilter === 'not-signed-in' ? 'No missing entries for children who have not signed in.' : 'All active children have a card or status recorded today.' : 'No cards or statuses have been recorded today.'}</div>}
+              {visibleTodayChildren.map((child) => {
                 const entry = todayEntries.get(child.id)
                 return (
                   <div className="child-row" key={child.id}>
                     <div>
-                      <a className="name-link" href={`/children?child=${child.id}`}>{childFullName(child)}{child.is_demo ? ' • Demo' : ''}</a>
+                      <a className="name-link" href={`/children?child=${child.id}`}>{childFullName(child)}</a>
                       <div className="subtle" style={{ fontSize: 13, marginTop: 4 }}>
                         {entry?.entry_type === 'behavior'
                           ? `${prettyCard(entry.card)} card • ${formatPoints(entry.points)}${entry.card === 'diamond' ? ' • +1 bonus spin' : ''}`
@@ -623,7 +687,9 @@ export default function Home() {
                           <button
                             key={card.name}
                             className={`behavior-button ${card.name} ${entry?.card === card.name ? 'selected' : ''}`}
-                            onClick={() => saveBehavior(child.id, card.name)}
+                            onClick={() => void saveTodaySelection(child.id, { card: card.name })}
+                            disabled={savingTodayChildId !== null || entry?.card === card.name}
+                            aria-pressed={entry?.card === card.name}
                             title={card.name === 'diamond'
                               ? 'Diamond: +2 points and +1 bonus monthly spin'
                               : `${card.label}: ${card.points > 0 ? '+' : ''}${card.points} points`}
@@ -633,7 +699,8 @@ export default function Home() {
                         ))}
                         <select
                           value={entry?.entry_type === 'status' ? entry.day_status ?? '' : ''}
-                          onChange={(event) => event.target.value && saveStatus(child.id, event.target.value)}
+                          onChange={(event) => event.target.value && void saveTodaySelection(child.id, { status: event.target.value })}
+                          disabled={savingTodayChildId !== null}
                           style={{ border: '1px solid #cfd4dc', borderRadius: 10, padding: '9px 10px', background: 'white' }}
                         >
                           <option value="">Status…</option>
@@ -647,7 +714,7 @@ export default function Home() {
                           placeholder="Optional note for today"
                           aria-label={`Daily behavior note for ${childFullName(child)}`}
                         />
-                        <button className="ghost compact-button" disabled={!entry} onClick={() => void saveTodayNote(child.id)}>Save note</button>
+                        <button className="ghost compact-button" disabled={!entry || savingTodayChildId !== null} onClick={() => void saveTodayNote(child.id)}>{savingTodayChildId === child.id ? 'Saving…' : 'Save note'}</button>
                       </div>
                     </div>
                   </div>

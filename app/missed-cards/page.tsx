@@ -9,6 +9,8 @@ type Child = { id: number; first_name: string; last_name: string | null; active:
 type CardRule = { card: string; points: number; display_order: number }
 type ExistingEntry = { id: number; child_id: number; entry_type: 'behavior' | 'status'; card: string | null; day_status: string | null }
 type Draft = { entry_type: 'behavior' | 'status'; card: string | null; day_status: string | null; note: string }
+type RosterView = 'missing' | 'recorded' | 'selected'
+type AttendanceView = 'all' | 'signed-in' | 'not-signed-in'
 
 const statuses = [
   ['absent', 'Absent'],
@@ -57,6 +59,10 @@ export default function MissedCardsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState(false)
+  const [search, setSearch] = useState('')
+  const [rosterView, setRosterView] = useState<RosterView>('missing')
+  const [attendanceView, setAttendanceView] = useState<AttendanceView>('all')
+  const [signedInIds, setSignedInIds] = useState<Set<number> | null>(null)
 
   const maxDate = yesterday()
 
@@ -96,10 +102,15 @@ export default function MissedCardsPage() {
       return
     }
 
-    const [childrenResult, rulesResult, existingResult] = await Promise.all([
-      supabase.from('children').select('id, first_name, last_name, active').eq('active', true).order('first_name').order('last_name'),
+    const [childrenResult, rulesResult, existingResult, attendanceResult] = await Promise.all([
+      supabase.from('children').select('id, first_name, last_name, active').eq('active', true).eq('is_demo', false).order('first_name').order('last_name'),
       supabase.from('card_rules').select('card, points, display_order').order('display_order'),
       supabase.from('behavior_entries').select('id, child_id, entry_type, card, day_status').eq('entry_date', date),
+      supabase.from('attendance_visits')
+        .select('child_id')
+        .eq('service_date', date)
+        .eq('participant_type', 'child')
+        .eq('status', 'active'),
     ])
 
     const loadError = childrenResult.error || rulesResult.error || existingResult.error
@@ -111,6 +122,11 @@ export default function MissedCardsPage() {
     setChildren((childrenResult.data ?? []) as Child[])
     setRules((rulesResult.data ?? []) as CardRule[])
     setExisting((existingResult.data ?? []) as ExistingEntry[])
+    // Attendance is optional for these filters: if unavailable, don't mistake
+    // missing attendance data for children who were absent.
+    setSignedInIds(attendanceResult.error
+      ? null
+      : new Set((attendanceResult.data ?? []).flatMap((visit) => visit.child_id == null ? [] : [visit.child_id])))
     setDrafts({})
     setLoading(false)
   }
@@ -120,6 +136,29 @@ export default function MissedCardsPage() {
     () => Object.values(drafts).filter((draft) => Boolean(draft.card || draft.day_status)).length,
     [drafts],
   )
+  const missingChildren = useMemo(
+    () => children.filter((child) => !existingByChild.has(child.id)),
+    [children, existingByChild],
+  )
+  const recordedCount = children.length - missingChildren.length
+  const signedInMissingCount = signedInIds === null ? 0 : missingChildren.filter((child) => signedInIds.has(child.id)).length
+  const notSignedInMissingCount = signedInIds === null ? 0 : missingChildren.length - signedInMissingCount
+  const visibleChildren = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase()
+    return children.filter((child) => {
+      const hasRecord = existingByChild.has(child.id)
+      const hasDraft = Boolean(drafts[child.id]?.card || drafts[child.id]?.day_status)
+      if (query && !childName(child).toLocaleLowerCase().includes(query)) return false
+      if (rosterView === 'missing' && hasRecord) return false
+      if (rosterView === 'recorded' && !hasRecord) return false
+      if (rosterView === 'selected' && !hasDraft) return false
+      if (rosterView === 'missing' && signedInIds !== null) {
+        if (attendanceView === 'signed-in' && !signedInIds.has(child.id)) return false
+        if (attendanceView === 'not-signed-in' && signedInIds.has(child.id)) return false
+      }
+      return true
+    })
+  }, [children, existingByChild, drafts, search, rosterView, attendanceView, signedInIds])
 
   function chooseCard(childId: number, card: string) {
     setDrafts((current) => ({
@@ -214,11 +253,11 @@ export default function MissedCardsPage() {
           </div>
           <label className="field" style={{ marginBottom: 0, minWidth: 210 }}>
             <span style={{ fontWeight: 700 }}>Missed date</span>
-            <input type="date" value={date} max={maxDate} onChange={(event) => event.target.value && setDate(event.target.value)} />
+            <input type="date" value={date} max={maxDate} onChange={(event) => { if (event.target.value) { setDate(event.target.value); setRosterView('missing'); setAttendanceView('all') } }} />
           </label>
         </div>
 
-        {message && <div className={`notice ${error ? 'error' : 'success'}`}>{message}</div>}
+        {message && <div className={`notice ${error ? 'error' : 'success'}`} role="status" aria-live="polite">{message}</div>}
 
         <section className="card" style={{ marginBottom: 16 }}>
           <div className="section-heading">
@@ -233,14 +272,44 @@ export default function MissedCardsPage() {
             <strong>◆ Diamond:</strong> +2 points and +1 additional monthly spin.
           </div>
 
-          <div className="roster">
-            {children.map((child) => {
+          <div className="missed-card-roster-tools">
+            <label className="missed-card-search">
+              <span>Find a child</span>
+              <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search children by name…" />
+            </label>
+            <div className="missed-card-filter-chips" role="group" aria-label="Filter missed-card entries">
+              <button type="button" className={rosterView === 'missing' ? 'active' : ''} aria-pressed={rosterView === 'missing'} onClick={() => setRosterView('missing')}>Needs an entry <span>{missingChildren.length}</span></button>
+              <button type="button" className={rosterView === 'recorded' ? 'active' : ''} aria-pressed={rosterView === 'recorded'} onClick={() => setRosterView('recorded')}>Already recorded <span>{recordedCount}</span></button>
+              <button type="button" className={rosterView === 'selected' ? 'active' : ''} aria-pressed={rosterView === 'selected'} onClick={() => setRosterView('selected')}>Selected <span>{selectedCount}</span></button>
+            </div>
+            {rosterView === 'missing' && <div className="missed-card-attendance-filters">
+              <strong>Filter by attendance on {prettyDate(date)}</strong>
+              {signedInIds === null
+                ? <p>Attendance records could not be loaded. All children needing an entry remain visible.</p>
+                : <div className="missed-card-filter-chips" role="group" aria-label="Filter missing entries by selected-date attendance">
+                    <button type="button" className={attendanceView === 'all' ? 'active' : ''} aria-pressed={attendanceView === 'all'} onClick={() => setAttendanceView('all')}>All missing <span>{missingChildren.length}</span></button>
+                    <button type="button" className={attendanceView === 'signed-in' ? 'active' : ''} aria-pressed={attendanceView === 'signed-in'} onClick={() => setAttendanceView('signed-in')}>Signed in <span>{signedInMissingCount}</span></button>
+                    <button type="button" className={attendanceView === 'not-signed-in' ? 'active' : ''} aria-pressed={attendanceView === 'not-signed-in'} onClick={() => setAttendanceView('not-signed-in')}>Not signed in <span>{notSignedInMissingCount}</span></button>
+                  </div>}
+            </div>}
+            <div className="missed-card-result-status" role="status" aria-live="polite">
+              <span>Showing {visibleChildren.length} of {children.length} active, non-demo children</span>
+              {(search || rosterView !== 'missing' || attendanceView !== 'all') && <button className="ghost compact-button" type="button" onClick={() => { setSearch(''); setRosterView('missing'); setAttendanceView('all') }}>Clear filters</button>}
+            </div>
+            <p className="subtle">Selections are kept when switching filters. Existing records cannot be overwritten here.</p>
+          </div>
+
+          <div className="roster missed-card-filtered-roster">
+            {!loading && visibleChildren.length === 0 && <div className="empty">
+              {search ? 'No children match your search and filters.' : rosterView === 'recorded' ? 'No children have an existing entry for this date.' : rosterView === 'selected' ? 'No cards or statuses have been selected yet.' : attendanceView === 'signed-in' ? 'No signed-in children are missing a card or status for this date.' : attendanceView === 'not-signed-in' ? 'No children without sign-ins are missing a card or status.' : 'All active children have a card or status recorded for this date.'}
+            </div>}
+            {visibleChildren.map((child) => {
               const saved = existingByChild.get(child.id)
               const draft = drafts[child.id]
               return (
                 <div className="child-row" key={child.id} style={{ alignItems: 'start' }}>
                   <div style={{ minWidth: 190 }}>
-                    <strong>{childName(child)}</strong>{!child.active && <span className="badge archived-badge">Archived</span>}
+                    <strong>{childName(child)}</strong>
                     <div className="subtle" style={{ fontSize: 13, marginTop: 4 }}>
                       {saved
                         ? `Already entered: ${saved.entry_type === 'behavior' ? `${pretty(saved.card)} card` : pretty(saved.day_status)}`
