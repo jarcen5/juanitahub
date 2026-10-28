@@ -435,3 +435,123 @@ html[data-theme="dark"] .reward-wheel-reference .reward-wheel-presentation-bar{b
 html[data-theme="dark"] .reward-wheel-reference .reward-wheel-presentation-bar strong{color:#e4edf5}
 html[data-theme="dark"] .reward-wheel-reference .reward-wheel-legend{background:#203542}
 html[data-theme="dark"] .reward-wheel-reference .reward-wheel-result-footer{background:#1f4b35;color:#d9f3e2;border-color:#386f52}
+
+/* Winner reveal: one centered wheel, with the selected slice spotlighted. */
+.reward-wheel-reference .reward-wheel-layout{
+  grid-template-columns:minmax(0,1fr);
+  justify-items:center;
+  gap:0;
+  padding:8px 16px 18px;
+}
+.reward-wheel-reference .reward-wheel-stage{
+  width:min(100%,760px);
+  max-width:100%;
+}
+.reward-wheel-reference .reward-wheel-segment{
+  opacity:1;
+  transition:opacity .45s ease;
+}
+.reward-wheel-reference .reward-wheel-segment.is-muted{
+  opacity:.24;
+}
+.reward-wheel-reference .reward-wheel-segment.is-winner{
+  opacity:1;
+}
+.reward-wheel-reference .reward-wheel-segment.is-winner .reward-wheel-slice{
+  stroke:rgba(255,255,255,.92);
+  stroke-width:1.25;
+}
+.reward-wheel-reference .reward-wheel-win-popup{
+  position:absolute;
+  left:50%;
+  bottom:11%;
+  transform:translateX(-50%);
+  z-index:12;
+  display:grid;
+  width:min(350px,70%);
+  overflow:hidden;
+  border:5px solid #fff;
+  border-radius:18px;
+  background:#20252e;
+  color:#fff;
+  box-shadow:0 9px 24px rgba(25,33,45,.30);
+  animation:reward-win-popup-in .34s ease-out both;
+}
+.reward-wheel-reference .reward-wheel-win-title{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:15px 14px;
+  text-align:center;
+  font-size:clamp(16px,2vw,24px);
+  line-height:1.25;
+  overflow-wrap:anywhere;
+}
+.reward-wheel-reference .reward-wheel-win-title strong{
+  color:#fff;
+  font-weight:850;
+  text-shadow:0 1px 2px rgba(0,0,0,.22);
+}
+.reward-wheel-reference .reward-wheel-win-sparkle{flex:none;font-size:19px;color:#fff}
+.reward-wheel-reference .reward-wheel-win-close{
+  min-height:44px;
+  width:100%;
+  padding:10px 16px;
+  border:0;
+  border-radius:0;
+  background:#25262d;
+  color:#fff;
+  font:inherit;
+  font-size:15px;
+  font-weight:850;
+  cursor:pointer;
+}
+.reward-wheel-reference .reward-wheel-win-close:hover{background:#41444c}
+.reward-wheel-reference .reward-wheel-win-close:focus-visible{
+  outline:3px solid #a6d9fb;
+  outline-offset:-3px;
+}
+@keyframes reward-win-popup-in{
+  from{opacity:0;transform:translate(-50%,12px) scale(.95)}
+  to{opacity:1;transform:translate(-50%,0) scale(1)}
+}
+.reward-wheel-reference:fullscreen{
+  grid-template-rows:auto minmax(0,1fr);
+}
+.reward-wheel-reference:fullscreen .reward-wheel-layout{
+  grid-template-columns:minmax(0,1fr);
+  place-items:center;
+  min-height:0;
+  height:100%;
+  padding:4px 12px 10px;
+}
+.reward-wheel-reference:fullscreen .reward-wheel-stage{
+  width:min(100%,calc(100vh - 110px),95vw);
+  max-width:100%;
+  justify-self:center;
+  align-self:center;
+}
+.reward-wheel-reference:fullscreen .reward-wheel-win-popup{
+  width:min(385px,70%);
+}
+@media(max-width:760px){
+  .reward-wheel-reference .reward-wheel-layout,
+  .reward-wheel-reference:fullscreen .reward-wheel-layout{
+    grid-template-columns:minmax(0,1fr);
+    padding:8px;
+  }
+  .reward-wheel-reference:fullscreen .reward-wheel-stage{
+    width:min(100%,calc(100vh - 130px),94vw);
+  }
+  .reward-wheel-reference .reward-wheel-win-popup{
+    width:min(320px,78%);
+    bottom:9%;
+    border-width:4px;
+  }
+  .reward-wheel-reference .reward-wheel-win-title{padding:10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .reward-wheel-reference .reward-wheel-win-popup{animation:none}
+  .reward-wheel-reference .reward-wheel-segment{transition:none}
+}
