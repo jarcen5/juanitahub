@@ -12,6 +12,7 @@ type GoalBonus={id:number;child_id:number;points:number;awarded_on:string;note:s
 type Profile={display_name:string;role:'staff'|'admin';active:boolean}
 type Settings={wheel_rule_mode:'pending'|'points_per_spin'|'tiers';points_per_spin:number|null}
 type View='summary'|'history'
+type SummaryFilter='all'|'recorded'|'missing'
 
 function currentMonthKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
 function monthBounds(key:string){const [y,m]=key.split('-').map(Number);const end=new Date(y,m,0);return{start:key+'-01',end:[end.getFullYear(),String(end.getMonth()+1).padStart(2,'0'),String(end.getDate()).padStart(2,'0')].join('-')}}
@@ -30,6 +31,8 @@ export default function BehaviorReportsPage(){
   const [settings,setSettings]=useState<Settings|null>(null)
   const [month,setMonth]=useState(currentMonthKey())
   const [view,setView]=useState<View>('summary')
+  const [summarySearch,setSummarySearch]=useState('')
+  const [summaryFilter,setSummaryFilter]=useState<SummaryFilter>('all')
   const [childId,setChildId]=useState<number|null>(null)
   const [loading,setLoading]=useState(true)
   const [message,setMessage]=useState('')
@@ -64,12 +67,21 @@ export default function BehaviorReportsPage(){
   const summaryChildren=activeChildren
   const spinsFor=(value:number,diamonds:number)=>settings?.wheel_rule_mode==='points_per_spin'&&Number(settings.points_per_spin)>0?Math.max(0,Math.round(value/Number(settings.points_per_spin)))+diamonds:null
   const summaries=useMemo(()=>summaryChildren.map((c)=>{const ce=realEntries.filter((e)=>e.child_id===c.id);const cb=realBonuses.filter((b)=>b.child_id===c.id);const behavior=ce.reduce((s,e)=>s+e.points,0);const bonus=cb.reduce((s,b)=>s+b.points,0);const diamonds=ce.filter((e)=>e.card==='diamond').length;return{...c,entries:ce.length,behavior,bonus,total:behavior+bonus,diamonds,spins:spinsFor(behavior+bonus,diamonds)}}),[summaryChildren,realEntries,realBonuses,settings])
+  const visibleSummaries=useMemo(()=>{
+    const query=summarySearch.trim().toLocaleLowerCase()
+    return summaries.filter((row)=>(!query||childName(row).toLocaleLowerCase().includes(query))&&(summaryFilter==='all'||(summaryFilter==='recorded'?row.entries>0:row.entries===0)))
+  },[summaries,summarySearch,summaryFilter])
+  const recordedStudents=summaries.filter((row)=>row.entries>0).length
+  const missingStudents=summaries.length-recordedStudents
   const summaryTotals=useMemo(()=>({
     recordedDays:summaries.reduce((sum,c)=>sum+c.entries,0),
     points:summaries.reduce((sum,c)=>sum+c.total,0),
     spins:summaries.reduce((sum,c)=>sum+(c.spins??0),0),
   }),[summaries])
   const selected=activeChildren.find((c)=>c.id===childId)??null
+  const selectedPosition=activeChildren.findIndex((c)=>c.id===childId)
+  const previousChild=selectedPosition>0?activeChildren[selectedPosition-1]:null
+  const nextChild=selectedPosition>=0&&selectedPosition<activeChildren.length-1?activeChildren[selectedPosition+1]:null
   const selectedEntries=entries.filter((e)=>e.child_id===childId)
   const selectedBonuses=bonuses.filter((b)=>b.child_id===childId)
   const selectedPoints=selectedEntries.reduce((s,e)=>s+e.points,0)+selectedBonuses.reduce((s,b)=>s+b.points,0)
@@ -83,9 +95,9 @@ export default function BehaviorReportsPage(){
   return <div className="shell"><header className="topbar"><div className="brand">Juanita Hub<small>Behavior Reports</small></div><div className="toolbar"><span>{profile.display_name} <span className="badge">{profile.role}</span></span></div></header>
     <main className="main behavior-reports-page">
       <section className="hero"><div><span className="children-eyebrow">Reports</span><h1>Behavior Summary & History</h1><p className="subtle">Monthly behavior data lives here; the Behavior workspace stays focused on today.</p></div><a className="primary" href="/card-tracking" style={{textDecoration:'none'}}>Open Today’s Behavior</a></section>
-      {message&&<div className="notice">{message}</div>}
+      {message&&<div className="notice" role="status" aria-live="polite">{message}</div>}
       <section className="month-bar card"><div><span className="subtle month-label">Viewing month</span><strong>{monthLabel(month)}</strong></div><div className="toolbar"><button className="ghost compact-button" onClick={()=>setMonth(shiftMonth(month,-1))}>← Previous</button><input type="month" value={month} max={currentMonthKey()} onChange={(e)=>e.target.value&&setMonth(e.target.value)} /><button className="ghost compact-button" disabled={month===currentMonthKey()} onClick={()=>setMonth(shiftMonth(month,1))}>Next →</button></div></section>
-      <nav className="nav"><button className={view==='summary'?'active':''} onClick={()=>setView('summary')}>Monthly Summary</button><button className={view==='history'?'active':''} onClick={()=>setView('history')}>Child History</button></nav>
+      <nav className="nav" aria-label="Behavior report views"><button type="button" className={view==='summary'?'active':''} aria-current={view==='summary'?'page':undefined} onClick={()=>setView('summary')}>Monthly Summary</button><button type="button" className={view==='history'?'active':''} aria-current={view==='history'?'page':undefined} onClick={()=>setView('history')}>Child History</button></nav>
 
       {view==='summary'&&<section className="behavior-summary-layout">
         <section className="card behavior-student-summary">
@@ -98,12 +110,24 @@ export default function BehaviorReportsPage(){
             </div>
           </div>
 
-          {summaries.length>0&&<div className="behavior-summary-table">
+          <div className="behavior-summary-filters">
+            <label className="behavior-summary-search"><span>Find a student</span><input type="search" placeholder="Search student names…" value={summarySearch} onChange={(event)=>setSummarySearch(event.target.value)} /></label>
+            <div className="behavior-summary-filter-chips" role="group" aria-label="Filter monthly student activity">
+              <button type="button" className={summaryFilter==='all'?'active':''} aria-pressed={summaryFilter==='all'} onClick={()=>setSummaryFilter('all')}>All <span>{summaries.length}</span></button>
+              <button type="button" className={summaryFilter==='recorded'?'active':''} aria-pressed={summaryFilter==='recorded'} onClick={()=>setSummaryFilter('recorded')}>Recorded this month <span>{recordedStudents}</span></button>
+              <button type="button" className={summaryFilter==='missing'?'active':''} aria-pressed={summaryFilter==='missing'} onClick={()=>setSummaryFilter('missing')}>No entries this month <span>{missingStudents}</span></button>
+            </div>
+            <div className="behavior-summary-filter-footer" role="status" aria-live="polite">
+              <span>Showing {visibleSummaries.length} of {summaries.length} active students</span>
+              {(summarySearch||summaryFilter!=='all')&&<button type="button" className="ghost" onClick={()=>{setSummarySearch('');setSummaryFilter('all')}}>Clear filters</button>}
+            </div>
+          </div>
+          {visibleSummaries.length>0&&<div className="behavior-summary-table">
             <div className="behavior-summary-table-head" aria-hidden="true">
               <span>Student</span><span>Recorded days</span><span>Points</span><span>Spins</span><span></span>
             </div>
             <div className="behavior-summary-table-body">
-              {summaries.map((c)=><button className="behavior-summary-student-row" key={c.id} onClick={()=>{setChildId(c.id);setView('history')}}>
+              {visibleSummaries.map((c)=><button type="button" className="behavior-summary-student-row" key={c.id} onClick={()=>{setChildId(c.id);setView('history')}}>
                 <span className="behavior-summary-student">
                   <span className="behavior-summary-avatar">{c.first_name[0]?.toUpperCase()}</span>
                   <span><strong>{childName(c)}</strong><small>{c.bonus>0?`+${c.bonus} Learning Goal bonus`:'Behavior activity'}</small></span>
@@ -115,7 +139,7 @@ export default function BehaviorReportsPage(){
               </button>)}
             </div>
           </div>}
-          {summaries.length===0&&<div className="empty">No behavior records for this month.</div>}
+          {visibleSummaries.length===0&&<div className="empty behavior-summary-empty">{summaries.length===0?'No active students are available for reporting.':summarySearch?'No students match this search and filter.':summaryFilter==='recorded'?'No students have recorded cards or statuses this month.':'Every active student has a card or status entry this month.'}</div>}
         </section>
 
         <aside className="card behavior-card-totals">
@@ -130,6 +154,11 @@ export default function BehaviorReportsPage(){
 
       {view==='history'&&<section className="history-layout">
         <aside className="card history-sidebar"><h2>Choose child</h2><div className="field" style={{marginBottom:0}}><select value={childId??''} onChange={(e)=>setChildId(Number(e.target.value))}><option value="" disabled>Select a child…</option>{activeChildren.map((c)=><option key={c.id} value={c.id}>{childName(c)}</option>)}</select></div>
+          {selected&&<div className="behavior-history-switcher" aria-label="Browse student histories">
+            <button type="button" className="ghost" disabled={!previousChild} onClick={()=>previousChild&&setChildId(previousChild.id)}>← Previous</button>
+            <span>{selectedPosition+1} of {activeChildren.length} students</span>
+            <button type="button" className="ghost" disabled={!nextChild} onClick={()=>nextChild&&setChildId(nextChild.id)}>Next →</button>
+          </div>}
           {selected&&<div className="history-mini-stats"><div><span className="subtle">Points</span><strong>{points(selectedPoints)}</strong></div><div><span className="subtle">Spins</span><strong>{selectedSpins==null?'Pending':selectedSpins}</strong></div><div><span className="subtle">Diamonds</span><strong>{selectedDiamonds}</strong></div><div><span className="subtle">Entries</span><strong>{selectedEntries.length}</strong></div></div>}
         </aside>
         <div className="card history-panel">{selected?<><div className="history-heading"><div><h2>{childName(selected)}</h2><p className="subtle">{monthLabel(month)} behavior history</p></div><a className="ghost" href={'/children?child='+selected.id} style={{textDecoration:'none'}}>Open student profile</a></div>
