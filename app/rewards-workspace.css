@@ -207,3 +207,120 @@
 @media(max-width:620px){.reward-wheel-presentation-bar{flex-wrap:wrap}.reward-wheel-toolbar{width:100%;justify-content:space-between}.reward-wheel-toolbar button{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.reward-wheel-confetti{display:none}}
 html[data-theme="dark"] .reward-wheel-presentation{background:radial-gradient(circle at 35% 35%,#263e52,#172934)}
+
+/* Spin-the-wheel-inspired clean presentation: central fixed spin control. */
+.reward-wheel-presentation{
+  background:linear-gradient(145deg,#f7f9ff 0%,#edf4fc 100%);
+}
+.reward-wheel-layout{align-items:center;min-width:0}
+.reward-wheel-stage{
+  padding:12px;
+  box-sizing:border-box;
+  aspect-ratio:1;
+  width:min(100%,540px);
+}
+.reward-wheel-svg{
+  border:7px solid #fff;
+  box-shadow:0 0 0 2px #d7e5f4,0 16px 38px rgba(43,70,111,.18);
+}
+.reward-wheel-slice{stroke:#fff;stroke-width:1}
+.reward-slice-1,.reward-dot-1{fill:#ff7596;background:#ff7596}
+.reward-slice-2,.reward-dot-2{fill:#f9bc52;background:#f9bc52}
+.reward-slice-3,.reward-dot-3{fill:#62bfac;background:#62bfac}
+.reward-slice-4,.reward-dot-4{fill:#7b9df1;background:#7b9df1}
+.reward-slice-5,.reward-dot-5{fill:#b68ee9;background:#b68ee9}
+.reward-slice-6,.reward-dot-6{fill:#ff9770;background:#ff9770}
+.reward-slice-7,.reward-dot-7{fill:#71c8e6;background:#71c8e6}
+.reward-slice-8,.reward-dot-8{fill:#e779bb;background:#e779bb}
+.reward-wheel-center-hub{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  z-index:7;
+  width:24%;
+  aspect-ratio:1;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 4px 20px rgba(22,51,83,.24);
+  padding:5px;
+}
+.reward-wheel-center-spin,.reward-wheel-center-static{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  gap:2px;
+  width:100%;
+  height:100%;
+  min-width:0;
+  border:0;
+  border-radius:50%;
+  background:linear-gradient(145deg,#417fc8,#245caa);
+  color:white;
+  font:inherit;
+  text-align:center;
+  cursor:pointer;
+  box-shadow:inset 0 2px 5px rgba(255,255,255,.23);
+}
+.reward-wheel-center-spin strong{font-size:clamp(12px,1.8vw,22px);line-height:1.1;letter-spacing:.045em}
+.reward-wheel-center-spin small,.reward-wheel-center-static small{font-size:clamp(8px,1vw,12px);line-height:1.1;max-width:100%;overflow-wrap:anywhere}
+.reward-wheel-center-spin span{font-size:clamp(13px,1.6vw,20px);line-height:1}
+.reward-wheel-center-spin:hover:not(:disabled){background:linear-gradient(145deg,#5094db,#2b6ac0)}
+.reward-wheel-center-spin:focus-visible{outline:4px solid #f9c75e;outline-offset:4px}
+.reward-wheel-center-spin:disabled{cursor:not-allowed;opacity:.72}
+.reward-wheel-center-static strong{font-size:clamp(10px,1.5vw,18px)}
+.reward-wheel-pointer{z-index:8;top:0;color:#345d92;text-shadow:0 2px 0 white}
+.reward-result-banner{bottom:0;pointer-events:none}
+.reward-wheel-presentation:fullscreen{
+  padding:clamp(8px,1.4vh,18px);
+  grid-template-rows:auto minmax(0,1fr);
+}
+.reward-wheel-presentation:fullscreen .reward-wheel-presentation-bar{
+  min-height:0;
+  padding:7px 14px;
+}
+.reward-wheel-presentation:fullscreen .reward-wheel-layout{
+  min-height:0;
+  height:100%;
+  box-sizing:border-box;
+  grid-template-columns:minmax(0,1fr) minmax(220px,330px);
+  gap:clamp(10px,2vw,24px);
+  padding:clamp(8px,1.5vh,16px);
+}
+.reward-wheel-presentation:fullscreen .reward-wheel-stage{
+  width:min(100%,calc(100vh - 165px),calc(100vw - 410px));
+  max-width:100%;
+  aspect-ratio:1;
+  align-self:center;
+  justify-self:center;
+  padding:10px;
+}
+.reward-wheel-presentation:fullscreen .reward-wheel-legend{
+  height:100%;
+  min-height:0;
+  max-height:none;
+  overflow:auto;
+}
+.reward-wheel-presentation:fullscreen .reward-wheel-center-spin strong{font-size:clamp(14px,2.2vw,27px)}
+.reward-wheel-presentation:fullscreen .reward-wheel-center-spin small{font-size:clamp(8px,1.1vw,13px)}
+.reward-wheel-presentation:fullscreen .reward-wheel-center-hub{width:23%}
+@media(max-width:900px){
+  .reward-wheel-presentation:fullscreen .reward-wheel-layout{
+    grid-template-columns:minmax(0,1fr) minmax(175px,240px);
+  }
+  .reward-wheel-presentation:fullscreen .reward-wheel-stage{
+    width:min(100%,calc(100vh - 145px),calc(100vw - 280px));
+  }
+}
+@media(max-width:680px){
+  .reward-wheel-presentation:fullscreen .reward-wheel-layout{display:grid;grid-template-columns:minmax(0,1fr);place-items:center}
+  .reward-wheel-presentation:fullscreen .reward-wheel-stage{width:min(100%,calc(100vh - 155px),90vw)}
+  .reward-wheel-presentation:fullscreen .reward-wheel-legend{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+ .reward-wheel-center-spin{transition:none}
+}
+html[data-theme="dark"] .reward-wheel-center-hub{background:#e7edf7}
