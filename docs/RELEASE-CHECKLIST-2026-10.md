@@ -27,8 +27,9 @@ instructions, not an automatic merge or close operation.
    commit must have a successful build. Confirm the *combined integration*
    candidate also builds, since individually successful PRs may still conflict.
 2. Check the Rewards database migration state. The admin-only spin-revocation
-   migration was previously applied manually; reconcile the migration history
-   before any production release. Never re-run the Bethel spin correction.
+   migration is already applied in Supabase as version **20261028192938**;
+   the GitHub SQL filename now matches that version. Check migration history
+   before any production release and never re-run the Bethel spin correction.
 3. Sign in as staff and admin in a preview. Check navigation permissions,
    direct links, dashboard, and normal and dark themes.
 4. On a **demo/test** student only, check attendance sign-in and duplicate
