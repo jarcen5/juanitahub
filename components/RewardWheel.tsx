@@ -70,6 +70,7 @@ export default function RewardWheel({
   const [celebrating, setCelebrating] = useState(false)
   const audioRef = useRef<AudioContext | null>(null)
   const previousSpinRef = useRef(false)
+  const lastTickAt = useRef(0)
 
   function playTone(frequency: number, duration: number, delay = 0, volume = 0.035) {
     if (!soundEnabled) return
@@ -80,7 +81,7 @@ export default function RewardWheel({
       const oscillator = context.createOscillator()
       const gain = context.createGain()
       const start = context.currentTime + delay
-      oscillator.type = 'sine'
+      oscillator.type = duration <= 0.09 ? 'triangle' : 'sine'
       oscillator.frequency.setValueAtTime(frequency, start)
       gain.gain.setValueAtTime(0.001, start)
       gain.gain.exponentialRampToValueAtTime(volume, start + 0.012)
@@ -99,15 +100,24 @@ export default function RewardWheel({
       setCelebrating(false)
       previousSpinRef.current = true
       if (!soundEnabled) return
-      const timer = window.setInterval(() => playTone(440, 0.035, 0, 0.015), 160)
+      const startedAt = performance.now()
+      const timer = window.setInterval(() => {
+        const elapsed = performance.now() - startedAt
+        const interval = elapsed < 2000 ? 130 : elapsed < 3300 ? 220 : 370
+        if (elapsed - lastTickAt.current >= interval) {
+          lastTickAt.current = elapsed
+          playTone(410 + (Math.round(elapsed / 130) % 3) * 80, 0.045, 0, 0.026)
+        }
+      }, 35)
       return () => window.clearInterval(timer)
     }
     if (previousSpinRef.current && resultName) {
       previousSpinRef.current = false
       setCelebrating(true)
-      playTone(523, 0.18)
-      playTone(659, 0.18, 0.14)
-      playTone(784, 0.32, 0.29)
+      playTone(523, 0.19, 0, 0.06)
+      playTone(659, 0.19, 0.13, 0.06)
+      playTone(784, 0.22, 0.25, 0.07)
+      playTone(1047, 0.5, 0.39, 0.055)
       const timeout = window.setTimeout(() => setCelebrating(false), 2600)
       return () => window.clearTimeout(timeout)
     }
@@ -136,7 +146,7 @@ export default function RewardWheel({
       const endAngle = index === prizes.length - 1 ? 360 : cursor + portion * 360
       cursor = endAngle
       const middle = (startAngle + endAngle) / 2
-      const labelPoint = polar(160, 160, 101, middle)
+      const labelPoint = polar(160, 160, 103, middle)
       const chance = totalWeight > 0 ? (Number(prize.weight) / totalWeight) * 100 : 100 / Math.max(prizes.length, 1)
       return { prize, startAngle, endAngle, labelPoint, index, chance }
     })
@@ -195,6 +205,7 @@ export default function RewardWheel({
                         y={labelPoint.y}
                         textAnchor="middle"
                         dominantBaseline="middle"
+                        transform={`rotate(${middle - 90 > 90 && middle - 90 < 270 ? middle + 90 : middle - 90} ${labelPoint.x} ${labelPoint.y})`}
                         className="reward-wheel-label"
                       >
                         {lines.map((line, lineIndex) => (
@@ -214,7 +225,7 @@ export default function RewardWheel({
 
             </svg>
           </div>
-          <div className="reward-wheel-center-hub">{actionLabel && onAction ? <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning} onClick={triggerAction} aria-label={actionLabel}><span>✦</span><strong>{spinning ? "SPINNING" : "SPIN"}</strong><small>{spinning ? "Good luck!" : centerLabel}</small></button> : <div className="reward-wheel-center-static"><strong>{centerLabel}</strong><small>SPIN</small></div>}</div>
+          <div className="reward-wheel-center-hub">{actionLabel && onAction ? <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning} onClick={triggerAction} aria-label={actionLabel}><strong>{spinning ? "•••" : "Spin"}</strong></button> : <div className="reward-wheel-center-static"><strong>{centerLabel}</strong><small>SPIN</small></div>}</div>
           {resultName && !spinning && <div className="reward-result-banner">🎉 Won: <strong>{resultName}</strong></div>}
         </div>
 
