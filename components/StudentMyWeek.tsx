@@ -245,7 +245,9 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
     if (statusFor(item).key === 'in_progress') return true
     return Boolean(item.dueDate && item.dueDate <= today && statusFor(item).key !== 'completed')
   })
-  const homeworkItems = ordered.filter((item) => item.kind === 'homework')
+  const homeworkItems = ordered.filter((item) => item.kind === 'homework' && item.homeworkStatus === 'assigned')
+  const checkingHomeworkItems = ordered.filter((item) => item.kind === 'homework' && item.homeworkStatus === 'awaiting_review')
+  const checkedHomeworkItems = ordered.filter((item) => item.kind === 'homework' && item.homeworkStatus === 'completed')
   const todayKeys = new Set(todayItems.map((item) => (item.kind ?? 'assignment') + ':' + item.rowId))
   const laterItems = ordered.filter((item) => item.kind !== 'homework' && !todayKeys.has((item.kind ?? 'assignment') + ':' + item.rowId))
 
@@ -378,10 +380,21 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
               <section className="my-week-work-group homework">
                 <header className="my-week-work-group-heading">
                   <span>🏫</span>
-                  <div><strong>School Homework</strong><small>Finish your schoolwork, then mark it ready for a staff check.</small></div>
+                  <div><strong>School Homework</strong><small>Schoolwork to finish and hand in for a staff check.</small></div>
                   <em>{homeworkItems.length}</em>
                 </header>
                 <div className="my-week-work-group-list">{homeworkItems.map(renderItemCard)}</div>
+              </section>
+            )}
+
+            {checkingHomeworkItems.length > 0 && (
+              <section className="my-week-work-group homework">
+                <header className="my-week-work-group-heading">
+                  <span>⏳</span>
+                  <div><strong>Waiting for Staff Check</strong><small>You handed these in! A staff member will check them soon.</small></div>
+                  <em>{checkingHomeworkItems.length}</em>
+                </header>
+                <div className="my-week-work-group-list">{checkingHomeworkItems.map(renderItemCard)}</div>
               </section>
             )}
 
@@ -393,6 +406,16 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
                   <em>{laterItems.length}</em>
                 </header>
                 <div className="my-week-work-group-list">{laterItems.map(renderItemCard)}</div>
+              </section>
+            )}
+            {checkedHomeworkItems.length > 0 && (
+              <section className="my-week-work-group homework">
+                <header className="my-week-work-group-heading">
+                  <span>✅</span>
+                  <div><strong>Homework Checked</strong><small>These assignments have been checked by staff.</small></div>
+                  <em>{checkedHomeworkItems.length}</em>
+                </header>
+                <div className="my-week-work-group-list">{checkedHomeworkItems.map(renderItemCard)}</div>
               </section>
             )}
           </section>
