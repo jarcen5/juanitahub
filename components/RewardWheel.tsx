@@ -148,7 +148,7 @@ export default function RewardWheel({
       const middle = (startAngle + endAngle) / 2
       const labelPoint = polar(160, 160, 103, middle)
       const chance = totalWeight > 0 ? (Number(prize.weight) / totalWeight) * 100 : 100 / Math.max(prizes.length, 1)
-      return { prize, startAngle, endAngle, labelPoint, index, chance }
+      return { prize, startAngle, endAngle, middle, labelPoint, index, chance }
     })
   }, [prizes, totalWeight])
 
@@ -191,7 +191,7 @@ export default function RewardWheel({
             style={{ transform: `rotate(${rotation}deg)` }}
           >
             <svg className="reward-wheel-svg" viewBox="0 0 320 320" role="img" aria-label={title}>
-              {segments.map(({ prize, startAngle, endAngle, labelPoint, index, chance }) => {
+              {segments.map(({ prize, startAngle, endAngle, middle, labelPoint, index, chance }) => {
                 const lines = labelLines(prize.name)
                 return (
                   <g key={prize.id}>
