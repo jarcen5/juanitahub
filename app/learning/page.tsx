@@ -707,7 +707,7 @@ export default function LearningPage() {
   useEffect(() => {
     function syncTab() {
       const requested = window.location.hash.replace('#', '')
-      setTab(requested === 'labs' ? 'typing' : ['week', 'review', 'goals', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
+      setTab(requested === 'labs' ? 'typing' : ['week', 'review', 'goals', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested as LearningTab : 'week')
     }
     syncTab()
     window.addEventListener('hashchange', syncTab)
