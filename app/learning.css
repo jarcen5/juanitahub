@@ -6110,3 +6110,17 @@ html[data-theme="dark"] .my-week-work-group-heading>em{
   background:#263844!important;
   color:#d3dee4!important;
 }
+
+/* Learning polish: student lookup and consolidated lab navigation */
+.learning-week-search{display:flex;align-items:end;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:16px 0}
+.learning-week-search .field{margin:0;flex:1 1 280px;max-width:540px}
+.learning-week-search input{width:100%}
+.learning-week-search>span{color:#6f8392;font-size:12px;padding-bottom:10px}
+.learning-labs-subnav{display:flex;flex-wrap:wrap;gap:8px;padding:12px;margin:4px 0 20px;border:1px solid #dce6eb;border-radius:14px;background:#f7fafc}
+.learning-labs-subnav button{font:inherit;font-size:12px;font-weight:750;color:#5e768a;background:transparent;border:1px solid transparent;border-radius:10px;padding:11px 16px;cursor:pointer}
+.learning-labs-subnav button:hover{background:#eaf3f9}
+.learning-labs-subnav button.active{background:#e7f2fa;border-color:#a7c8dd;color:#346a94}
+html[data-theme="dark"] .learning-labs-subnav{background:#1b2832;border-color:#354956}
+html[data-theme="dark"] .learning-labs-subnav button{color:#c9d5dc}
+html[data-theme="dark"] .learning-labs-subnav button.active{background:#26465b;color:#d9efff;border-color:#537d99}
+@media(max-width:620px){.learning-labs-subnav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.learning-week-search .field{max-width:none}}
