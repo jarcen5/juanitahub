@@ -2109,7 +2109,7 @@ export default function LearningPage() {
               <article><strong>{metrics.assigned ? Math.round((metrics.completed / metrics.assigned) * 100) : 0}%</strong><span>Completion</span><small>Across assigned work</small></article>
             </div>
 
-            {weeklyChildren.length > 0 && <div className="learning-week-search"><label className="field"><span>Find a student</span><input type="search" value={weekStudentSearch} onChange={(event) => setWeekStudentSearch(event.target.value)} placeholder="Search students by name…" aria-label="Search students in This Week" /></label><span>{visibleWeeklyChildren.length} of {weeklyChildren.length} students</span></div>}
+            {weeklyChildren.length > 0 && <div className="learning-week-search"><label className="field"><span>Find a student</span><input type="search" value={weekStudentSearch} onChange={(event) => setWeekStudentSearch(event.target.value)} placeholder="Search students by name…" aria-label="Search students in This Week" /></label><div className="learning-week-search-actions"><span role="status" aria-live="polite">{visibleWeeklyChildren.length} of {weeklyChildren.length} students</span>{weekStudentSearch && <button className="ghost" type="button" onClick={() => setWeekStudentSearch('')}>Clear search</button>}</div></div>}
             {weeklyChildren.length === 0 ? (
               <section className="card learning-empty"><span>📘</span><h2>No learning activity yet this week</h2><p>Use Assignment Library to assign work, or Reading to log time with a book.</p></section>
             ) : (
