@@ -601,6 +601,7 @@ export default function LearningPage() {
   const [weekStart, setWeekStart] = useState(mondayFor(localDate()))
 
   const [librarySearch, setLibrarySearch] = useState('')
+  const [advancedLibraryFiltersOpen, setAdvancedLibraryFiltersOpen] = useState(false)
   const [subjectFilter, setSubjectFilter] = useState<'all' | Subject>('all')
   const [gradeFilter, setGradeFilter] = useState('all')
   const [skillFilter, setSkillFilter] = useState('all')
@@ -1298,7 +1299,8 @@ export default function LearningPage() {
       + pendingGoalApprovals.filter((goal) => !childById.get(goal.child_id)?.is_demo).length
     const overdue = overdueAssignments.filter(({ child }) => !child.is_demo)
 
-    return { noWork, noCompletions, reviews, overdue }
+    const homeworkReviews = pendingHomeworkChecks.filter(({ child }) => !child.is_demo).length
+    return { noWork, noCompletions, reviews, homeworkReviews, overdue }
   }, [reportingChildren, weeklyByChild, homeworkByChild, pendingHomeworkChecks, pendingWritingReviews, pendingReadingReviews, pendingGoalApprovals, overdueAssignments, childById])
 
   const myWeekChild = useMemo(() => myWeekChildId ? childById.get(myWeekChildId) ?? null : null, [myWeekChildId, childById])
@@ -2087,9 +2089,9 @@ export default function LearningPage() {
                 <button className="ghost" type="button" onClick={() => setTab('review')}>Open Review Center</button>
               </div>
               <div className="learning-attention-grid">
-                <article className={staffAttention.reviews ? 'attention' : ''}><strong>{staffAttention.reviews}</strong><span>Waiting for review</span><small>Homework, writing, reading, or goals</small></article>
+                <article className={staffAttention.reviews ? 'attention' : ''}><strong>{staffAttention.reviews}</strong><span>Waiting for review</span><small>{staffAttention.homeworkReviews} homework checks • {staffAttention.reviews - staffAttention.homeworkReviews} other reviews</small></article>
                 <article className={staffAttention.noWork.length ? 'attention' : ''}><strong>{staffAttention.noWork.length}</strong><span>No work assigned</span><small>{staffAttention.noWork.length ? staffAttention.noWork.slice(0, 3).map(childName).join(', ') + (staffAttention.noWork.length > 3 ? ' +' + (staffAttention.noWork.length - 3) : '') : 'Everyone has work this week'}</small></article>
-                <article><strong>{staffAttention.noCompletions.length}</strong><span>No completions yet</span><small>{staffAttention.noCompletions.length ? 'Students with work but nothing finished yet' : 'Everyone with work has completed something'}</small></article>
+                <article><strong>{staffAttention.noCompletions.length}</strong><span>No completions yet</span><small>{staffAttention.noCompletions.length ? staffAttention.noCompletions.slice(0, 3).map(childName).join(', ') + (staffAttention.noCompletions.length > 3 ? ' +' + (staffAttention.noCompletions.length - 3) : '') : 'Everyone with work has completed something'}</small></article>
                 <article className={staffAttention.overdue.length ? 'attention' : ''}><strong>{staffAttention.overdue.length}</strong><span>Overdue</span><small>{staffAttention.overdue.length ? 'Past due and still unfinished' : 'Nothing overdue'}</small></article>
               </div>
               {staffAttention.noWork.length > 0 && (
@@ -2641,16 +2643,18 @@ export default function LearningPage() {
                   {gradeOptions.map((grade) => <button className={gradeFilter === grade ? 'active' : ''} type="button" key={grade} onClick={() => setGradeFilter(grade)}>Grade {grade}</button>)}
                 </div>
               </div>
-              <div className="learning-library-filters v2">
-                <label className="field search"><span>Search</span><input type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="Title, skill, or instructions…" /></label>
-                <label className="field"><span>Grade</span><select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>
+              <div className="learning-library-search-row">
+                <label className="field search"><span>Search assignments</span><input type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="Find by title, subject, skill, or instructions…" /></label>
+                <button className="ghost" type="button" aria-expanded={advancedLibraryFiltersOpen} aria-controls="learning-advanced-filters" onClick={() => setAdvancedLibraryFiltersOpen((open) => !open)}>{advancedLibraryFiltersOpen ? "Hide advanced filters" : "Advanced filters"}</button>
+              </div>
+              {advancedLibraryFiltersOpen && <div id="learning-advanced-filters" className="learning-library-filters v2">
                 <label className="field"><span>Subject</span><select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value as typeof subjectFilter)}><option value="all">All subjects</option>{Object.entries(subjectLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
                 <label className="field"><span>Skill</span><select value={skillFilter} onChange={(event) => setSkillFilter(event.target.value)}><option value="all">All skills</option>{skillOptions.map((skill) => <option value={skill} key={skill}>{skill}</option>)}</select></label>
                 <label className="field"><span>Difficulty</span><select value={difficultyFilter} onChange={(event) => setDifficultyFilter(event.target.value as typeof difficultyFilter)}><option value="all">All levels</option><option value="support">Support</option><option value="standard">Standard</option><option value="challenge">Challenge</option></select></label>
                 <label className="field"><span>Format</span><select value={formatFilter} onChange={(event) => setFormatFilter(event.target.value as typeof formatFilter)}><option value="all">All formats</option><option value="digital">Digital</option><option value="printable">Printable</option><option value="either">Either</option></select></label>
                 <label className="field"><span>Status</span><select value={libraryStatusFilter} onChange={(event) => setLibraryStatusFilter(event.target.value as typeof libraryStatusFilter)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">Active + archived</option></select></label>
                 <button className="ghost learning-filter-clear" type="button" onClick={() => { setLibrarySearch(''); setGradeFilter('all'); setSubjectFilter('all'); setSkillFilter('all'); setDifficultyFilter('all'); setFormatFilter('all'); setLibraryStatusFilter('active'); setLibraryView('all') }}>Clear filters</button>
-              </div>
+              </div>}
             </section>
 
             <div className="learning-library-layout v2">
