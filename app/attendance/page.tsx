@@ -46,6 +46,7 @@ type OperatingDay = {
 }
 
 type AttendanceTab = 'children' | 'community'
+type RosterFilter = 'all' | 'needs-sign-in' | 'signed-in'
 type MoodMode = 'signin' | 'correct'
 
 const purposes = [
@@ -95,6 +96,7 @@ export default function AttendancePage() {
   const [tab, setTab] = useState<AttendanceTab>('children')
   const [attendanceDate, setAttendanceDate] = useState(localDateKey())
   const [search, setSearch] = useState('')
+  const [rosterFilter, setRosterFilter] = useState<RosterFilter>('all')
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [moodMode, setMoodMode] = useState<MoodMode>('signin')
   const [correctionVisitId, setCorrectionVisitId] = useState<number | null>(null)
@@ -192,9 +194,11 @@ export default function AttendancePage() {
 
   const filteredChildren = useMemo(() => {
     const query = search.trim().toLowerCase()
-    const matches = query
-      ? children.filter((child) => childName(child).toLowerCase().includes(query))
-      : children
+    const matches = children.filter((child) => {
+      const matchesName = !query || childName(child).toLowerCase().includes(query)
+      const isSignedIn = childVisitByChild.has(child.id)
+      return matchesName && (rosterFilter === 'all' || (rosterFilter === 'signed-in' ? isSignedIn : !isSignedIn))
+    })
 
     return [...matches].sort((a, b) => {
       const aDone = childVisitByChild.has(a.id) ? 1 : 0
@@ -202,7 +206,10 @@ export default function AttendancePage() {
       if (aDone !== bDone) return aDone - bDone
       return childName(a).localeCompare(childName(b))
     })
-  }, [children, search, childVisitByChild])
+  }, [children, search, rosterFilter, childVisitByChild])
+
+  const signedInChildCount = children.filter((child) => childVisitByChild.has(child.id)).length
+  const awaitingChildCount = children.length - signedInChildCount
 
   const reportingChildren = useMemo(() => children.filter((child) => !child.is_demo), [children])
   const reportingChildIds = useMemo(() => new Set(reportingChildren.map((child) => child.id)), [reportingChildren])
@@ -414,6 +421,7 @@ export default function AttendancePage() {
           <label className="field attendance-date-field">
             <span>Attendance date</span>
             <input type="date" value={attendanceDate} max={today} onChange={(event) => setAttendanceDate(event.target.value)} />
+            {attendanceDate !== today && <button type="button" className="ghost attendance-today-button" onClick={() => setAttendanceDate(today)}>Return to today</button>}
           </label>
         </section>
 
@@ -427,12 +435,12 @@ export default function AttendancePage() {
             <span className={`attendance-day-status ${operatingDay ? (operatingDay.is_open ? 'open' : 'closed') : 'unrecorded'}`}>
               {operatingDay ? (operatingDay.is_open ? 'Open day' : `Closed${operatingDay.reason ? ` • ${operatingDay.reason}` : ''}`) : 'Not recorded yet'}
             </span>
-            <button type="button" className="ghost" onClick={() => void setDayStatus(true)} disabled={saving}>Mark open</button>
-            <button type="button" className="ghost" onClick={() => void setDayStatus(false)} disabled={saving}>Mark closed</button>
+            <button type="button" className="ghost" onClick={() => void setDayStatus(true)} disabled={saving || operatingDay?.is_open === true}>Mark open</button>
+            <button type="button" className="ghost" onClick={() => void setDayStatus(false)} disabled={saving || operatingDay?.is_open === false}>Mark closed</button>
           </div>
         </section>
 
-        {message && <div className="notice">{message}</div>}
+        {message && <div className="notice" role="status" aria-live="polite">{message}</div>}
 
         <section className="grid attendance-stats">
           <div className="card stat"><span className="subtle">Here now</span><strong>{presentNow}</strong></div>
@@ -461,10 +469,23 @@ export default function AttendancePage() {
                   <span><strong>2</strong> Tap Sign In</span>
                   <span><strong>3</strong> Choose how you feel</span>
                 </div>
-                <label className="attendance-search">
-                  <span className="sr-only">Search children</span>
-                  <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search a name…" />
-                </label>
+                <div className="attendance-roster-tools">
+                  <label className="attendance-search">
+                    <span className="sr-only">Search children</span>
+                    <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a child by name…" aria-label="Search attendance roster by child name" />
+                  </label>
+                  {search && <button type="button" className="ghost attendance-clear-search" onClick={() => setSearch('')}>Clear search</button>}
+                </div>
+              </div>
+
+              <div className="attendance-roster-filters" role="group" aria-label="Filter youth attendance">
+                <button type="button" className={rosterFilter === 'all' ? 'active' : ''} aria-pressed={rosterFilter === 'all'} onClick={() => setRosterFilter('all')}>All children <span>{children.length}</span></button>
+                <button type="button" className={rosterFilter === 'needs-sign-in' ? 'active' : ''} aria-pressed={rosterFilter === 'needs-sign-in'} onClick={() => setRosterFilter('needs-sign-in')}>Needs sign-in <span>{awaitingChildCount}</span></button>
+                <button type="button" className={rosterFilter === 'signed-in' ? 'active' : ''} aria-pressed={rosterFilter === 'signed-in'} onClick={() => setRosterFilter('signed-in')}>Signed in <span>{signedInChildCount}</span></button>
+              </div>
+              <div className="attendance-roster-result-count" role="status" aria-live="polite">
+                Showing {filteredChildren.length} of {children.length} active children
+                {(search || rosterFilter !== 'all') && <button type="button" className="ghost" onClick={() => { setSearch(''); setRosterFilter('all') }}>Reset filters</button>}
               </div>
 
               <div className="attendance-roster attendance-live-roster">
@@ -493,7 +514,9 @@ export default function AttendancePage() {
                   )
                 })}
 
-                {filteredChildren.length === 0 && <div className="empty">No children match that search.</div>}
+                {filteredChildren.length === 0 && <div className="empty">
+                  {children.length === 0 ? 'No active children are available in the attendance roster.' : search ? 'No children match your search and status filters.' : rosterFilter === 'needs-sign-in' ? 'Everyone on the active roster has signed in for this date.' : rosterFilter === 'signed-in' ? 'No children have signed in for this date yet.' : 'No children match these filters.'}
+                </div>}
               </div>
             </div>
           ) : (
@@ -535,7 +558,7 @@ export default function AttendancePage() {
                 </section>
 
                 <section>
-                  <h3>Today's community sign-ins</h3>
+                  <h3>{attendanceDate === today ? "Today's" : "Selected date's"} community sign-ins</h3>
                   <div className="attendance-community-list">
                     {communityVisits.length === 0 && <div className="empty">No community visitors are recorded for this date.</div>}
                     {communityVisits.map((visit) => (
