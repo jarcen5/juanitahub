@@ -186,3 +186,24 @@
     font-size:20px;
   }
 }
+
+/* Prize wheel celebration polish; visuals only, odds remain controlled upstream. */
+.reward-wheel-presentation{background:radial-gradient(circle at 35% 35%,#fff 5%,#f0f8fe 100%);box-shadow:0 14px 40px rgba(36,84,126,.09)}
+.reward-wheel-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.reward-wheel-toolbar button{min-height:38px}
+.reward-wheel-stage{isolation:isolate;padding:8px}
+.reward-wheel-rotator{filter:drop-shadow(0 12px 19px rgba(24,60,108,.23))}
+.reward-wheel-svg{border:9px solid #fff;box-shadow:inset 0 0 0 3px #e7eef7}
+.reward-wheel-pointer{top:-8px;color:#e4a838;text-shadow:0 2px 0 #fff,0 4px 8px rgba(37,53,76,.28)}
+.reward-wheel-hub{fill:#274963;stroke:#fff;stroke-width:6}
+.reward-result-banner{border:2px solid #ffe4a7;background:linear-gradient(135deg,#244762,#152d44);font-weight:700;box-shadow:0 12px 28px rgba(16,24,40,.3)}
+.reward-wheel-confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:6;border-radius:50%}
+.reward-wheel-confetti i{position:absolute;top:-16px;display:block;width:9px;height:16px;opacity:0;border-radius:2px;animation:reward-confetti-fall 2s ease-out both}
+@keyframes reward-confetti-fall{
+  0%{transform:translate3d(0,-5px,0) rotate(0deg);opacity:1}
+  70%{opacity:1}
+  100%{transform:translate3d(35px,520px,0) rotate(700deg);opacity:0}
+}
+@media(max-width:620px){.reward-wheel-presentation-bar{flex-wrap:wrap}.reward-wheel-toolbar{width:100%;justify-content:space-between}.reward-wheel-toolbar button{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.reward-wheel-confetti{display:none}}
+html[data-theme="dark"] .reward-wheel-presentation{background:radial-gradient(circle at 35% 35%,#263e52,#172934)}
