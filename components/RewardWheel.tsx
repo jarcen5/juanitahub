@@ -18,6 +18,7 @@ type Props = {
   title?: string
   actionLabel?: string
   actionDisabled?: boolean
+  nextSpinLabel?: string
   onAction?: () => void
 }
 
@@ -50,6 +51,7 @@ export default function RewardWheel({
   title = 'Reward wheel',
   actionLabel,
   actionDisabled = false,
+  nextSpinLabel = 'Spin again',
   onAction,
 }: Props) {
   const presentationRef = useRef<HTMLDivElement | null>(null)
@@ -280,7 +282,7 @@ export default function RewardWheel({
                 <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
                   <path d="M60 3 L92 48 C108 70 107 96 89 109 C72 121 48 121 31 109 C13 97 12 71 28 48 Z" fill="currentColor" stroke="#fff" strokeWidth="5" strokeLinejoin="round" />
                 </svg>
-                <strong>{spinning ? '•••' : actionDisabled ? 'Done' : resultName && !winnerDismissed ? 'Spin' : 'Spin'}</strong>
+                <strong>{spinning ? '•••' : 'Spin'}</strong>
               </button>
             ) : (
               <div className="reward-wheel-center-static">
@@ -295,9 +297,16 @@ export default function RewardWheel({
               <span className="reward-wheel-win-sparkle" aria-hidden="true">✦</span>
               <strong>{winningPrize.prize.name}</strong>
             </div>
-            <button className="reward-wheel-win-close" type="button" onClick={() => { setWinnerDismissed(true); setHeldPrizes(null) }}>
-              Close
-            </button>
+            <div className="reward-wheel-win-actions">
+              <button className="reward-wheel-win-close" type="button" onClick={() => { setWinnerDismissed(true); setHeldPrizes(null) }}>
+                Close
+              </button>
+              {onAction && !actionDisabled && (
+                <button className="reward-wheel-win-repeat" type="button" onClick={triggerAction} disabled={spinning}>
+                  {nextSpinLabel}
+                </button>
+              )}
+            </div>
           </div>
           )}
         </div>
