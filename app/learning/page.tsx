@@ -945,6 +945,32 @@ export default function LearningPage() {
     return groups
   }, [filteredLibrary])
 
+  const recommendedNextAssignments = useMemo(() => {
+    if (!assignChildId) return []
+    const grade = registrationByChild.get(assignChildId)?.grade?.trim()
+    const history = assignmentUsageRows.filter((row) => row.child_id === assignChildId)
+    const completedIds = new Set(history.filter((row) => row.status === 'completed').map((row) => row.assignment_id))
+    const assignedIds = new Set(history.filter((row) => row.status === 'assigned' || row.status === 'in_progress').map((row) => row.assignment_id))
+    const completed = library.filter((item) => completedIds.has(item.id))
+    const subjects = new Set(completed.map((item) => item.subject))
+    const skills = new Set(completed.map((item) => item.skill?.trim()).filter(Boolean))
+    const previousDifficulty = new Set(completed.map((item) => item.difficulty))
+    const priority = { support: 0, standard: 1, challenge: 2 }
+    return library
+      .filter((item) => item.active && !completedIds.has(item.id) && !assignedIds.has(item.id))
+      .filter((item) => !grade || !item.grade_levels.length || item.grade_levels.includes(grade))
+      .map((item) => {
+        const sameSkill = Boolean(item.skill?.trim() && skills.has(item.skill.trim()))
+        const sameSubject = subjects.has(item.subject)
+        const nextLevel = completed.some((past) => past.subject === item.subject && (past.skill?.trim() || '') === (item.skill?.trim() || '') && priority[item.difficulty] === priority[past.difficulty] + 1)
+        const score = (grade && item.grade_levels.includes(grade) ? 5 : 0) + (sameSkill ? 4 : 0) + (sameSubject ? 2 : 0) + (nextLevel ? 5 : 0) + (previousDifficulty.has(item.difficulty) ? 1 : 0)
+        const reason = nextLevel ? 'Next difficulty level' : sameSkill ? 'Continue this skill' : sameSubject ? 'Same subject, new activity' : grade ? 'Matches grade ' + grade : 'Not completed yet'
+        return { item, score, reason }
+      })
+      .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
+      .slice(0, 3)
+  }, [assignChildId, registrationByChild, assignmentUsageRows, library])
+
   const selectedAssignment = useMemo(() => library.find((assignment) => assignment.id === selectedAssignmentId) ?? null, [library, selectedAssignmentId])
 
   useEffect(() => {
@@ -2704,6 +2730,20 @@ export default function LearningPage() {
               </section>
 
               <aside className="card learning-assign-card">
+                <section className="learning-recommendations" aria-label="Recommended next assignments">
+                  <span className="learning-kicker">Recommended next assignment</span>
+                  <p>Suggestions use completed activities, subject, skill, difficulty, and grade. Staff choose what to assign.</p>
+                  <label className="field"><span>Student</span><select value={assignChildId ?? ''} onChange={(event) => { setAssignChildId(Number(event.target.value)); setAssignMode('child') }}><option value="" disabled>Choose a student</option>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{child.is_demo ? ' • Demo' : ''}</option>)}</select></label>
+                  {recommendedNextAssignments.length ? <div className="learning-recommendation-list">
+                    {recommendedNextAssignments.map(({ item, reason }) => (
+                      <button className="learning-recommendation-option" key={item.id} type="button" onClick={() => { setSelectedAssignmentId(item.id); setAssignMode('child') }}>
+                        <strong>{item.title}</strong>
+                        <small>{subjectLabels[item.subject]} • {item.difficulty} • {reason}</small>
+                        <span>View assignment details →</span>
+                      </button>
+                    ))}
+                  </div> : <p className="learning-inline-empty">No new grade-matched activities are available for this student. You can still browse and assign from the full library.</p>}
+                </section>
                 <span className="learning-kicker">Assignment details</span>
                 <h2>{selectedAssignment?.title ?? 'Choose an assignment'}</h2>
                 {selectedAssignment ? <>
