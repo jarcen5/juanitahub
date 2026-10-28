@@ -56,3 +56,37 @@ html[data-theme="dark"] .card-tracking-filter-chips button.active{
 }
 html[data-theme="dark"] .card-tracking-filter-chips button span{background:#385368;color:#d6e9f6}
 html[data-theme="dark"] .card-tracking-filter-status{color:#adc2d0}
+
+/* Missed-card follow-up filters use today's existing attendance sign-ins. */
+.card-tracking-missed-filters{
+  display:grid;
+  gap:8px;
+  padding:12px 14px;
+  border:1px solid #d9e5f0;
+  border-radius:13px;
+  background:#f8fbfe;
+}
+.card-tracking-missed-label{
+  color:#375f7f;
+  font-size:12px;
+  font-weight:850;
+}
+.card-tracking-missed-filters small{
+  color:#718699;
+  font-size:12px;
+  line-height:1.5;
+}
+.card-tracking-missed-filters .card-tracking-filter-chips button{
+  font-size:12px;
+  min-height:35px;
+}
+html[data-theme="dark"] .card-tracking-missed-filters{
+  border-color:#405b6e;
+  background:#223542;
+}
+html[data-theme="dark"] .card-tracking-missed-label{
+  color:#c9e2f7;
+}
+html[data-theme="dark"] .card-tracking-missed-filters small{
+  color:#adbfcd;
+}
