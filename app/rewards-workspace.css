@@ -555,3 +555,49 @@ html[data-theme="dark"] .reward-wheel-reference .reward-wheel-result-footer{back
   .reward-wheel-reference .reward-wheel-win-popup{animation:none}
   .reward-wheel-reference .reward-wheel-segment{transition:none}
 }
+
+/* Post-spin recovery: winners stay visible, but do not block another available spin. */
+.reward-wheel-reference .reward-wheel-win-actions{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(125px,1fr));
+  background:#25262d;
+  gap:1px;
+}
+.reward-wheel-reference .reward-wheel-win-actions button{
+  min-height:46px;
+  width:100%;
+  margin:0;
+  padding:10px 13px;
+  border:0;
+  border-radius:0;
+  font:inherit;
+  font-size:13px;
+  font-weight:850;
+  cursor:pointer;
+  white-space:normal;
+  line-height:1.25;
+}
+.reward-wheel-reference .reward-wheel-win-repeat{
+  background:#f5fafb;
+  color:#183e55;
+}
+.reward-wheel-reference .reward-wheel-win-repeat:hover:not(:disabled){
+  background:#dceff8;
+}
+.reward-wheel-reference .reward-wheel-win-actions button:focus-visible{
+  outline:3px solid #a6d9fb;
+  outline-offset:-3px;
+}
+.reward-wheel-reference .reward-wheel-center-spin:disabled{
+  cursor:not-allowed;
+}
+.reward-wheel-reference .reward-wheel-rotator.is-spinning~.reward-wheel-center-hub .reward-wheel-center-spin:disabled{
+  cursor:wait;
+}
+.reward-wheel-reference .reward-wheel-center-spin:disabled strong{
+  font-size:clamp(10px,1.7vw,21px);
+  letter-spacing:-.045em;
+}
+@media(max-width:460px){
+  .reward-wheel-reference .reward-wheel-win-actions{grid-template-columns:1fr}
+}
