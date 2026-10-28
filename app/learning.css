@@ -6110,3 +6110,12 @@ html[data-theme="dark"] .my-week-work-group-heading>em{
   background:#263844!important;
   color:#d3dee4!important;
 }
+
+/* Lightweight staff suggestions: selection never assigns automatically. */
+.learning-recommendations{display:grid;gap:10px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #dce6eb}
+.learning-recommendations>p{margin:0;color:#607988}
+.learning-recommendation-list{display:grid;gap:8px}
+.learning-recommendation-option{display:grid;gap:5px;text-align:left;border:1px solid #dce6eb;border-radius:12px;padding:12px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.learning-recommendation-option:hover,.learning-recommendation-option:focus-visible{border-color:#78aac7;background:rgba(120,170,199,.09)}
+.learning-recommendation-option small{color:#607988}
+.learning-recommendation-option span{font-size:12px;font-weight:700;color:#397da9}
