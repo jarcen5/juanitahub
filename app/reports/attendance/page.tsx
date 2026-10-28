@@ -47,6 +47,12 @@ type DailyRow = {
   total: number
 }
 
+function shiftMonth(month: string, offset: number) {
+  const [year, number] = month.split('-').map(Number)
+  const next = new Date(year, number - 1 + offset, 1)
+  return `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}`
+}
+
 function currentMonth() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -83,6 +89,7 @@ export default function AttendanceReportsPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [month, setMonth] = useState(currentMonth())
+  const [dailyFilter, setDailyFilter] = useState<'all' | 'with-sign-ins' | 'open'>('all')
   const [report, setReport] = useState<MonthlyReport | null>(null)
   const [dailyRows, setDailyRows] = useState<DailyRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -186,6 +193,10 @@ export default function AttendanceReportsPage() {
     hardDayMoods: asNumber(report?.hard_day_moods),
   }), [report])
 
+  const visibleDailyRows = useMemo(() => dailyRows.filter((row) => dailyFilter === 'all' || (dailyFilter === 'with-sign-ins' ? row.total > 0 : row.isOpen === true)), [dailyRows, dailyFilter])
+  const daysWithSignIns = dailyRows.filter((row) => row.total > 0).length
+  const openDays = dailyRows.filter((row) => row.isOpen === true).length
+
   function downloadCsv() {
     const lines = [
       ['Date', 'Center status', 'Child sign-ins', 'Community sign-ins', 'Total sign-ins'].join(','),
@@ -242,12 +253,17 @@ export default function AttendanceReportsPage() {
             <p className="subtle">Monthly child and community participation calculated directly from saved Juanita Hub sign-ins.</p>
           </div>
           <div className="reports-controls">
-            <label className="field"><span>Report month</span><input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label>
-            <button type="button" className="ghost" onClick={downloadCsv} disabled={dailyRows.length === 0}>Export CSV</button>
+            <label className="field"><span>Report month</span><input type="month" value={month} max={currentMonth()} onChange={(event) => event.target.value && setMonth(event.target.value)} /></label>
+            <div className="reports-month-navigation" aria-label="Browse attendance report months">
+              <button type="button" className="ghost" onClick={() => setMonth(shiftMonth(month,-1))}>← Previous</button>
+              <button type="button" className="ghost" disabled={month>=currentMonth()} onClick={() => setMonth(shiftMonth(month,1))}>Next →</button>
+            </div>
+            <button type="button" className="ghost" onClick={downloadCsv} disabled={loading || dailyRows.length === 0}>Export full month CSV</button>
           </div>
         </section>
 
-        {message && <div className="notice">{message}</div>}
+        {message && <div className="notice" role="status" aria-live="polite">{message}</div>}
+        {loading && <div className="reports-loading-status" role="status" aria-live="polite">Loading attendance for {formatMonth(month)}…</div>}
 
         <section className="card reports-summary-header">
           <div><span className="reports-eyebrow">Monthly summary</span><h2>{formatMonth(month)}</h2></div>
@@ -269,18 +285,26 @@ export default function AttendanceReportsPage() {
         <section className="reports-layout">
           <section className="card reports-daily-card">
             <div className="reports-section-heading"><div><span className="reports-eyebrow">Day by day</span><h2>Daily attendance</h2></div></div>
+            <div className="reports-daily-filters">
+              <div className="reports-daily-filter-chips" role="group" aria-label="Filter daily attendance rows">
+                <button type="button" className={dailyFilter==='all'?'active':''} aria-pressed={dailyFilter==='all'} onClick={()=>setDailyFilter('all')}>All dates <span>{dailyRows.length}</span></button>
+                <button type="button" className={dailyFilter==='with-sign-ins'?'active':''} aria-pressed={dailyFilter==='with-sign-ins'} onClick={()=>setDailyFilter('with-sign-ins')}>With sign-ins <span>{daysWithSignIns}</span></button>
+                <button type="button" className={dailyFilter==='open'?'active':''} aria-pressed={dailyFilter==='open'} onClick={()=>setDailyFilter('open')}>Open days <span>{openDays}</span></button>
+              </div>
+              <span className="reports-daily-match-count" role="status" aria-live="polite">Showing {visibleDailyRows.length} of {dailyRows.length} dates · Export always includes the full month</span>
+            </div>
             <div className="reports-table-wrap">
               <table className="reports-table">
                 <thead><tr><th>Date</th><th>Center</th><th>Children</th><th>Community</th><th>Total</th></tr></thead>
                 <tbody>
-                  {dailyRows.map((row) => (
+                  {visibleDailyRows.map((row) => (
                     <tr key={row.date}>
                       <td>{formatDate(row.date)}</td>
                       <td><span className={`reports-status ${row.isOpen === true ? 'open' : row.isOpen === false ? 'closed' : 'unknown'}`}>{row.isOpen === true ? 'Open' : row.isOpen === false ? 'Closed' : 'Not recorded'}</span></td>
                       <td>{row.children}</td><td>{row.community}</td><td><strong>{row.total}</strong></td>
                     </tr>
                   ))}
-                  {dailyRows.length === 0 && <tr><td colSpan={5} className="reports-empty">No attendance or operating-day records for this month yet.</td></tr>}
+                  {visibleDailyRows.length === 0 && <tr><td colSpan={5} className="reports-empty">{dailyRows.length===0?'No attendance or operating-day records for this month yet.':dailyFilter==='with-sign-ins'?'No recorded sign-ins in the selected month.':'No dates are marked open in the selected month.'}</td></tr>}
                 </tbody>
               </table>
             </div>
