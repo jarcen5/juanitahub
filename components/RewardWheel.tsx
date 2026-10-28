@@ -276,11 +276,11 @@ export default function RewardWheel({
           </div>
           <div className="reward-wheel-center-hub">
             {actionLabel && onAction ? (
-              <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning || showWinner} onClick={triggerAction} aria-label={actionLabel}>
+              <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning} onClick={triggerAction} aria-label={actionLabel}>
                 <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
                   <path d="M60 3 L92 48 C108 70 107 96 89 109 C72 121 48 121 31 109 C13 97 12 71 28 48 Z" fill="currentColor" stroke="#fff" strokeWidth="5" strokeLinejoin="round" />
                 </svg>
-                <strong>{spinning ? '•••' : 'Spin'}</strong>
+                <strong>{spinning ? '•••' : actionDisabled ? 'Done' : resultName && !winnerDismissed ? 'Spin' : 'Spin'}</strong>
               </button>
             ) : (
               <div className="reward-wheel-center-static">
