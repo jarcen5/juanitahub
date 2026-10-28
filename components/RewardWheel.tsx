@@ -299,10 +299,9 @@ export default function RewardWheel({
               Close
             </button>
           </div>
-        )}
+          )}
         </div>
-
-
+      </div>
     </div>
   )
 }
