@@ -598,6 +598,7 @@ export default function LearningPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [tab, setTab] = useState<LearningTab>('week')
+  const [weekStudentSearch, setWeekStudentSearch] = useState('')
   const [weekStart, setWeekStart] = useState(mondayFor(localDate()))
 
   const [librarySearch, setLibrarySearch] = useState('')
@@ -706,7 +707,7 @@ export default function LearningPage() {
   useEffect(() => {
     function syncTab() {
       const requested = window.location.hash.replace('#', '') as LearningTab
-      setTab(['week', 'review', 'goals', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
+      setTab(requested === 'labs' ? 'typing' : ['week', 'review', 'goals', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
     }
     syncTab()
     window.addEventListener('hashchange', syncTab)
@@ -1066,6 +1067,7 @@ export default function LearningPage() {
   }, [readingLogs])
 
   const weeklyChildren = useMemo(() => children.filter((child) => (weeklyByChild.get(child.id)?.length ?? 0) > 0 || (homeworkByChild.get(child.id)?.length ?? 0) > 0 || (readingByChild.get(child.id)?.length ?? 0) > 0), [children, weeklyByChild, homeworkByChild, readingByChild])
+  const visibleWeeklyChildren = useMemo(() => weeklyChildren.filter((child) => childName(child).toLowerCase().includes(weekStudentSearch.trim().toLowerCase())), [weeklyChildren, weekStudentSearch])
 
   const reportingWeeklyAssignments = useMemo(() => weeklyAssignments.filter((row) => reportingChildIds.has(row.child_id)), [weeklyAssignments, reportingChildIds])
   const reportingHomeworkTasks = useMemo(() => homeworkTasks.filter((row) => reportingChildIds.has(row.child_id)), [homeworkTasks, reportingChildIds])
@@ -2107,11 +2109,13 @@ export default function LearningPage() {
               <article><strong>{metrics.assigned ? Math.round((metrics.completed / metrics.assigned) * 100) : 0}%</strong><span>Completion</span><small>Across assigned work</small></article>
             </div>
 
+            {weeklyChildren.length > 0 && <div className="learning-week-search"><label className="field"><span>Find a student</span><input type="search" value={weekStudentSearch} onChange={(event) => setWeekStudentSearch(event.target.value)} placeholder="Search students by name…" aria-label="Search students in This Week" /></label><span>{visibleWeeklyChildren.length} of {weeklyChildren.length} students</span></div>}
             {weeklyChildren.length === 0 ? (
               <section className="card learning-empty"><span>📘</span><h2>No learning activity yet this week</h2><p>Use Assignment Library to assign work, or Reading to log time with a book.</p></section>
             ) : (
               <div className="learning-student-list">
-                {weeklyChildren.map((child) => {
+                {visibleWeeklyChildren.length === 0 && <div className="card learning-inline-empty">No students match “{weekStudentSearch}”. Try another name or clear the search.</div>}
+                {visibleWeeklyChildren.map((child) => {
                   const assignments = weeklyByChild.get(child.id) ?? []
                   const homework = homeworkByChild.get(child.id) ?? []
                   const logs = readingByChild.get(child.id) ?? []
@@ -2890,6 +2894,8 @@ export default function LearningPage() {
             </div>
           </section>
         )}
+
+        {(['typing', 'quizzes', 'writing', 'reading'] as LearningTab[]).includes(tab) && <nav className="learning-labs-subnav" aria-label="Learning labs">{([['typing', 'Typing'], ['quizzes', 'Quiz'], ['writing', 'Writing'], ['reading', 'Reading']] as const).map(([key, label]) => <button type="button" key={key} className={tab === key ? 'active' : ''} aria-current={tab === key ? 'page' : undefined} onClick={() => { window.location.hash = key; setTab(key) }}>{label} Lab</button>)}</nav>}
 
         {tab === 'typing' && (
           <section className="learning-section">
