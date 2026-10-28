@@ -146,7 +146,7 @@ export default function RewardWheel({
       const endAngle = index === prizes.length - 1 ? 360 : cursor + portion * 360
       cursor = endAngle
       const middle = (startAngle + endAngle) / 2
-      const labelPoint = polar(160, 160, 103, middle)
+      const labelPoint = polar(160, 160, 104, middle)
       const chance = totalWeight > 0 ? (Number(prize.weight) / totalWeight) * 100 : 100 / Math.max(prizes.length, 1)
       return { prize, startAngle, endAngle, middle, labelPoint, index, chance }
     })
@@ -205,7 +205,7 @@ export default function RewardWheel({
                         y={labelPoint.y}
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        transform={`rotate(${middle - 90 > 90 && middle - 90 < 270 ? middle + 90 : middle - 90} ${labelPoint.x} ${labelPoint.y})`}
+                        transform={`rotate(${middle > 180 ? middle + 90 : middle - 90} ${labelPoint.x} ${labelPoint.y})`}
                         className="reward-wheel-label"
                       >
                         {lines.map((line, lineIndex) => (
@@ -226,7 +226,6 @@ export default function RewardWheel({
             </svg>
           </div>
           <div className="reward-wheel-center-hub">{actionLabel && onAction ? <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning} onClick={triggerAction} aria-label={actionLabel}><strong>{spinning ? "•••" : "Spin"}</strong></button> : <div className="reward-wheel-center-static"><strong>{centerLabel}</strong><small>SPIN</small></div>}</div>
-          {resultName && !spinning && <div className="reward-result-banner">🎉 Won: <strong>{resultName}</strong></div>}
         </div>
 
         <aside className="reward-wheel-legend" aria-label="Wheel prize chances">
@@ -240,8 +239,7 @@ export default function RewardWheel({
           ))}
         </aside>
       </div>
-
-
+      {resultName && !spinning && <div className="reward-wheel-result-footer" role="status">🎉 <strong>{resultName}</strong> <span>Congratulations!</span></div>}
     </div>
   )
 }
