@@ -36,21 +36,9 @@ function arcPath(startAngle: number, endAngle: number) {
   return `M 160 160 L ${start.x} ${start.y} A 148 148 0 ${largeArc} 0 ${end.x} ${end.y} Z`
 }
 
-function labelLines(name: string) {
-  if (name.length <= 13) return [name]
-  const words = name.split(' ')
-  if (words.length === 1) return [`${name.slice(0, 11)}…`]
-
-  const lines = ['', '']
-  for (const word of words) {
-    if (!lines[0] || (lines[0] + ' ' + word).trim().length <= 13) {
-      lines[0] = (lines[0] + ' ' + word).trim()
-    } else {
-      lines[1] = (lines[1] + ' ' + word).trim()
-    }
-  }
-  if (lines[1].length > 13) lines[1] = `${lines[1].slice(0, 11)}…`
-  return lines.filter(Boolean)
+function readableLabel(name: string) {
+  const text = name.trim()
+  return text.length > 23 ? text.slice(0, 22).trimEnd() + '…' : text
 }
 
 export default function RewardWheel({
@@ -146,7 +134,7 @@ export default function RewardWheel({
       const endAngle = index === prizes.length - 1 ? 360 : cursor + portion * 360
       cursor = endAngle
       const middle = (startAngle + endAngle) / 2
-      const labelPoint = polar(160, 160, 104, middle)
+      const labelPoint = polar(160, 160, 98, middle)
       const chance = totalWeight > 0 ? (Number(prize.weight) / totalWeight) * 100 : 100 / Math.max(prizes.length, 1)
       return { prize, startAngle, endAngle, middle, labelPoint, index, chance }
     })
@@ -174,7 +162,7 @@ export default function RewardWheel({
   }
 
   return (
-    <div ref={presentationRef} className={`reward-wheel-presentation ${fullscreen ? 'is-fullscreen' : ''}`}>
+    <div ref={presentationRef} className={`reward-wheel-presentation reward-wheel-reference ${fullscreen ? 'is-fullscreen' : ''}`}>
       <div className="reward-wheel-presentation-bar">
         <div><strong>{title}</strong><small>{prizes.length} available prize{prizes.length === 1 ? '' : 's'}</small></div>
         <div className="reward-wheel-toolbar"><button className="ghost reward-sound-button" type="button" aria-pressed={soundEnabled} onClick={() => setSoundEnabled((enabled) => !enabled)}>{soundEnabled ? "🔊 Sound on" : "🔇 Sound off"}</button><button className="ghost reward-fullscreen-button" type="button" onClick={() => void toggleFullscreen()}>
@@ -184,7 +172,6 @@ export default function RewardWheel({
 
       <div className="reward-wheel-layout">
         <div className="reward-wheel-stage" aria-live="polite">
-          <div className="reward-wheel-pointer" aria-hidden="true">▼</div>
           {celebrating && <div className="reward-wheel-confetti" aria-hidden="true">{Array.from({ length: 36 }, (_, i) => <i key={i} style={{ left: ((i * 41) % 100) + '%', animationDelay: ((i % 9) * 0.09) + 's', animationDuration: (1.7 + (i % 5) * 0.22) + 's', backgroundColor: ['#4d9ddd', '#f6bc4f', '#eb6991', '#6bbf8c', '#9f80db'][i % 5] }} />)}</div>}
           <div
             className={`reward-wheel-rotator ${spinning ? 'is-spinning' : ''}`}
@@ -192,47 +179,56 @@ export default function RewardWheel({
           >
             <svg className="reward-wheel-svg" viewBox="0 0 320 320" role="img" aria-label={title}>
               {segments.map(({ prize, startAngle, endAngle, middle, labelPoint, index, chance }) => {
-                const lines = labelLines(prize.name)
+                const text = readableLabel(prize.name)
+                const fontSize = text.length > 18 ? 8 : text.length > 12 ? 9 : 10.5
                 return (
                   <g key={prize.id}>
                     <path
                       d={arcPath(startAngle, endAngle)}
-                      className={`reward-wheel-slice reward-slice-${(index % 8) + 1}`}
+                      className={`reward-wheel-slice reward-slice-${(index % 4) + 1}`}
                     />
-                    {chance >= 3 && (
+                    {chance >= 2.3 && (
                       <text
                         x={labelPoint.x}
                         y={labelPoint.y}
+                        transform={`rotate(${middle + 90} ${labelPoint.x} ${labelPoint.y})`}
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        transform={`rotate(${middle > 180 ? middle + 90 : middle - 90} ${labelPoint.x} ${labelPoint.y})`}
+                        fontSize={fontSize}
                         className="reward-wheel-label"
                       >
-                        {lines.map((line, lineIndex) => (
-                          <tspan
-                            x={labelPoint.x}
-                            dy={lineIndex === 0 && lines.length > 1 ? '-0.45em' : lineIndex === 0 ? '0' : '1.05em'}
-                            key={line}
-                          >
-                            {line}
-                          </tspan>
-                        ))}
+                        {text}
                       </text>
                     )}
                   </g>
                 )
               })}
+              <circle cx="160" cy="160" r="143" fill="none" stroke="#fff" strokeWidth="10" strokeOpacity=".28" pointerEvents="none" />
 
             </svg>
           </div>
-          <div className="reward-wheel-center-hub">{actionLabel && onAction ? <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning} onClick={triggerAction} aria-label={actionLabel}><strong>{spinning ? "•••" : "Spin"}</strong></button> : <div className="reward-wheel-center-static"><strong>{centerLabel}</strong><small>SPIN</small></div>}</div>
+          <div className="reward-wheel-center-hub">
+            {actionLabel && onAction ? (
+              <button type="button" className="reward-wheel-center-spin" disabled={actionDisabled || spinning} onClick={triggerAction} aria-label={actionLabel}>
+                <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+                  <path d="M60 3 L92 48 C108 70 107 96 89 109 C72 121 48 121 31 109 C13 97 12 71 28 48 Z" fill="currentColor" stroke="#fff" strokeWidth="5" strokeLinejoin="round" />
+                </svg>
+                <strong>{spinning ? '•••' : 'Spin'}</strong>
+              </button>
+            ) : (
+              <div className="reward-wheel-center-static">
+                <svg viewBox="0 0 120 120" aria-hidden="true"><path d="M60 3 L92 48 C108 70 107 96 89 109 C72 121 48 121 31 109 C13 97 12 71 28 48 Z" fill="currentColor" stroke="#fff" strokeWidth="5" strokeLinejoin="round" /></svg>
+                <strong>{centerLabel}</strong>
+              </div>
+            )}
+          </div>
         </div>
 
         <aside className="reward-wheel-legend" aria-label="Wheel prize chances">
           <h3>Wheel chances</h3>
           {segments.map(({ prize, index, chance }) => (
             <div className="reward-wheel-legend-row" key={prize.id}>
-              <span className={`reward-wheel-dot reward-dot-${(index % 8) + 1}`} aria-hidden="true" />
+              <span className={`reward-wheel-dot reward-dot-${(index % 4) + 1}`} aria-hidden="true" />
               <span><strong>{prize.name}</strong>{prize.detail && <small>{prize.detail}</small>}</span>
               <b>{chance.toFixed(chance >= 10 ? 0 : 1)}%</b>
             </div>
