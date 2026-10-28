@@ -280,7 +280,7 @@
 .reward-wheel-reference .reward-slice-3,.reward-wheel-reference .reward-dot-3{fill:#5db577;background:#5db577}
 .reward-wheel-reference .reward-slice-4,.reward-wheel-reference .reward-dot-4{fill:#f4c95e;background:#f4c95e}
 .reward-wheel-reference .reward-wheel-label{
-  font-family:var(--font-nunito),system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-family:"Trebuchet MS","Arial Rounded MT Bold",system-ui,sans-serif;
   font-weight:850;
   fill:#fff;
   stroke:rgba(29,41,52,.06);
