@@ -391,6 +391,18 @@ export default function Home() {
   }
 
   const activeChildren = useMemo(() => children.filter((child) => child.active), [children])
+  const reportingChildren = useMemo(() => children.filter((child) => !child.is_demo), [children])
+  const reportingActiveChildren = useMemo(() => reportingChildren.filter((child) => child.active), [reportingChildren])
+  const reportingChildIds = useMemo(() => new Set(reportingChildren.map((child) => child.id)), [reportingChildren])
+  const reportingEntries = useMemo(() => entries.filter((entry) => reportingChildIds.has(entry.child_id)), [entries, reportingChildIds])
+  const reportingGoalBonuses = useMemo(() => goalBonuses.filter((bonus) => reportingChildIds.has(bonus.child_id)), [goalBonuses, reportingChildIds])
+  const archivedChildren = useMemo(() => children.filter((child) => !child.active), [children])
+
+  const todayEntries = useMemo(
+    () => new Map(entries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry])),
+    [entries, today],
+  )
+
   const recordedActiveCount = useMemo(
     () => activeChildren.filter((child) => todayEntries.has(child.id)).length,
     [activeChildren, todayEntries],
@@ -413,18 +425,6 @@ export default function Home() {
         return childFullName(a).localeCompare(childFullName(b))
       })
   }, [activeChildren, todayEntries, todaySearch, todayRosterFilter])
-
-  const reportingChildren = useMemo(() => children.filter((child) => !child.is_demo), [children])
-  const reportingActiveChildren = useMemo(() => reportingChildren.filter((child) => child.active), [reportingChildren])
-  const reportingChildIds = useMemo(() => new Set(reportingChildren.map((child) => child.id)), [reportingChildren])
-  const reportingEntries = useMemo(() => entries.filter((entry) => reportingChildIds.has(entry.child_id)), [entries, reportingChildIds])
-  const reportingGoalBonuses = useMemo(() => goalBonuses.filter((bonus) => reportingChildIds.has(bonus.child_id)), [goalBonuses, reportingChildIds])
-  const archivedChildren = useMemo(() => children.filter((child) => !child.active), [children])
-
-  const todayEntries = useMemo(
-    () => new Map(entries.filter((entry) => entry.entry_date === today).map((entry) => [entry.child_id, entry])),
-    [entries, today],
-  )
 
   const monthlyPoints = useMemo(
     () => reportingEntries.reduce((sum, entry) => sum + Number(entry.points || 0), 0)
