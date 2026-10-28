@@ -68,14 +68,11 @@ function categoryIcon(slug: string) {
   return '🎁'
 }
 function targetRotationForPrize(prizeId: number, prizes: WheelPrize[], rotation: number) {
-  const total = prizes.reduce((sum, prize) => sum + Math.max(0, Number(prize.weight)), 0)
-  let cursor = 0
-  let middle = 0
-  for (const prize of prizes) {
-    const angle = total > 0 ? (Number(prize.weight) / total) * 360 : 360 / Math.max(prizes.length, 1)
-    if (prize.id === prizeId) middle = cursor + angle / 2
-    cursor += angle
-  }
+  // The draw is still weighted server-side; the visual wheel uses equal wedges.
+  // Stop exactly in the middle of the selected prize's displayed wedge.
+  const index = prizes.findIndex((prize) => prize.id === prizeId)
+  if (index < 0 || prizes.length === 0) return rotation
+  const middle = (index + 0.5) * 360 / prizes.length
   const current = ((rotation % 360) + 360) % 360
   const desired = ((360 - middle) % 360 + 360) % 360
   return rotation + 1440 + ((desired - current + 360) % 360)
