@@ -68,14 +68,11 @@ function categoryIcon(slug: string) {
   return '🎁'
 }
 function targetRotationForPrize(prizeId: number, prizes: WheelPrize[], rotation: number) {
-  const total = prizes.reduce((sum, prize) => sum + Math.max(0, Number(prize.weight)), 0)
-  let cursor = 0
-  let middle = 0
-  for (const prize of prizes) {
-    const angle = total > 0 ? (Number(prize.weight) / total) * 360 : 360 / Math.max(prizes.length, 1)
-    if (prize.id === prizeId) middle = cursor + angle / 2
-    cursor += angle
-  }
+  // The draw is still weighted server-side; the visual wheel uses equal wedges.
+  // Stop exactly in the middle of the selected prize's displayed wedge.
+  const index = prizes.findIndex((prize) => prize.id === prizeId)
+  if (index < 0 || prizes.length === 0) return rotation
+  const middle = (index + 0.5) * 360 / prizes.length
   const current = ((rotation % 360) + 360) % 360
   const desired = ((360 - middle) % 360 + 360) % 360
   return rotation + 1440 + ((desired - current + 360) % 360)
@@ -157,7 +154,7 @@ export default function RewardsPage() {
 
         {message && <div className="notice error">{message}</div>}
 
-        {activeTab === 'monthly' && <MonthlySpinsPanel session={session} />}
+        {activeTab === 'monthly' && <MonthlySpinsPanel session={session} isAdmin={profile.role === 'admin'} />}
         {activeTab === 'free' && <FreeSpinsPanel session={session} />}
         {activeTab === 'test' && <TestWheelPanel />}
         {activeTab === 'setup' && profile.role === 'admin' && <PrizeSetupPanel />}
@@ -167,7 +164,7 @@ export default function RewardsPage() {
   )
 }
 
-function MonthlySpinsPanel({ session }: { session: Session }) {
+function MonthlySpinsPanel({ session, isAdmin }: { session: Session; isAdmin: boolean }) {
   const [month, setMonth] = useState(localMonth())
   const [roster, setRoster] = useState<RewardChild[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -175,6 +172,7 @@ function MonthlySpinsPanel({ session }: { session: Session }) {
   const [prizes, setPrizes] = useState<Prize[]>([])
   const [stock, setStock] = useState<Stock[]>([])
   const [wins, setWins] = useState<MonthlyWin[]>([])
+  const [revokingWinId, setRevokingWinId] = useState<number | null>(null)
   const [childId, setChildId] = useState<number | null>(null)
   const [categorySlug, setCategorySlug] = useState('candy')
   const [rotation, setRotation] = useState(0)
@@ -218,6 +216,22 @@ function MonthlySpinsPanel({ session }: { session: Session }) {
       .eq('child_id', selected).eq('month_start', monthStart(month)).order('spin_number')
     if (error) showMessage(error.message, 'error')
     setWins((data ?? []) as MonthlyWin[])
+  }
+
+  async function revokeWin(win: MonthlyWin) {
+    if (!isAdmin || revokingWinId || spinning || !childId) return
+    const reason = window.prompt('Reverse spin ' + win.spin_number + ' (' + win.prize_name_snapshot + ')? This will restore one spin and one prize to stock. The correction will be kept in the audit log.\n\nEnter the reason:', 'Accidental spin by staff')
+    if (reason === null) return
+    if (reason.trim().length < 5) return showMessage('Enter a brief reason (at least 5 characters).', 'error')
+    if (!window.confirm('Confirm reversing this spin for ' + (selectedChild?.child_name ?? 'this student') + '?')) return
+    setRevokingWinId(win.id)
+    const { error } = await supabase.rpc('revoke_accidental_monthly_spin', { p_win_id: win.id, p_reason: reason.trim() })
+    setRevokingWinId(null)
+    if (error) return showMessage(error.message, 'error')
+    setResult(null)
+    showMessage('Accidental spin reversed. One spin and one prize were restored.', 'success')
+    await loadData()
+    await loadWins(childId)
   }
 
   const selectedChild = useMemo(() => roster.find((child) => child.child_id === childId) ?? null, [roster, childId])
@@ -300,7 +314,7 @@ function MonthlySpinsPanel({ session }: { session: Session }) {
 
       <section className="card rewards-history">
         <div className="section-heading"><div><h2>{selectedChild?.child_name ?? 'Child'} — {monthLabel(month)}</h2><p className="subtle">Recorded monthly reward history.</p></div><span className="badge">{wins.length} win{wins.length === 1 ? '' : 's'}</span></div>
-        {wins.length === 0 ? <div className="empty">No monthly rewards recorded for this child in {monthLabel(month)}.</div> : wins.map((win) => <div className="summary-row" key={win.id}><span><strong>Spin {win.spin_number}: {win.prize_name_snapshot}</strong><br /><span className="subtle">{win.category_name_snapshot} • {win.tier_name_snapshot}</span></span><span className="subtle">{new Date(win.won_at).toLocaleString()}</span></div>)}
+        {wins.length === 0 ? <div className="empty">No monthly rewards recorded for this child in {monthLabel(month)}.</div> : wins.map((win) => <div className="summary-row" key={win.id}><span><strong>Spin {win.spin_number}: {win.prize_name_snapshot}</strong><br /><span className="subtle">{win.category_name_snapshot} • {win.tier_name_snapshot}</span></span><span className="reward-history-actions"><span className="subtle">{new Date(win.won_at).toLocaleString()}</span>{isAdmin && <button type="button" className="ghost" disabled={spinning || revokingWinId !== null} onClick={() => void revokeWin(win)}>{revokingWinId === win.id ? 'Reversing…' : 'Revoke accidental spin'}</button>}</span></div>)}
       </section>
     </section>
   )

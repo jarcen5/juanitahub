@@ -598,9 +598,11 @@ export default function LearningPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [tab, setTab] = useState<LearningTab>('week')
+  const [weekStudentSearch, setWeekStudentSearch] = useState('')
   const [weekStart, setWeekStart] = useState(mondayFor(localDate()))
 
   const [librarySearch, setLibrarySearch] = useState('')
+  const [advancedLibraryFiltersOpen, setAdvancedLibraryFiltersOpen] = useState(false)
   const [subjectFilter, setSubjectFilter] = useState<'all' | Subject>('all')
   const [gradeFilter, setGradeFilter] = useState('all')
   const [skillFilter, setSkillFilter] = useState('all')
@@ -705,8 +707,8 @@ export default function LearningPage() {
 
   useEffect(() => {
     function syncTab() {
-      const requested = window.location.hash.replace('#', '') as LearningTab
-      setTab(['week', 'review', 'goals', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested : 'week')
+      const requested = window.location.hash.replace('#', '')
+      setTab(requested === 'labs' ? 'typing' : ['week', 'review', 'goals', 'my-week', 'library', 'typing', 'quizzes', 'writing', 'reading', 'notes'].includes(requested) ? requested as LearningTab : 'week')
     }
     syncTab()
     window.addEventListener('hashchange', syncTab)
@@ -794,6 +796,8 @@ export default function LearningPage() {
   const registrationByChild = useMemo(() => new Map(registrations.map((registration) => [registration.child_id, registration])), [registrations])
   const assignmentById = useMemo(() => new Map(library.map((assignment) => [assignment.id, assignment])), [library])
   const gradeOptions = useMemo(() => [...new Set(registrations.map((registration) => registration.grade?.trim()).filter((grade): grade is string => Boolean(grade)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [registrations])
+  // Keep grades 1–7 browsable even before students in those grades are registered.
+  const libraryGradeOptions = useMemo(() => [...new Set([...Array.from({ length: 7 }, (_, i) => String(i + 1)), ...gradeOptions])].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [gradeOptions])
 
   useEffect(() => {
     if (!assignGrade && gradeOptions.length) setAssignGrade(gradeOptions[0])
@@ -805,6 +809,8 @@ export default function LearningPage() {
       if (raw) {
         const prefs = JSON.parse(raw) as {
           grade?: string
+          search?: string
+          status?: string
           subject?: string
           difficulty?: string
           format?: string
@@ -812,6 +818,8 @@ export default function LearningPage() {
           favorites?: number[]
         }
         if (typeof prefs.grade === 'string') setGradeFilter(prefs.grade)
+        if (typeof prefs.search === 'string') setLibrarySearch(prefs.search)
+        if (['active', 'archived', 'all'].includes(String(prefs.status))) setLibraryStatusFilter(prefs.status as typeof libraryStatusFilter)
         if (prefs.subject === 'all' || (typeof prefs.subject === 'string' && prefs.subject in subjectLabels)) setSubjectFilter(prefs.subject as typeof subjectFilter)
         if (['all','support','standard','challenge'].includes(String(prefs.difficulty))) setDifficultyFilter(prefs.difficulty as typeof difficultyFilter)
         if (['all','digital','printable','either'].includes(String(prefs.format))) setFormatFilter(prefs.format as typeof formatFilter)
@@ -828,13 +836,15 @@ export default function LearningPage() {
     if (!libraryPrefsLoaded) return
     window.localStorage.setItem('juanita-learning-library-prefs', JSON.stringify({
       grade: gradeFilter,
+      search: librarySearch,
+      status: libraryStatusFilter,
       subject: subjectFilter,
       difficulty: difficultyFilter,
       format: formatFilter,
       view: libraryView,
       favorites: favoriteAssignmentIds,
     }))
-  }, [libraryPrefsLoaded, gradeFilter, subjectFilter, difficultyFilter, formatFilter, libraryView, favoriteAssignmentIds])
+  }, [libraryPrefsLoaded, gradeFilter, librarySearch, libraryStatusFilter, subjectFilter, difficultyFilter, formatFilter, libraryView, favoriteAssignmentIds])
 
   useEffect(() => {
     if (!myWeekChildId || !session) {
@@ -944,6 +954,32 @@ export default function LearningPage() {
     }
     return groups
   }, [filteredLibrary])
+
+  const recommendedNextAssignments = useMemo(() => {
+    if (!assignChildId) return []
+    const grade = registrationByChild.get(assignChildId)?.grade?.trim()
+    const history = assignmentUsageRows.filter((row) => row.child_id === assignChildId)
+    const completedIds = new Set(history.filter((row) => row.status === 'completed').map((row) => row.assignment_id))
+    const assignedIds = new Set(history.filter((row) => row.status === 'assigned' || row.status === 'in_progress').map((row) => row.assignment_id))
+    const completed = library.filter((item) => completedIds.has(item.id))
+    const subjects = new Set(completed.map((item) => item.subject))
+    const skills = new Set(completed.map((item) => item.skill?.trim()).filter(Boolean))
+    const previousDifficulty = new Set(completed.map((item) => item.difficulty))
+    const priority = { support: 0, standard: 1, challenge: 2 }
+    return library
+      .filter((item) => item.active && !completedIds.has(item.id) && !assignedIds.has(item.id))
+      .filter((item) => !grade || !item.grade_levels.length || item.grade_levels.includes(grade))
+      .map((item) => {
+        const sameSkill = Boolean(item.skill?.trim() && skills.has(item.skill.trim()))
+        const sameSubject = subjects.has(item.subject)
+        const nextLevel = completed.some((past) => past.subject === item.subject && (past.skill?.trim() || '') === (item.skill?.trim() || '') && priority[item.difficulty] === priority[past.difficulty] + 1)
+        const score = (grade && item.grade_levels.includes(grade) ? 5 : 0) + (sameSkill ? 4 : 0) + (sameSubject ? 2 : 0) + (nextLevel ? 5 : 0) + (previousDifficulty.has(item.difficulty) ? 1 : 0)
+        const reason = nextLevel ? 'Next difficulty level' : sameSkill ? 'Continue this skill' : sameSubject ? 'Same subject, new activity' : grade ? 'Matches grade ' + grade : 'Not completed yet'
+        return { item, score, reason }
+      })
+      .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
+      .slice(0, 3)
+  }, [assignChildId, registrationByChild, assignmentUsageRows, library])
 
   const selectedAssignment = useMemo(() => library.find((assignment) => assignment.id === selectedAssignmentId) ?? null, [library, selectedAssignmentId])
 
@@ -1066,6 +1102,7 @@ export default function LearningPage() {
   }, [readingLogs])
 
   const weeklyChildren = useMemo(() => children.filter((child) => (weeklyByChild.get(child.id)?.length ?? 0) > 0 || (homeworkByChild.get(child.id)?.length ?? 0) > 0 || (readingByChild.get(child.id)?.length ?? 0) > 0), [children, weeklyByChild, homeworkByChild, readingByChild])
+  const visibleWeeklyChildren = useMemo(() => weeklyChildren.filter((child) => childName(child).toLowerCase().includes(weekStudentSearch.trim().toLowerCase())), [weeklyChildren, weekStudentSearch])
 
   const reportingWeeklyAssignments = useMemo(() => weeklyAssignments.filter((row) => reportingChildIds.has(row.child_id)), [weeklyAssignments, reportingChildIds])
   const reportingHomeworkTasks = useMemo(() => homeworkTasks.filter((row) => reportingChildIds.has(row.child_id)), [homeworkTasks, reportingChildIds])
@@ -1298,7 +1335,8 @@ export default function LearningPage() {
       + pendingGoalApprovals.filter((goal) => !childById.get(goal.child_id)?.is_demo).length
     const overdue = overdueAssignments.filter(({ child }) => !child.is_demo)
 
-    return { noWork, noCompletions, reviews, overdue }
+    const homeworkReviews = pendingHomeworkChecks.filter(({ child }) => !child.is_demo).length
+    return { noWork, noCompletions, reviews, homeworkReviews, overdue }
   }, [reportingChildren, weeklyByChild, homeworkByChild, pendingHomeworkChecks, pendingWritingReviews, pendingReadingReviews, pendingGoalApprovals, overdueAssignments, childById])
 
   const myWeekChild = useMemo(() => myWeekChildId ? childById.get(myWeekChildId) ?? null : null, [myWeekChildId, childById])
@@ -2087,9 +2125,9 @@ export default function LearningPage() {
                 <button className="ghost" type="button" onClick={() => setTab('review')}>Open Review Center</button>
               </div>
               <div className="learning-attention-grid">
-                <article className={staffAttention.reviews ? 'attention' : ''}><strong>{staffAttention.reviews}</strong><span>Waiting for review</span><small>Homework, writing, reading, or goals</small></article>
+                <article className={staffAttention.reviews ? 'attention' : ''}><strong>{staffAttention.reviews}</strong><span>Waiting for review</span><small>{staffAttention.homeworkReviews} homework checks • {staffAttention.reviews - staffAttention.homeworkReviews} other reviews</small></article>
                 <article className={staffAttention.noWork.length ? 'attention' : ''}><strong>{staffAttention.noWork.length}</strong><span>No work assigned</span><small>{staffAttention.noWork.length ? staffAttention.noWork.slice(0, 3).map(childName).join(', ') + (staffAttention.noWork.length > 3 ? ' +' + (staffAttention.noWork.length - 3) : '') : 'Everyone has work this week'}</small></article>
-                <article><strong>{staffAttention.noCompletions.length}</strong><span>No completions yet</span><small>{staffAttention.noCompletions.length ? 'Students with work but nothing finished yet' : 'Everyone with work has completed something'}</small></article>
+                <article><strong>{staffAttention.noCompletions.length}</strong><span>No completions yet</span><small>{staffAttention.noCompletions.length ? staffAttention.noCompletions.slice(0, 3).map(childName).join(', ') + (staffAttention.noCompletions.length > 3 ? ' +' + (staffAttention.noCompletions.length - 3) : '') : 'Everyone with work has completed something'}</small></article>
                 <article className={staffAttention.overdue.length ? 'attention' : ''}><strong>{staffAttention.overdue.length}</strong><span>Overdue</span><small>{staffAttention.overdue.length ? 'Past due and still unfinished' : 'Nothing overdue'}</small></article>
               </div>
               {staffAttention.noWork.length > 0 && (
@@ -2107,11 +2145,13 @@ export default function LearningPage() {
               <article><strong>{metrics.assigned ? Math.round((metrics.completed / metrics.assigned) * 100) : 0}%</strong><span>Completion</span><small>Across assigned work</small></article>
             </div>
 
+            {weeklyChildren.length > 0 && <div className="learning-week-search"><label className="field"><span>Find a student</span><input type="search" value={weekStudentSearch} onChange={(event) => setWeekStudentSearch(event.target.value)} placeholder="Search students by name…" aria-label="Search students in This Week" /></label><div className="learning-week-search-actions"><span role="status" aria-live="polite">{visibleWeeklyChildren.length} of {weeklyChildren.length} students</span>{weekStudentSearch && <button className="ghost" type="button" onClick={() => setWeekStudentSearch('')}>Clear search</button>}</div></div>}
             {weeklyChildren.length === 0 ? (
               <section className="card learning-empty"><span>📘</span><h2>No learning activity yet this week</h2><p>Use Assignment Library to assign work, or Reading to log time with a book.</p></section>
             ) : (
               <div className="learning-student-list">
-                {weeklyChildren.map((child) => {
+                {visibleWeeklyChildren.length === 0 && <div className="card learning-inline-empty">No students match “{weekStudentSearch}”. Try another name or clear the search.</div>}
+                {visibleWeeklyChildren.map((child) => {
                   const assignments = weeklyByChild.get(child.id) ?? []
                   const homework = homeworkByChild.get(child.id) ?? []
                   const logs = readingByChild.get(child.id) ?? []
@@ -2641,16 +2681,18 @@ export default function LearningPage() {
                   {gradeOptions.map((grade) => <button className={gradeFilter === grade ? 'active' : ''} type="button" key={grade} onClick={() => setGradeFilter(grade)}>Grade {grade}</button>)}
                 </div>
               </div>
-              <div className="learning-library-filters v2">
-                <label className="field search"><span>Search</span><input type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="Title, skill, or instructions…" /></label>
-                <label className="field"><span>Grade</span><select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option value="all">All grades</option>{gradeOptions.map((grade) => <option value={grade} key={grade}>Grade {grade}</option>)}</select></label>
+              <div className="learning-library-search-row">
+                <label className="field search"><span>Search assignments</span><input type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="Find by title, subject, skill, or instructions…" /></label>
+                <button className="ghost" type="button" aria-expanded={advancedLibraryFiltersOpen} aria-controls="learning-advanced-filters" onClick={() => setAdvancedLibraryFiltersOpen((open) => !open)}>{advancedLibraryFiltersOpen ? "Hide advanced filters" : "Advanced filters"}</button>
+              </div>
+              {advancedLibraryFiltersOpen && <div id="learning-advanced-filters" className="learning-library-filters v2">
                 <label className="field"><span>Subject</span><select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value as typeof subjectFilter)}><option value="all">All subjects</option>{Object.entries(subjectLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
                 <label className="field"><span>Skill</span><select value={skillFilter} onChange={(event) => setSkillFilter(event.target.value)}><option value="all">All skills</option>{skillOptions.map((skill) => <option value={skill} key={skill}>{skill}</option>)}</select></label>
                 <label className="field"><span>Difficulty</span><select value={difficultyFilter} onChange={(event) => setDifficultyFilter(event.target.value as typeof difficultyFilter)}><option value="all">All levels</option><option value="support">Support</option><option value="standard">Standard</option><option value="challenge">Challenge</option></select></label>
                 <label className="field"><span>Format</span><select value={formatFilter} onChange={(event) => setFormatFilter(event.target.value as typeof formatFilter)}><option value="all">All formats</option><option value="digital">Digital</option><option value="printable">Printable</option><option value="either">Either</option></select></label>
                 <label className="field"><span>Status</span><select value={libraryStatusFilter} onChange={(event) => setLibraryStatusFilter(event.target.value as typeof libraryStatusFilter)}><option value="active">Active</option><option value="archived">Archived</option><option value="all">Active + archived</option></select></label>
                 <button className="ghost learning-filter-clear" type="button" onClick={() => { setLibrarySearch(''); setGradeFilter('all'); setSubjectFilter('all'); setSkillFilter('all'); setDifficultyFilter('all'); setFormatFilter('all'); setLibraryStatusFilter('active'); setLibraryView('all') }}>Clear filters</button>
-              </div>
+              </div>}
             </section>
 
             <div className="learning-library-layout v2">
@@ -2704,6 +2746,20 @@ export default function LearningPage() {
               </section>
 
               <aside className="card learning-assign-card">
+                <section className="learning-recommendations" aria-label="Recommended next assignments">
+                  <span className="learning-kicker">Recommended next assignment</span>
+                  <p>Suggestions use completed activities, subject, skill, difficulty, and grade. Staff choose what to assign.</p>
+                  <label className="field"><span>Student</span><select value={assignChildId ?? ''} onChange={(event) => { setAssignChildId(Number(event.target.value)); setAssignMode('child') }}><option value="" disabled>Choose a student</option>{children.map((child) => <option value={child.id} key={child.id}>{childName(child)}{child.is_demo ? ' • Demo' : ''}</option>)}</select></label>
+                  {recommendedNextAssignments.length ? <div className="learning-recommendation-list">
+                    {recommendedNextAssignments.map(({ item, reason }) => (
+                      <button className="learning-recommendation-option" key={item.id} type="button" onClick={() => { setSelectedAssignmentId(item.id); setAssignMode('child') }}>
+                        <strong>{item.title}</strong>
+                        <small>{subjectLabels[item.subject]} • {item.difficulty} • {reason}</small>
+                        <span>View assignment details →</span>
+                      </button>
+                    ))}
+                  </div> : <p className="learning-inline-empty">No new grade-matched activities are available for this student. You can still browse and assign from the full library.</p>}
+                </section>
                 <span className="learning-kicker">Assignment details</span>
                 <h2>{selectedAssignment?.title ?? 'Choose an assignment'}</h2>
                 {selectedAssignment ? <>
@@ -2890,6 +2946,8 @@ export default function LearningPage() {
             </div>
           </section>
         )}
+
+        {(['typing', 'quizzes', 'writing', 'reading'] as LearningTab[]).includes(tab) && <nav className="learning-labs-subnav" aria-label="Learning labs">{([['typing', 'Typing'], ['quizzes', 'Quiz'], ['writing', 'Writing'], ['reading', 'Reading']] as const).map(([key, label]) => <button type="button" key={key} className={tab === key ? 'active' : ''} aria-current={tab === key ? 'page' : undefined} onClick={() => { window.location.hash = key; setTab(key) }}>{label} Lab</button>)}</nav>}
 
         {tab === 'typing' && (
           <section className="learning-section">

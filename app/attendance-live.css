@@ -206,3 +206,110 @@
     flex: 1 1 120px;
   }
 }
+
+/* Staff attendance polish: search and roster status filters */
+.attendance-date-field .attendance-today-button{
+  margin-top:7px;
+  min-height:34px;
+  padding:6px 11px;
+  font-size:12px;
+}
+.attendance-roster-tools{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  flex-wrap:wrap;
+}
+.attendance-roster-tools .attendance-search{
+  width:min(340px,100%);
+  min-width:200px;
+  flex:1 1 220px;
+}
+.attendance-clear-search{
+  min-height:40px;
+  padding:8px 12px;
+  font-size:12px;
+}
+.attendance-roster-filters{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:16px 0 8px;
+}
+.attendance-roster-filters button{
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  justify-content:center;
+  min-height:38px;
+  padding:8px 13px;
+  border:1px solid #d2e2ee;
+  border-radius:999px;
+  background:#f8fbfd;
+  color:#4d6980;
+  font:inherit;
+  font-size:13px;
+  font-weight:750;
+  cursor:pointer;
+}
+.attendance-roster-filters button span{
+  display:inline-grid;
+  place-items:center;
+  min-width:24px;
+  height:23px;
+  padding:0 6px;
+  border-radius:999px;
+  background:#eaf0f6;
+  font-size:11px;
+}
+.attendance-roster-filters button.active{
+  border-color:#89b4da;
+  background:#eaf5ff;
+  color:#265e91;
+}
+.attendance-roster-filters button.active span{
+  background:#d3e7fa;
+}
+.attendance-roster-filters button:focus-visible,
+.attendance-roster-result-count button:focus-visible,
+.attendance-clear-search:focus-visible,
+.attendance-today-button:focus-visible{
+  outline:3px solid #5a95c6;
+  outline-offset:2px;
+}
+.attendance-roster-result-count{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  justify-content:space-between;
+  min-height:32px;
+  margin-bottom:12px;
+  color:#718497;
+  font-size:12px;
+}
+.attendance-roster-result-count button{
+  min-height:32px;
+  padding:5px 10px;
+  font-size:12px;
+}
+@media(max-width:600px){
+  .attendance-roster-tools{width:100%}
+  .attendance-roster-tools .attendance-search{width:100%;max-width:none}
+  .attendance-roster-filters button{flex:1 1 auto;padding:9px 10px}
+}
+html[data-theme="dark"] .attendance-roster-filters button{
+  border-color:#466174;
+  background:#243745;
+  color:#d5e4ef;
+}
+html[data-theme="dark"] .attendance-roster-filters button.active{
+  border-color:#76a8d0;
+  background:#294e69;
+  color:#ecf7ff;
+}
+html[data-theme="dark"] .attendance-roster-filters button span{background:#385063}
+html[data-theme="dark"] .attendance-roster-filters button.active span{background:#386b8e}
+html[data-theme="dark"] .attendance-roster-result-count{color:#afc3d2}

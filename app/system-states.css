@@ -1,0 +1,124 @@
+/* Shared site-wide route recovery and navigation feedback.
+   Keep styles scoped so kiosk and student game UI are not restyled. */
+.jh-system-state-wrap {
+  display: grid;
+  align-content: start;
+  min-height: min(65vh, 560px);
+  padding-top: clamp(12px, 4vh, 48px);
+}
+.jh-system-state {
+  width: min(100%, 680px);
+  margin-inline: auto;
+  padding: clamp(24px, 4vw, 46px);
+  border: 1px solid #d7e6f1;
+  border-radius: 22px;
+  background: var(--panel, #fff);
+  color: var(--ink, #233d55);
+  text-align: left;
+}
+.jh-system-state-icon {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  margin-bottom: 19px;
+  border-radius: 15px;
+  background: #eff6fc;
+  color: #2e6f9f;
+  font-size: 26px;
+  font-weight: 850;
+}
+.jh-system-state-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: #59809d;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.jh-system-state h1 {
+  margin: 0 0 10px;
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1.2;
+}
+.jh-system-state p {
+  max-width: 55ch;
+  margin: 0 0 21px;
+  line-height: 1.6;
+  color: var(--muted, #657b8d);
+}
+.jh-system-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 11px;
+  align-items: center;
+}
+.jh-system-state-actions a,
+.jh-system-state-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 45px;
+  padding: 10px 17px;
+  text-decoration: none;
+  font: inherit;
+  font-weight: 750;
+}
+.jh-system-state .jh-system-state-help {
+  margin: 22px 0 0;
+  font-size: 12px;
+  color: var(--muted, #657b8d);
+}
+.jh-system-state-loading { min-height: 265px; }
+.jh-system-loading-mark {
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 16px;
+  border: 4px solid #d8e9f5;
+  border-top-color: #358bcb;
+  border-radius: 50%;
+  animation: jh-system-spin 1s linear infinite;
+}
+.jh-system-loading-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  max-width: 390px;
+  margin-top: 25px;
+}
+.jh-system-loading-bars span {
+  display: block;
+  height: 13px;
+  border-radius: 8px;
+  background: #e4eef6;
+  animation: jh-system-pulse 1.5s ease-in-out infinite alternate;
+}
+.jh-system-loading-bars span:nth-child(2) { width: 82%; animation-delay: .18s; }
+.jh-system-loading-bars span:nth-child(3) { width: 54%; animation-delay: .36s; }
+@keyframes jh-system-spin { to { transform: rotate(360deg); } }
+@keyframes jh-system-pulse { to { opacity: .4; } }
+/* Consistent focus visibility on shared controls, including keyboard and TV remotes. */
+:where(a[href], button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid #368ccc;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .jh-system-state-wrap { width: min(100% - 24px, 1220px); }
+  .jh-system-state { padding: 24px 20px; }
+  .jh-system-state-actions { flex-direction: column; align-items: stretch; }
+  .jh-system-state-actions > * { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jh-system-loading-mark, .jh-system-loading-bars span { animation: none; }
+}
+html[data-theme="dark"] .jh-system-state {
+  border-color: #365266;
+  background: #192b37;
+  color: #edf5fa;
+}
+html[data-theme="dark"] .jh-system-state-icon { background: #24445d; color: #cae8fd; }
+html[data-theme="dark"] .jh-system-state-eyebrow { color: #abd1ed; }
+html[data-theme="dark"] .jh-system-loading-mark { border-color: #38566a; border-top-color: #8bc9f0; }
+html[data-theme="dark"] .jh-system-loading-bars span { background: #365267; }
