@@ -205,6 +205,14 @@ const navGroups: NavGroup[] = [
       { href: '/staff/lab-devices', label: 'Lab Devices', description: 'Manage activated Student Learning computers and revoke access.', adminOnly: true },
     ],
   },
+  {
+    label: 'Guide',
+    icon: '📖',
+    description: 'Staff help and quick instructions',
+    items: [
+      { href: '/staff-guide', label: 'Staff Quick-Start Guide', description: 'Daily attendance, behavior, Learning, Rewards, fulfillment and reports.' },
+    ],
+  },
 ]
 
 export default function SiteNavigation() {
