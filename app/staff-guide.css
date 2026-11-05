@@ -1,0 +1,71 @@
+/* Juanita Hub staff handbook — concise, printable, and tablet friendly. */
+.jh-guide-page{display:grid;gap:20px;max-width:1220px}
+.jh-guide-page .jh-guide-hero{margin-bottom:0;align-items:center}
+.jh-guide-hero>div{max-width:75ch}
+.jh-guide-hero h1{margin:6px 0 12px}
+.jh-guide-hero p{margin:0 0 13px;line-height:1.6;color:var(--muted)}
+.jh-guide-eyebrow{display:block;font-size:11px;font-weight:900;letter-spacing:.1em;color:#387ca8;text-transform:uppercase}
+.jh-guide-version{display:block;font-size:12px;color:#647f94}
+.jh-guide-print{flex:none;min-width:130px}
+.jh-guide-start{display:grid;grid-template-columns:minmax(200px,.6fr) minmax(0,1.4fr);gap:18px;border-left:5px solid #5ab39c}
+.jh-guide-start h2{margin:5px 0 0;font-size:20px}
+.jh-guide-start ol{margin:0;columns:2;column-gap:32px;padding-left:25px}
+.jh-guide-start li{break-inside:avoid;margin:0 0 9px;line-height:1.5}
+.jh-guide-jump h2{font-size:17px;margin:0 0 13px}
+.jh-guide-jump>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.jh-guide-jump a{
+ display:flex;align-items:center;gap:10px;min-height:49px;
+ border:1px solid #d9e7f1;border-radius:12px;padding:10px 13px;
+ background:#f8fbfe;color:#285878;text-decoration:none;font-size:13px;font-weight:750;
+}
+.jh-guide-jump a span{flex:none;font-size:21px}
+.jh-guide-jump a:hover,.jh-guide-jump a:focus-visible{background:#eaf5fc;border-color:#a9cee8}
+.jh-guide-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.jh-guide-section{min-width:0;scroll-margin-top:90px}
+.jh-guide-section-heading{display:flex;align-items:flex-start;gap:13px;padding-bottom:13px;margin-bottom:11px;border-bottom:1px solid #e3edf3}
+.jh-guide-section-icon{display:grid;place-items:center;flex:none;width:45px;height:45px;border-radius:13px;background:#edf6fb;font-size:24px}
+.jh-guide-section-heading h2{margin:4px 0 5px;font-size:20px;line-height:1.2}
+.jh-guide-section-heading p{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
+.jh-guide-section ol{display:grid;gap:11px;margin:0;padding-left:23px}
+.jh-guide-section li{padding-left:4px;line-height:1.55;font-size:13px}
+.jh-guide-section li::marker{color:#4087b9;font-weight:900}
+.jh-guide-section li span{display:block}
+.jh-guide-link{display:inline-flex;margin-top:5px;color:#1269a9;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.jh-guide-tip{margin:15px 0 0;padding:11px 13px;border-radius:11px;background:#eaf5fc;color:#3b657f;font-size:12px;line-height:1.55}
+.jh-guide-back{display:block;width:max-content;margin-top:16px;font-size:12px;color:#3979a6;font-weight:800}
+.jh-guide-footer{text-align:center;font-size:11px;color:var(--muted);padding-bottom:22px}
+.jh-guide-locked a{display:inline-block;text-decoration:none}
+@media(max-width:960px){
+  .jh-guide-jump>div{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .jh-guide-start{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  .jh-guide-sections{grid-template-columns:1fr}
+  .jh-guide-page .jh-guide-hero{display:grid;gap:16px}
+  .jh-guide-print{width:max-content}
+  .jh-guide-start ol{columns:1}
+}
+@media(max-width:440px){.jh-guide-jump>div{grid-template-columns:1fr}}
+html[data-theme="dark"] .jh-guide-jump a{background:#203747;color:#d7ebfa;border-color:#3c566a}
+html[data-theme="dark"] .jh-guide-section-icon{background:#26475a}
+html[data-theme="dark"] .jh-guide-tip{background:#20465b;color:#ddf1ff}
+html[data-theme="dark"] .jh-guide-section-heading{border-color:#405568}
+html[data-theme="dark"] .jh-guide-link,html[data-theme="dark"] .jh-guide-back{color:#9ad4fa}
+@media print{
+  @page{size:letter;margin:.55in}
+  html,body{background:white!important;color:#172838!important}
+  .site-nav,.jh-workspace-bar,.jh-guide-print,.jh-guide-jump,.jh-guide-back,.jh-guide-footer{display:none!important}
+  .jh-guide-page{width:100%!important;max-width:none;display:block;margin:0!important}
+  .jh-guide-page .hero{margin:0 0 13px!important;padding:0!important;border:0!important;box-shadow:none!important;background:none!important}
+  .jh-guide-page .card{background:white!important;border:1px solid #d7e2ea!important;box-shadow:none!important;backdrop-filter:none!important}
+  .jh-guide-start{margin-bottom:14px;padding:13px}
+  .jh-guide-start ol{columns:2}
+  .jh-guide-sections{display:block}
+  .jh-guide-section{break-inside:avoid;margin:0 0 12px;padding:12px}
+  .jh-guide-section-heading{break-after:avoid}
+  .jh-guide-section li{font-size:10.5px}
+  .jh-guide-section h2{font-size:16px}
+  .jh-guide-tip{background:#f0f6fa!important;color:#294a62!important}
+  .jh-guide-link{color:#205d81!important}
+  a[href]:after{content:none!important}
+}
