@@ -1,0 +1,35 @@
+
+/* Juanita Quest: independent assignable mini-game catalog in Learning Library. */
+.jqmini-library-gallery{
+  display:grid;gap:13px;margin-bottom:18px;
+  border:2px solid #c9e3ec;
+  background:linear-gradient(125deg,#f8f6ff,#ecfbf7);
+}
+.jqmini-gallery-heading{display:flex;justify-content:space-between;align-items:center;gap:14px}
+.jqmini-gallery-heading h3{margin:5px 0 6px;font-size:22px;color:#255876}
+.jqmini-gallery-heading p{margin:0;line-height:1.55;color:#60768b;max-width:75ch;font-size:13px}
+.jqmini-gallery-heading>button{flex:none}
+.jqmini-library-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.jqmini-library-tile{
+  display:grid;align-content:start;justify-items:start;gap:10px;padding:14px;
+  border:1px solid #d1e2ee;border-radius:16px;background:#fff;
+  box-shadow:0 4px 12px rgba(45,90,120,.05);
+}
+.jqmini-gallery-icon{
+  display:grid;place-items:center;width:55px;height:55px;
+  border-radius:18px;background:#e9f5ff;font-size:30px;
+}
+.jqmini-library-tile>div{display:grid;gap:5px;min-width:0}
+.jqmini-library-tile strong{font-size:15px;color:#264d65}
+.jqmini-library-tile p{font-size:12px;color:#688394;line-height:1.5;margin:0}
+.jqmini-library-tile small{font-size:11px;color:#587a8f;font-weight:800}
+.jqmini-library-tile button{width:100%;font-size:12px;margin-top:auto}
+.jqmini-gallery-helper{margin:0;font-size:12px;line-height:1.55;color:#527d91}
+@media(max-width:1050px){.jqmini-library-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.jqmini-library-tiles{grid-template-columns:1fr}.jqmini-gallery-heading{align-items:flex-start;flex-direction:column}.jqmini-library-tile{grid-template-columns:60px minmax(0,1fr);align-items:center}.jqmini-library-tile button{grid-column:1/-1}}
+html[data-theme="dark"] .jqmini-library-gallery{background:linear-gradient(125deg,#1e3043,#183c35);border-color:#3e6072}
+html[data-theme="dark"] .jqmini-gallery-heading h3{color:#e0f1fb}
+html[data-theme="dark"] .jqmini-gallery-heading p,html[data-theme="dark"] .jqmini-gallery-helper{color:#b6cede}
+html[data-theme="dark"] .jqmini-library-tile{background:#213746;border-color:#3c5668}
+html[data-theme="dark"] .jqmini-library-tile strong{color:#e0edf6}
+html[data-theme="dark"] .jqmini-library-tile p,html[data-theme="dark"] .jqmini-library-tile small{color:#aec7d7}

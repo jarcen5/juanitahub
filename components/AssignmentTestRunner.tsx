@@ -5,6 +5,8 @@ import TypingActivityRunner from '@/components/TypingActivityRunner'
 import QuizActivityRunner, { type QuizConfig } from '@/components/QuizActivityRunner'
 import WritingActivityRunner, { type WritingConfig } from '@/components/WritingActivityRunner'
 import ReadingActivityRunner, { type ReadingConfig } from '@/components/ReadingActivityRunner'
+import { JuanitaMiniGamePreview } from '@/components/JuanitaMiniGameRunner'
+import type { MiniGameConfig } from '@/lib/juanitaMiniGames'
 
 type TestAssignment = {
   id: number
@@ -53,6 +55,10 @@ export default function AssignmentTestRunner({ assignment, onClose }: Props) {
         onClose={onClose}
       />
     )
+  }
+
+  if (assignment.assignment_type === 'quiz' && (assignment.activity_config as MiniGameConfig | null)?.experience === 'juanita_mini_game') {
+    return <JuanitaMiniGamePreview assignmentTitle={assignment.title} activityConfig={assignment.activity_config as MiniGameConfig} onClose={onClose} />
   }
 
   if (assignment.assignment_type === 'quiz') {

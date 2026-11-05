@@ -11,6 +11,8 @@ import QuizActivityRunner, { type QuizConfig } from '@/components/QuizActivityRu
 import WritingActivityRunner, { type WritingConfig } from '@/components/WritingActivityRunner'
 import ReadingActivityRunner, { type ReadingConfig } from '@/components/ReadingActivityRunner'
 import JuanitaQuestRunner, { type JuanitaQuestConfig } from '@/components/JuanitaQuestRunner'
+import JuanitaMiniGameRunner from '@/components/JuanitaMiniGameRunner'
+import type { MiniGameConfig } from '@/lib/juanitaMiniGames'
 
 type LabStudent = {
   id: number
@@ -433,6 +435,7 @@ export default function StudentLearningPage() {
         writingStatus: writingByRow.get(row.id)?.status ?? null,
         readingReviewStatus: readingByRow.get(row.id)?.review_status ?? null,
         isJuanitaQuest: assignment.assignment_type === 'quiz' && assignment.activity_config?.experience === 'juanita_quest',
+        isJuanitaMiniGame: assignment.assignment_type === 'quiz' && assignment.activity_config?.experience === 'juanita_mini_game',
       }]
     })
     const homeworkItems: MyWeekItem[] = week.homework.map((task) => ({
@@ -592,7 +595,7 @@ export default function StudentLearningPage() {
         />
       )}
 
-      {activeItem?.assignment.assignment_type === 'quiz' && activeItem.assignment.activity_config?.experience !== 'juanita_quest' && access && (
+      {activeItem?.assignment.assignment_type === 'quiz' && !['juanita_quest', 'juanita_mini_game'].includes(String(activeItem.assignment.activity_config?.experience)) && access && (
         <QuizActivityRunner
           studentAssignmentId={activeItem.row.id}
           childId={student.id}
@@ -600,6 +603,20 @@ export default function StudentLearningPage() {
           assignmentTitle={activeItem.assignment.title}
           studentName={student.display_name}
           activityConfig={activeItem.assignment.activity_config as QuizConfig}
+          studentAccess={access}
+          onClose={() => setActiveItem(null)}
+          onSaved={() => loadWeek()}
+        />
+      )}
+
+      {activeItem?.assignment.assignment_type === 'quiz' && activeItem.assignment.activity_config?.experience === 'juanita_mini_game' && access && (
+        <JuanitaMiniGameRunner
+          studentAssignmentId={activeItem.row.id}
+          childId={student.id}
+          assignmentId={activeItem.assignment.id}
+          assignmentTitle={activeItem.assignment.title}
+          studentName={student.display_name}
+          activityConfig={activeItem.assignment.activity_config as MiniGameConfig}
           studentAccess={access}
           onClose={() => setActiveItem(null)}
           onSaved={() => loadWeek()}

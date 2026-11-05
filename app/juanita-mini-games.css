@@ -1,0 +1,136 @@
+/* Juanita Quest Mini-Games: short, hands-on learning, not a full world adventure. */
+.jqmini-backdrop{
+  position:fixed;inset:0;z-index:3000;overflow-y:auto;
+  padding:clamp(9px,2.4vw,24px);
+  background:radial-gradient(circle at 8% 15%,#fde6a9 0,transparent 32%),
+             radial-gradient(circle at 92% 20%,#d4e7fd 0,transparent 37%),
+             linear-gradient(135deg,#f1eaff,#e5f8f0);
+  color:#203d55;
+}
+.jqmini-shell{
+  width:min(100%,960px);min-height:min(730px,calc(100vh - 40px));
+  margin:0 auto;padding:clamp(13px,2.2vw,22px);
+  border:3px solid #fff;border-radius:28px;
+  background:#fffdf8;box-shadow:0 15px 55px rgba(42,62,92,.16);
+  display:flex;flex-direction:column;gap:13px;
+}
+.jqmini-header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.jqmini-identity{display:flex;align-items:center;gap:9px;min-width:0}
+.jqmini-identity>span:last-child{display:grid;gap:2px}
+.jqmini-logo{
+  display:grid;place-items:center;flex:none;width:43px;height:43px;
+  border-radius:14px;background:linear-gradient(145deg,#44a9d3,#54bb93);
+  color:#fff;font-weight:900;font-size:17px;
+}
+.jqmini-identity strong{font-size:17px;color:#21435c}
+.jqmini-identity small{font-size:11px;color:#698596}
+.jqmini-header-actions{display:flex;align-items:center;gap:8px}
+.jqmini-header-actions button,.jqmini-hear{min-height:44px;border:2px solid #d7e4ec;background:#fff;color:#355d78;border-radius:12px;font-weight:900;cursor:pointer}
+.jqmini-sound{width:46px;font-size:21px}
+.jqmini-exit{padding:8px 13px}
+.jqmini-primary,.jqmini-secondary{
+  min-height:52px;padding:12px 22px;border:0;border-radius:15px;
+  font-size:17px;font-weight:900;cursor:pointer;transition:transform .12s ease,filter .12s ease;
+}
+.jqmini-primary{background:linear-gradient(135deg,#267fc5,#40adac);color:#fff;box-shadow:0 7px 0 #246a85}
+.jqmini-secondary{background:#edf5fa;color:#2c6288;border:2px solid #d0e2ee}
+.jqmini-primary:hover:not(:disabled),.jqmini-secondary:hover:not(:disabled){filter:brightness(1.05);transform:translateY(-2px)}
+.jqmini-shell button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+.jqmini-banner{
+  display:grid;grid-template-columns:70px minmax(0,1fr) minmax(130px,195px);
+  gap:14px;align-items:center;
+  background:linear-gradient(105deg,#fff3d4,#f7ecff);
+  border:2px solid var(--jqmini-accent,#f4bb68);border-radius:22px;padding:15px;
+}
+.jqmini-banner-icon{display:grid;place-items:center;width:68px;height:68px;background:#fff;border-radius:19px;font-size:37px}
+.jqmini-kicker,.jqmini-round{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#8f669b}
+.jqmini-banner h1{font-size:clamp(24px,4vw,35px);line-height:1.15;margin:3px 0;color:#243e5b}
+.jqmini-banner p{color:#587186;margin:0;font-size:13px;font-weight:700}
+.jqmini-progress{text-align:right;color:#295d78}
+.jqmini-progress strong{font-size:17px}
+.jqmini-progress-track{margin-top:8px;height:15px;overflow:hidden;border-radius:30px;background:#fff;border:2px solid #e0dcea}
+.jqmini-progress-track span{display:block;height:100%;background:linear-gradient(90deg,#70cc8e,#2baf9f);border-radius:30px;transition:width .24s ease}
+.jqmini-content{flex:1;display:flex;align-items:center;justify-content:center;background:#f7fbff;border:2px solid #deedf6;border-radius:22px;padding:clamp(13px,3vw,25px)}
+.jqmini-round-game,.jqmini-paint-game{width:100%;max-width:740px;display:grid;justify-items:center;gap:14px}
+.jqmini-game-prompt{text-align:center}
+.jqmini-game-prompt h2{font-size:clamp(24px,3.7vw,36px);color:#273e58;margin:4px 0 9px}
+.jqmini-game-prompt p{margin:0 0 9px;color:#5f7c90;font-weight:750}
+.jqmini-hear{padding:8px 16px;font-size:14px}
+.jqmini-block-game{display:grid;grid-template-columns:124px minmax(0,1fr);grid-template-rows:auto auto;gap:15px;width:100%;align-items:center}
+.jqmini-number-target{display:grid;justify-items:center;align-content:center;gap:3px;width:120px;min-height:140px;border-radius:20px;background:#ffe2a3;color:#684620}
+.jqmini-number-target span{font-size:14px;font-weight:900}
+.jqmini-number-target strong{font-size:65px;line-height:1}
+.jqmini-number-target small{font-size:13px;font-weight:800}
+.jqmini-block-zone{display:flex;align-content:center;justify-content:center;align-items:center;flex-wrap:wrap;gap:7px;min-height:178px;padding:15px;border:3px dashed #92c5de;border-radius:20px;background:#edfaff}
+.jqmini-zone-hint{color:#5c8a9f;font-size:16px;text-align:center;font-weight:850}
+.jqmini-block{display:grid;place-items:center;border:3px solid #d27c42;background:#ffbc65;border-radius:14px;box-shadow:0 5px 0 #bc6736;cursor:pointer;font-size:26px}
+.jqmini-block.built{width:58px;height:58px}
+.jqmini-builder-tools{grid-column:1/-1;display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:10px}
+.jqmini-block.supply{min-height:65px;padding:8px 16px;display:flex;gap:7px;font-weight:900}
+.jqmini-block.supply small{font-size:12px}
+.jqmini-big-picture{display:grid;place-items:center;width:min(100%,175px);height:155px;background:#f8e9fe;border:4px solid #d5b7f1;border-radius:28px;font-size:91px;line-height:1}
+.jqmini-word-game,.jqmini-letter-game{display:grid;justify-items:center;gap:20px;width:100%}
+.jqmini-word-slots{display:flex;align-items:center;justify-content:center;gap:10px;font-size:clamp(46px,7vw,70px);font-weight:900}
+.jqmini-word-slots>strong{color:#765bc6}
+.jqmini-word-slot{display:grid;place-items:center;min-width:128px;min-height:100px;padding:8px 16px;background:#fff;border:4px dashed #a88be7;border-radius:20px;color:#5b469e}
+.jqmini-word-slot.filled{border-style:solid;background:#f4ebff}
+.jqmini-word-choices,.jqmini-letter-choices{display:flex;justify-content:center;flex-wrap:wrap;gap:12px}
+.jqmini-word-choices button,.jqmini-letter-choices button{
+  min-width:110px;min-height:77px;border-radius:19px;border:3px solid #a6cbe4;
+  background:#fff;box-shadow:0 6px 0 #9abbd0;color:#245473;
+  font-size:36px;font-weight:950;cursor:pointer;
+}
+.jqmini-word-choices button.selected,.jqmini-letter-choices button.tried{background:#fff1c9;border-color:#f2c65c}
+.jqmini-letter-choices button.correct{background:#c9f3dd;border-color:#61b787}
+.jqmini-status{min-height:42px;padding:9px 15px;border-radius:15px;color:#47718d;font-size:16px;font-weight:900;text-align:center}
+.jqmini-status.wrong{background:#fff0bd;color:#855c18}
+.jqmini-status.correct{background:#d6f6e6;color:#217554}
+.jqmini-next{justify-self:center}
+.jqmini-palette{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}
+.jqmini-palette button{display:grid;grid-template-columns:34px auto;column-gap:6px;align-items:center;min-width:108px;padding:7px 10px;border:3px solid #ccdfec;background:#fff;border-radius:14px;color:#2f5470;cursor:pointer}
+.jqmini-palette button.selected{border-color:#2875bb;background:#e7f5ff;box-shadow:0 4px 0 #b0d8f2}
+.jqmini-palette button span{grid-row:1/3;display:block;width:30px;height:30px;border-radius:10px;border:2px solid #fff;box-shadow:0 0 0 1px #bfd1df}
+.jqmini-palette button strong{font-size:21px;text-align:left}
+.jqmini-palette button small{font-size:10px;text-align:left;font-weight:800}
+.jqmini-paint-board{display:grid;grid-template-columns:repeat(3,minmax(78px,115px));gap:6px;padding:14px;background:#d4ecf6;border:5px solid #98c4d5;border-radius:25px}
+.jqmini-paint-square{height:89px;border:3px solid #aac9d8;border-radius:13px;background:#fff;color:#275777;cursor:pointer;font-size:23px}
+.jqmini-paint-square.painted{border-color:rgba(255,255,255,.9);color:#fff;text-shadow:0 2px 3px rgba(45,66,73,.17)}
+.jqmini-paint-square.painted span{font-size:28px}
+.jqmini-paint-square strong{font-size:clamp(16px,2vw,24px)}
+.jqmini-finished{flex:1;display:grid;align-content:center;justify-items:center;gap:12px;text-align:center;padding:30px 10px}
+.jqmini-trophy{font-size:100px}
+.jqmini-finished h1{font-size:clamp(32px,6vw,55px);margin:0;color:#326b98}
+.jqmini-finished p{margin:0;color:#648397}
+.jqmini-finish-stars{font-size:40px;letter-spacing:5px}
+.jqmini-finished>strong{font-size:18px;color:#31936e}
+.jqmini-finish-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:15px;margin-top:18px}
+.jqmini-save-error{padding:15px;border:2px solid #e1a6ad;border-radius:15px;background:#fff0f2}
+.jqmini-save-error h2{margin:0 0 8px;color:#91434d;font-size:17px}
+.jqmini-save-error p{color:#8b4f5a}
+.jqmini-preview-note{font-size:13px}
+.jqmini-empty{align-items:center;justify-content:center;min-height:320px}
+.jqmini-shell button:focus-visible{outline:4px solid #247eaf;outline-offset:3px}
+@media(max-width:710px){
+ .jqmini-banner{grid-template-columns:54px 1fr;gap:9px}
+ .jqmini-banner-icon{width:52px;height:52px;font-size:28px}
+ .jqmini-progress{grid-column:1/-1;text-align:left}
+ .jqmini-block-game{grid-template-columns:1fr;justify-items:center}
+ .jqmini-block-zone{width:100%}
+ .jqmini-builder-tools{grid-column:auto}
+ .jqmini-shell{border-radius:20px}
+ .jqmini-content{padding:12px}
+}
+@media(max-width:430px){
+ .jqmini-backdrop{padding:5px}
+ .jqmini-shell{padding:10px;border-radius:14px}
+ .jqmini-identity strong{font-size:14px}
+ .jqmini-identity small{font-size:9px}
+ .jqmini-exit{font-size:12px}
+ .jqmini-block.built{width:47px;height:47px;font-size:21px}
+ .jqmini-word-choices button,.jqmini-letter-choices button{min-width:75px;min-height:68px;font-size:28px}
+ .jqmini-paint-board{grid-template-columns:repeat(3,minmax(0,1fr));width:100%;padding:8px}
+ .jqmini-paint-square{height:72px}
+ .jqmini-palette button{min-width:94px}
+ .jqmini-big-picture{height:120px;font-size:75px}
+}
+@media(prefers-reduced-motion:reduce){.jqmini-primary,.jqmini-secondary,.jqmini-progress-track span{transition:none}}
