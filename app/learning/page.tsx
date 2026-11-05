@@ -2795,8 +2795,10 @@ export default function LearningPage() {
                                     <div className="learning-library-item-actions">
                                       <button className="ghost" type="button" onClick={() => setPreviewAssignment(assignment)}>Preview</button>
                                       <button className="ghost" type="button" onClick={() => setTestAssignment(assignment)}>▶ Test</button>
+                                      {assignment.activity_config?.experience !== 'juanita_mini_game' && <>
                                       <button className="ghost" type="button" disabled={saving} onClick={() => beginEditAssignment(assignment)}>Edit</button>
                                       <button className="ghost" type="button" disabled={saving} onClick={() => void duplicateAssignment(assignment)}>Duplicate</button>
+                                      </>}
                                       <button className="ghost" type="button" disabled={saving} onClick={() => void toggleAssignmentArchive(assignment)}>{assignment.active ? 'Archive' : 'Reactivate'}</button>
                                     </div>
                                   )}
@@ -2887,8 +2889,10 @@ export default function LearningPage() {
 
                   {profile.role === 'admin' && (
                     <div className="learning-selected-admin-actions">
+                      {selectedAssignment.activity_config?.experience !== 'juanita_mini_game' && <>
                       <button className="ghost" type="button" onClick={() => beginEditAssignment(selectedAssignment)}>Edit</button>
                       <button className="ghost" type="button" onClick={() => void duplicateAssignment(selectedAssignment)}>Duplicate</button>
+                      </>}
                       <button className="ghost" type="button" onClick={() => void toggleAssignmentArchive(selectedAssignment)}>{selectedAssignment.active ? 'Archive' : 'Reactivate'}</button>
                     </div>
                   )}
