@@ -794,6 +794,7 @@ function FulfillmentPanel({ session }: { session: Session }) {
   const loadRequestId = useRef(0)
   const [rows, setRows] = useState<FulfillmentRow[]>([])
   const [filter, setFilter] = useState<'outstanding' | 'all' | 'received'>('outstanding')
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'monthly' | 'free'>('all')
   const [search, setSearch] = useState('')
   const [savingKey, setSavingKey] = useState('')
   const [message, setMessage] = useState('')
@@ -846,15 +847,22 @@ function FulfillmentPanel({ session }: { session: Session }) {
     return { total: rows.length, outstanding, received: rows.length - outstanding, children: new Set(rows.map((row) => row.child_id)).size }
   }, [rows])
 
+  const rowsByStatus = useMemo(() => rows.filter((row) =>
+    filter === 'all' || (filter === 'outstanding' ? !row.received_at : Boolean(row.received_at))
+  ), [rows, filter])
+  const sourceCounts = useMemo(() => ({
+    monthly: rowsByStatus.filter((row) => row.source === 'monthly').length,
+    free: rowsByStatus.filter((row) => row.source === 'free').length,
+  }), [rowsByStatus])
+
   const visibleRows = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    return rows.filter((row) => {
-      if (filter === 'outstanding' && row.received_at) return false
-      if (filter === 'received' && !row.received_at) return false
+    return rowsByStatus.filter((row) => {
+      if (sourceFilter !== 'all' && row.source !== sourceFilter) return false
       if (!needle) return true
       return [row.first_name, row.last_name, row.prize_name, row.category_name, row.tier_name, row.reason].filter(Boolean).join(' ').toLowerCase().includes(needle)
     })
-  }, [rows, filter, search])
+  }, [rowsByStatus, sourceFilter, search])
 
   const grouped = useMemo(() => {
     const map = new Map<number, { id: number; name: string; rows: FulfillmentRow[] }>()
@@ -918,6 +926,12 @@ function FulfillmentPanel({ session }: { session: Session }) {
             <button className={filter === 'received' ? 'active' : ''} onClick={() => setFilter('received')}>Received <span>{summary.received}</span></button>
           </div>
           <label className="fulfillment-search"><span className="sr-only">Search prizes</span><input type="search" placeholder="Search child or prize…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <div className="fulfillment-source-filters" role="group" aria-label="Filter by reward source">
+            <button type="button" className={sourceFilter === 'all' ? 'active' : ''} aria-pressed={sourceFilter === 'all'} onClick={() => setSourceFilter('all')}>Both wheels <span>{sourceCounts.free + sourceCounts.monthly}</span></button>
+            <button type="button" className={sourceFilter === 'monthly' ? 'active' : ''} aria-pressed={sourceFilter === 'monthly'} onClick={() => setSourceFilter('monthly')}>Monthly Wheel <span>{sourceCounts.monthly}</span></button>
+            <button type="button" className={sourceFilter === 'free' ? 'active' : ''} aria-pressed={sourceFilter === 'free'} onClick={() => setSourceFilter('free')}>Free Spins <span>{sourceCounts.free}</span></button>
+            <small role="status" aria-live="polite">{visibleRows.length} prize{visibleRows.length === 1 ? '' : 's'} matching</small>
+          </div>
         </section>
         <section className="fulfillment-list">
           {!loading && grouped.length === 0 && <div className="card fulfillment-empty"><span>🎁</span><h2>{rows.length === 0 ? 'No prizes were recorded for ' + scopeLabel.toLowerCase() : 'Nothing matches this view'}</h2><p>{rows.length === 0 ? 'Monthly and free-spin wins will appear here automatically after they are recorded.' : 'Try another filter, date range, or search term.'}</p></div>}
