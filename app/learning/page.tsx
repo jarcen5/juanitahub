@@ -15,6 +15,7 @@ import ReadingReviewDialog, { type ReadingAttempt } from '@/components/ReadingRe
 import StudentMyWeek, { type MyWeekItem, type StudentGoalView, type StudentAchievementView } from '@/components/StudentMyWeek'
 import LearningGoalsPanel from '@/components/LearningGoalsPanel'
 import { miniGameTemplates, miniGameLabels, type MiniGameKind, type MiniGameConfig } from '@/lib/juanitaMiniGames'
+import { JuanitaMiniGamePreview } from '@/components/JuanitaMiniGameRunner'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean; is_demo: boolean }
@@ -1814,6 +1815,12 @@ export default function LearningPage() {
     if (error) return showMessage(error.message)
     await loadData()
     setLibrarySearch('Juanita Quest:')
+    setLibraryView('all')
+    setGradeFilter('all')
+    setSubjectFilter('all')
+    setSkillFilter('all')
+    setDifficultyFilter('all')
+    setFormatFilter('all')
     setLibraryStatusFilter('active')
     setMessage('Added ' + missing.length + ' Juanita Quest mini-game' + (missing.length === 1 ? '' : 's') + '. Select each one and assign it to any student, including the Jordan Lee demo account.')
   }
@@ -3467,7 +3474,14 @@ export default function LearningPage() {
         />
       )}
 
-      {quizTarget && (
+      {quizTarget && quizTarget.assignment.activity_config?.experience === 'juanita_mini_game' && (
+        <JuanitaMiniGamePreview
+          assignmentTitle={quizTarget.assignment.title}
+          activityConfig={quizTarget.assignment.activity_config as MiniGameConfig}
+          onClose={() => setQuizTarget(null)}
+        />
+      )}
+      {quizTarget && quizTarget.assignment.activity_config?.experience !== 'juanita_mini_game' && (
         <QuizActivityRunner
           studentAssignmentId={quizTarget.row.id}
           childId={quizTarget.child.id}
