@@ -154,6 +154,7 @@ export default function StaffGuidePage() {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<StaffProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
   const [authError, setAuthError] = useState('')
 
   useEffect(() => {
@@ -162,15 +163,17 @@ export default function StaffGuidePage() {
       if (!active) return
       if (error) setAuthError(error.message)
       setSession(data.session)
+      setAuthChecked(true)
     })
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (active) setSession(nextSession)
+      if (active) { setSession(nextSession); setAuthChecked(true) }
     })
     return () => { active = false; listener.subscription.unsubscribe() }
   }, [])
 
   useEffect(() => {
     let active = true
+    if (!authChecked) return
     if (!session) { setProfile(null); setLoading(false); return }
     setLoading(true)
     supabase.from('staff_profiles').select('active,role').eq('user_id', session.user.id).maybeSingle()
@@ -181,9 +184,9 @@ export default function StaffGuidePage() {
         setLoading(false)
       })
     return () => { active = false }
-  }, [session])
+  }, [session, authChecked])
 
-  if (loading) return <main className="main"><section className="card">Opening the staff guide…</section></main>
+  if (!authChecked || loading) return <main className="main"><section className="card">Opening the staff guide…</section></main>
   if (!session || !profile?.active) {
     return <main className="main"><section className="card jh-guide-locked"><h1>Staff Quick-Start Guide</h1><p>{authError || 'Sign in with an active staff account to view this guide.'}</p><a className="primary" href="/">Return to sign in</a></section></main>
   }
