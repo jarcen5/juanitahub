@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import RewardWheel, { type WheelPrize } from '@/components/RewardWheel'
@@ -789,7 +789,9 @@ function PrizeSetupPanel() {
 }
 
 function FulfillmentPanel({ session }: { session: Session }) {
-  const [month, setMonth] = useState(previousMonth())
+  const [month, setMonth] = useState(localMonth())
+  const [monthScope, setMonthScope] = useState<'all' | 'selected'>('all')
+  const loadRequestId = useRef(0)
   const [rows, setRows] = useState<FulfillmentRow[]>([])
   const [filter, setFilter] = useState<'outstanding' | 'all' | 'received'>('outstanding')
   const [search, setSearch] = useState('')
@@ -798,19 +800,46 @@ function FulfillmentPanel({ session }: { session: Session }) {
   const [messageKind, setMessageKind] = useState<MessageKind>('info')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { void loadData() }, [month])
+  useEffect(() => {
+    void loadData()
+    return () => { loadRequestId.current += 1 }
+  }, [month, monthScope])
 
   function showMessage(text: string, kind: MessageKind = 'info') { setMessage(text); setMessageKind(kind) }
 
   async function loadData() {
+    const requestId = ++loadRequestId.current
     setLoading(true); setMessage('')
-    const { data, error } = await supabase.from('reward_prize_fulfillment')
-      .select('source, win_id, child_id, first_name, last_name, month_start, prize_name, category_name, tier_name, reason, won_at, received_at, received_by')
-      .eq('month_start', monthStart(month)).order('first_name').order('last_name').order('won_at')
-    setRows((data ?? []) as FulfillmentRow[])
-    if (error) showMessage(error.message, 'error')
+    // Show unreceived monthly AND free-spin wins across dates by default.
+    // Fetch in batches to avoid silently dropping older wins at the API row limit.
+    const fetched: FulfillmentRow[] = []
+    const pageSize = 250
+    let loadError = ''
+    for (let offset = 0; ; offset += pageSize) {
+      let query = supabase.from('reward_prize_fulfillment')
+        .select('source, win_id, child_id, first_name, last_name, month_start, prize_name, category_name, tier_name, reason, won_at, received_at, received_by')
+        .order('won_at', { ascending: false })
+        .order('source', { ascending: true })
+        .order('win_id', { ascending: false })
+        .range(offset, offset + pageSize - 1)
+      if (monthScope === 'selected') query = query.eq('month_start', monthStart(month))
+      const { data, error } = await query
+      if (requestId !== loadRequestId.current) return
+      if (error) { loadError = error.message; break }
+      fetched.push(...((data ?? []) as FulfillmentRow[]))
+      if (!data || data.length < pageSize) break
+    }
+    if (requestId !== loadRequestId.current) return
+    if (loadError) {
+      showMessage('Fulfillment could not be loaded: ' + loadError, 'error')
+      setRows([])
+    } else {
+      setRows(fetched)
+    }
     setLoading(false)
   }
+
+  const scopeLabel = monthScope === 'all' ? 'All reward months' : monthLabel(month)
 
   const summary = useMemo(() => {
     const outstanding = rows.filter((row) => !row.received_at).length
@@ -863,12 +892,21 @@ function FulfillmentPanel({ session }: { session: Session }) {
     <section className="rewards-panel">
       <div className="fulfillment-page">
         <section className="fulfillment-hero">
-          <div><span className="fulfillment-kicker">Reward handoff</span><h1>Prize Fulfillment</h1><p>See what children won and check prizes off when they receive them.</p></div>
-          <div className="fulfillment-month-control"><label>Reward month</label><input type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} /></div>
+          <div><span className="fulfillment-kicker">Reward handoff</span><h1>Prize Fulfillment</h1><p>Track Monthly Wheel and Free Spin prizes together. Outstanding prizes from any month appear by default.</p></div>
+          <div className="fulfillment-month-control">
+            <label htmlFor="fulfillment-month-scope">Reward dates</label>
+            <select id="fulfillment-month-scope" value={monthScope} onChange={(event) => setMonthScope(event.target.value as 'all' | 'selected')}>
+              <option value="all">All months</option>
+              <option value="selected">Specific month</option>
+            </select>
+            {monthScope === 'selected' && <label className="fulfillment-specific-month">Choose month<input type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} /></label>}
+            <button type="button" className="ghost" onClick={() => void loadData()} disabled={loading}>{loading ? 'Loading…' : '↻ Refresh'}</button>
+          </div>
         </section>
-        {message && <div className={'notice fulfillment-notice ' + messageKind}>{message}</div>}
+        {message && <div className={'notice fulfillment-notice ' + messageKind} role="status" aria-live="polite">{message}</div>}
+        {loading && <p className="fulfillment-loading" role="status" aria-live="polite">Loading {scopeLabel.toLowerCase()} prizes…</p>}
         <section className="fulfillment-summary">
-          <article><small>{monthLabel(month)}</small><strong>{summary.total}</strong><span>Total prizes won</span></article>
+          <article><small>{scopeLabel}</small><strong>{summary.total}</strong><span>Total prizes won</span></article>
           <article className={summary.outstanding ? 'attention' : ''}><small>Still to give out</small><strong>{summary.outstanding}</strong><span>Outstanding prizes</span></article>
           <article><small>Completed</small><strong>{summary.received}</strong><span>Marked received</span></article>
           <article><small>Children</small><strong>{summary.children}</strong><span>Prize recipients</span></article>
@@ -882,7 +920,7 @@ function FulfillmentPanel({ session }: { session: Session }) {
           <label className="fulfillment-search"><span className="sr-only">Search prizes</span><input type="search" placeholder="Search child or prize…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
         </section>
         <section className="fulfillment-list">
-          {!loading && grouped.length === 0 && <div className="card fulfillment-empty"><span>🎁</span><h2>{rows.length === 0 ? 'No prizes were recorded for ' + monthLabel(month) : 'Nothing matches this view'}</h2><p>{rows.length === 0 ? 'Prize wins will appear here automatically after the wheel is used.' : 'Try another filter or search term.'}</p></div>}
+          {!loading && grouped.length === 0 && <div className="card fulfillment-empty"><span>🎁</span><h2>{rows.length === 0 ? 'No prizes were recorded for ' + scopeLabel.toLowerCase() : 'Nothing matches this view'}</h2><p>{rows.length === 0 ? 'Monthly and free-spin wins will appear here automatically after they are recorded.' : 'Try another filter, date range, or search term.'}</p></div>}
           {grouped.map((group) => {
             const outstanding = group.rows.filter((row) => !row.received_at)
             return <article className="card fulfillment-child" key={group.id}>
