@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import RewardWheel, { type WheelPrize } from '@/components/RewardWheel'
@@ -49,11 +49,6 @@ function localMonth() {
   const date = new Date()
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 7)
-}
-function previousMonth() {
-  const now = new Date()
-  const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  return previous.getFullYear() + '-' + String(previous.getMonth() + 1).padStart(2, '0')
 }
 function monthStart(month: string) { return month + '-01' }
 function monthLabel(month: string) {
@@ -789,43 +784,80 @@ function PrizeSetupPanel() {
 }
 
 function FulfillmentPanel({ session }: { session: Session }) {
-  const [month, setMonth] = useState(previousMonth())
+  const [month, setMonth] = useState(localMonth())
+  const [monthScope, setMonthScope] = useState<'all' | 'selected'>('all')
+  const loadRequestId = useRef(0)
   const [rows, setRows] = useState<FulfillmentRow[]>([])
   const [filter, setFilter] = useState<'outstanding' | 'all' | 'received'>('outstanding')
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'monthly' | 'free'>('all')
   const [search, setSearch] = useState('')
   const [savingKey, setSavingKey] = useState('')
   const [message, setMessage] = useState('')
   const [messageKind, setMessageKind] = useState<MessageKind>('info')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { void loadData() }, [month])
+  useEffect(() => {
+    void loadData()
+    return () => { loadRequestId.current += 1 }
+  }, [month, monthScope])
 
   function showMessage(text: string, kind: MessageKind = 'info') { setMessage(text); setMessageKind(kind) }
 
-  async function loadData() {
-    setLoading(true); setMessage('')
-    const { data, error } = await supabase.from('reward_prize_fulfillment')
-      .select('source, win_id, child_id, first_name, last_name, month_start, prize_name, category_name, tier_name, reason, won_at, received_at, received_by')
-      .eq('month_start', monthStart(month)).order('first_name').order('last_name').order('won_at')
-    setRows((data ?? []) as FulfillmentRow[])
-    if (error) showMessage(error.message, 'error')
+  async function loadData(preserveMessage = false) {
+    const requestId = ++loadRequestId.current
+    setLoading(true); if (!preserveMessage) setMessage('')
+    // Show unreceived monthly AND free-spin wins across dates by default.
+    // Fetch in batches to avoid silently dropping older wins at the API row limit.
+    const fetched: FulfillmentRow[] = []
+    const pageSize = 250
+    let loadError = ''
+    for (let offset = 0; ; offset += pageSize) {
+      let query = supabase.from('reward_prize_fulfillment')
+        .select('source, win_id, child_id, first_name, last_name, month_start, prize_name, category_name, tier_name, reason, won_at, received_at, received_by')
+        .order('won_at', { ascending: false })
+        .order('source', { ascending: true })
+        .order('win_id', { ascending: false })
+        .range(offset, offset + pageSize - 1)
+      if (monthScope === 'selected') query = query.eq('month_start', monthStart(month))
+      const { data, error } = await query
+      if (requestId !== loadRequestId.current) return
+      if (error) { loadError = error.message; break }
+      fetched.push(...((data ?? []) as FulfillmentRow[]))
+      if (!data || data.length < pageSize) break
+    }
+    if (requestId !== loadRequestId.current) return
+    if (loadError) {
+      showMessage('Fulfillment could not be loaded: ' + loadError, 'error')
+      setRows([])
+    } else {
+      setRows(fetched)
+    }
     setLoading(false)
   }
+
+  const scopeLabel = monthScope === 'all' ? 'All reward months' : monthLabel(month)
 
   const summary = useMemo(() => {
     const outstanding = rows.filter((row) => !row.received_at).length
     return { total: rows.length, outstanding, received: rows.length - outstanding, children: new Set(rows.map((row) => row.child_id)).size }
   }, [rows])
 
+  const rowsByStatus = useMemo(() => rows.filter((row) =>
+    filter === 'all' || (filter === 'outstanding' ? !row.received_at : Boolean(row.received_at))
+  ), [rows, filter])
+  const sourceCounts = useMemo(() => ({
+    monthly: rowsByStatus.filter((row) => row.source === 'monthly').length,
+    free: rowsByStatus.filter((row) => row.source === 'free').length,
+  }), [rowsByStatus])
+
   const visibleRows = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    return rows.filter((row) => {
-      if (filter === 'outstanding' && row.received_at) return false
-      if (filter === 'received' && !row.received_at) return false
+    return rowsByStatus.filter((row) => {
+      if (sourceFilter !== 'all' && row.source !== sourceFilter) return false
       if (!needle) return true
       return [row.first_name, row.last_name, row.prize_name, row.category_name, row.tier_name, row.reason].filter(Boolean).join(' ').toLowerCase().includes(needle)
     })
-  }, [rows, filter, search])
+  }, [rowsByStatus, sourceFilter, search])
 
   const grouped = useMemo(() => {
     const map = new Map<number, { id: number; name: string; rows: FulfillmentRow[] }>()
@@ -854,7 +886,7 @@ function FulfillmentPanel({ session }: { session: Session }) {
     if (error) return showMessage(error.message, 'error')
     if (changed !== targets.length) return showMessage('Not every prize was updated. Refresh and try again.', 'error')
     showMessage(received ? 'Prize handoff recorded.' : 'Prize returned to the outstanding list.', 'success')
-    await loadData()
+    await loadData(true)
   }
 
   function dateLabel(value: string) { return new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }
@@ -863,12 +895,21 @@ function FulfillmentPanel({ session }: { session: Session }) {
     <section className="rewards-panel">
       <div className="fulfillment-page">
         <section className="fulfillment-hero">
-          <div><span className="fulfillment-kicker">Reward handoff</span><h1>Prize Fulfillment</h1><p>See what children won and check prizes off when they receive them.</p></div>
-          <div className="fulfillment-month-control"><label>Reward month</label><input type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} /></div>
+          <div><span className="fulfillment-kicker">Reward handoff</span><h1>Prize Fulfillment</h1><p>Track Monthly Wheel and Free Spin prizes together. Outstanding prizes from any month appear by default.</p></div>
+          <div className="fulfillment-month-control">
+            <label htmlFor="fulfillment-month-scope">Reward dates</label>
+            <select id="fulfillment-month-scope" value={monthScope} onChange={(event) => setMonthScope(event.target.value as 'all' | 'selected')}>
+              <option value="all">All months</option>
+              <option value="selected">Specific month</option>
+            </select>
+            {monthScope === 'selected' && <label className="fulfillment-specific-month">Choose month<input type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} /></label>}
+            <button type="button" className="ghost" onClick={() => void loadData()} disabled={loading}>{loading ? 'Loading…' : '↻ Refresh'}</button>
+          </div>
         </section>
-        {message && <div className={'notice fulfillment-notice ' + messageKind}>{message}</div>}
+        {message && <div className={'notice fulfillment-notice ' + messageKind} role="status" aria-live="polite">{message}</div>}
+        {loading && <p className="fulfillment-loading" role="status" aria-live="polite">Loading {scopeLabel.toLowerCase()} prizes…</p>}
         <section className="fulfillment-summary">
-          <article><small>{monthLabel(month)}</small><strong>{summary.total}</strong><span>Total prizes won</span></article>
+          <article><small>{scopeLabel}</small><strong>{summary.total}</strong><span>Total prizes won</span></article>
           <article className={summary.outstanding ? 'attention' : ''}><small>Still to give out</small><strong>{summary.outstanding}</strong><span>Outstanding prizes</span></article>
           <article><small>Completed</small><strong>{summary.received}</strong><span>Marked received</span></article>
           <article><small>Children</small><strong>{summary.children}</strong><span>Prize recipients</span></article>
@@ -880,9 +921,15 @@ function FulfillmentPanel({ session }: { session: Session }) {
             <button className={filter === 'received' ? 'active' : ''} onClick={() => setFilter('received')}>Received <span>{summary.received}</span></button>
           </div>
           <label className="fulfillment-search"><span className="sr-only">Search prizes</span><input type="search" placeholder="Search child or prize…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <div className="fulfillment-source-filters" role="group" aria-label="Filter by reward source">
+            <button type="button" className={sourceFilter === 'all' ? 'active' : ''} aria-pressed={sourceFilter === 'all'} onClick={() => setSourceFilter('all')}>Both wheels <span>{sourceCounts.free + sourceCounts.monthly}</span></button>
+            <button type="button" className={sourceFilter === 'monthly' ? 'active' : ''} aria-pressed={sourceFilter === 'monthly'} onClick={() => setSourceFilter('monthly')}>Monthly Wheel <span>{sourceCounts.monthly}</span></button>
+            <button type="button" className={sourceFilter === 'free' ? 'active' : ''} aria-pressed={sourceFilter === 'free'} onClick={() => setSourceFilter('free')}>Free Spins <span>{sourceCounts.free}</span></button>
+            <small role="status" aria-live="polite">{visibleRows.length} prize{visibleRows.length === 1 ? '' : 's'} matching</small>
+          </div>
         </section>
         <section className="fulfillment-list">
-          {!loading && grouped.length === 0 && <div className="card fulfillment-empty"><span>🎁</span><h2>{rows.length === 0 ? 'No prizes were recorded for ' + monthLabel(month) : 'Nothing matches this view'}</h2><p>{rows.length === 0 ? 'Prize wins will appear here automatically after the wheel is used.' : 'Try another filter or search term.'}</p></div>}
+          {!loading && grouped.length === 0 && <div className="card fulfillment-empty"><span>🎁</span><h2>{rows.length === 0 ? 'No prizes were recorded for ' + scopeLabel.toLowerCase() : 'Nothing matches this view'}</h2><p>{rows.length === 0 ? 'Monthly and free-spin wins will appear here automatically after they are recorded.' : 'Try another filter, date range, or search term.'}</p></div>}
           {grouped.map((group) => {
             const outstanding = group.rows.filter((row) => !row.received_at)
             return <article className="card fulfillment-child" key={group.id}>
