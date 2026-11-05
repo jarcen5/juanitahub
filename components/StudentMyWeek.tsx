@@ -32,6 +32,7 @@ export type MyWeekItem = {
   writingStatus?: 'draft' | 'submitted' | 'reviewed' | null
   readingReviewStatus?: 'not_needed' | 'pending' | 'reviewed' | null
   isJuanitaQuest?: boolean
+  isJuanitaMiniGame?: boolean
 }
 
 export type StudentGoalView = {
@@ -165,6 +166,7 @@ function actionLabel(item: MyWeekItem) {
     return 'I finished my homework'
   }
   if (!isInteractive(item)) return 'Ask staff'
+  if (item.isJuanitaMiniGame) return status.key === 'completed' ? 'Play again' : 'Play game 🎮'
   if (item.isJuanitaQuest) {
     if (status.key === 'completed') return 'Play again'
     return 'Play quest'
@@ -257,11 +259,11 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
     const interactive = isInteractive(item) && (item.kind !== 'homework' || Boolean(onHomeworkDone))
     const isHomework = item.kind === 'homework'
     return (
-      <article className={'my-week-card ' + displayStatus.key + (item.isJuanitaQuest ? ' quest-assignment' : '') + (isHomework ? ' homework-assignment' : '')} key={(item.kind ?? 'assignment') + '-' + item.rowId}>
-        <div className="my-week-card-icon">{isHomework ? '🏫' : item.isJuanitaQuest ? '🗺️' : subjectIcons[item.subject]}</div>
+      <article className={'my-week-card ' + displayStatus.key + (item.isJuanitaQuest || item.isJuanitaMiniGame ? ' quest-assignment' : '') + (isHomework ? ' homework-assignment' : '')} key={(item.kind ?? 'assignment') + '-' + item.rowId}>
+        <div className="my-week-card-icon">{isHomework ? '🏫' : item.isJuanitaMiniGame ? '🎮' : item.isJuanitaQuest ? '🗺️' : subjectIcons[item.subject]}</div>
         <div className="my-week-card-copy">
           <div className="my-week-card-eyebrow">
-            <span>{isHomework ? '🏫 School Homework' : item.isJuanitaQuest ? '🎮 Juanita Quest' : (typeLabels[item.assignmentType] ?? 'Learning activity')}</span>
+            <span>{isHomework ? '🏫 School Homework' : item.isJuanitaMiniGame ? '🎮 Juanita Quest Mini-Game' : item.isJuanitaQuest ? '🎮 Juanita Quest' : (typeLabels[item.assignmentType] ?? 'Learning activity')}</span>
             <em className={'my-week-status ' + displayStatus.key}>{displayStatus.label}</em>
           </div>
           <h2>{item.title}</h2>
