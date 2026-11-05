@@ -50,11 +50,6 @@ function localMonth() {
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 7)
 }
-function previousMonth() {
-  const now = new Date()
-  const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  return previous.getFullYear() + '-' + String(previous.getMonth() + 1).padStart(2, '0')
-}
 function monthStart(month: string) { return month + '-01' }
 function monthLabel(month: string) {
   const parts = month.split('-').map(Number)
@@ -808,9 +803,9 @@ function FulfillmentPanel({ session }: { session: Session }) {
 
   function showMessage(text: string, kind: MessageKind = 'info') { setMessage(text); setMessageKind(kind) }
 
-  async function loadData() {
+  async function loadData(preserveMessage = false) {
     const requestId = ++loadRequestId.current
-    setLoading(true); setMessage('')
+    setLoading(true); if (!preserveMessage) setMessage('')
     // Show unreceived monthly AND free-spin wins across dates by default.
     // Fetch in batches to avoid silently dropping older wins at the API row limit.
     const fetched: FulfillmentRow[] = []
@@ -891,7 +886,7 @@ function FulfillmentPanel({ session }: { session: Session }) {
     if (error) return showMessage(error.message, 'error')
     if (changed !== targets.length) return showMessage('Not every prize was updated. Refresh and try again.', 'error')
     showMessage(received ? 'Prize handoff recorded.' : 'Prize returned to the outstanding list.', 'success')
-    await loadData()
+    await loadData(true)
   }
 
   function dateLabel(value: string) { return new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }
