@@ -14,6 +14,7 @@ import ReadingActivityRunner, { type ReadingConfig, type ReadingQuestion, type R
 import ReadingReviewDialog, { type ReadingAttempt } from '@/components/ReadingReviewDialog'
 import StudentMyWeek, { type MyWeekItem, type StudentGoalView, type StudentAchievementView } from '@/components/StudentMyWeek'
 import LearningGoalsPanel from '@/components/LearningGoalsPanel'
+import { miniGameTemplates, miniGameLabels, type MiniGameKind, type MiniGameConfig } from '@/lib/juanitaMiniGames'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean; is_demo: boolean }
@@ -32,6 +33,8 @@ type ActivityConfig = TypingConfig & WritingConfig & {
   passing_score?: number
   show_explanations?: boolean
   daily_practice?: boolean
+  experience?: 'juanita_quest' | 'juanita_mini_game'
+  mini_game?: MiniGameKind
 }
 type LearningAssignment = {
   id: number
@@ -616,6 +619,8 @@ export default function LearningPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
   const [starterAdding, setStarterAdding] = useState(false)
+  const [miniGameAdding, setMiniGameAdding] = useState(false)
+  const [miniGameGalleryOpen, setMiniGameGalleryOpen] = useState(true)
   const [previewAssignment, setPreviewAssignment] = useState<LearningAssignment | null>(null)
   const [testAssignment, setTestAssignment] = useState<LearningAssignment | null>(null)
   const [typingTarget, setTypingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
@@ -1674,6 +1679,13 @@ export default function LearningPage() {
       quest_intro?: string
       quest_goal?: string
     }) | undefined
+    if (newType === 'quiz' && originalQuestConfig?.experience === 'juanita_mini_game') {
+      activityConfig = {
+        ...activityConfig,
+        experience: 'juanita_mini_game',
+        mini_game: (originalQuestConfig as ActivityConfig).mini_game,
+      }
+    }
     if (newType === 'quiz' && originalQuestConfig?.experience === 'juanita_quest') {
       activityConfig = {
         ...activityConfig,
@@ -1778,6 +1790,42 @@ export default function LearningPage() {
     if (error) return showMessage(error.message)
     await loadData()
     setMessage('Added ' + missing.length + ' starter template' + (missing.length === 1 ? '' : 's') + '.')
+  }
+
+  async function addMiniGameTemplates() {
+    if (!session || profile?.role !== 'admin' || miniGameAdding) return
+    const existing = new Set(library.map((assignment) => assignment.title.trim().toLowerCase()))
+    const missing = miniGameTemplates.filter((game) => !existing.has(game.title.toLowerCase()))
+    if (!missing.length) {
+      setLibrarySearch('Juanita Quest:')
+      setMessage('All four mini-games are already in the Assignment Library.')
+      return
+    }
+    setMiniGameAdding(true)
+    const { error } = await supabase.from('learning_assignments').insert(
+      missing.map(({ starter_config, ...game }) => ({
+        ...game,
+        active: true,
+        created_by: session.user.id,
+        activity_config: starter_config,
+      })),
+    )
+    setMiniGameAdding(false)
+    if (error) return showMessage(error.message)
+    await loadData()
+    setLibrarySearch('Juanita Quest:')
+    setLibraryStatusFilter('active')
+    setMessage('Added ' + missing.length + ' Juanita Quest mini-game' + (missing.length === 1 ? '' : 's') + '. Select each one and assign it to any student, including the Jordan Lee demo account.')
+  }
+
+  function previewMiniGame(game: (typeof miniGameTemplates)[number], index: number) {
+    const { starter_config, ...assignment } = game
+    setTestAssignment({
+      ...assignment,
+      id: -100 - index,
+      active: true,
+      activity_config: starter_config,
+    })
   }
 
   async function assignWork() {
@@ -2443,10 +2491,29 @@ export default function LearningPage() {
               {profile.role === 'admin' && (
                 <div className="learning-library-admin-actions">
                   <button className="ghost" type="button" disabled={starterAdding} onClick={() => void addStarterTemplates()}>{starterAdding ? 'Adding…' : '＋ Starter templates'}</button>
+                  <button className="ghost" type="button" disabled={miniGameAdding} onClick={() => void addMiniGameTemplates()}>{miniGameAdding ? 'Adding games…' : '＋ Add Quest Mini-Games'}</button>
                   <button className="primary" type="button" onClick={beginAddAssignment}>＋ Add assignment</button>
                 </div>
               )}
             </div>
+
+            <section className="card jqmini-library-gallery" aria-label="Juanita Quest mini-games">
+              <div className="jqmini-gallery-heading">
+                <div><span className="learning-kicker">🎮 Juanita Quest</span><h3>Little games. Big wins.</h3><p>Four short, original activities designed for early readers and number learners. Preview without saving or assigning anything, then add each game to the library when you're ready.</p></div>
+                <button className="ghost" type="button" aria-expanded={miniGameGalleryOpen} onClick={() => setMiniGameGalleryOpen((open) => !open)}>{miniGameGalleryOpen ? 'Hide games' : 'Show games'}</button>
+              </div>
+              {miniGameGalleryOpen && <div className="jqmini-library-tiles">
+                {miniGameTemplates.map((game, index) => (
+                  <article key={game.title} className="jqmini-library-tile">
+                    <span className="jqmini-gallery-icon" aria-hidden="true">{miniGameLabels[game.starter_config.mini_game].icon}</span>
+                    <div><strong>{miniGameLabels[game.starter_config.mini_game].label}</strong><p>{game.skill}</p><small>⏱ {game.estimated_minutes} min · {game.starter_config.questions.length} challenges</small></div>
+                    <button className="ghost" type="button" onClick={() => previewMiniGame(game,index)}>▶ Preview game</button>
+                  </article>
+                ))}
+              </div>}
+              {profile.role !== 'admin' && <p className="jqmini-gallery-helper">Ask an administrator to add the games to the Library so you can assign them individually.</p>}
+              {profile.role === 'admin' && <p className="jqmini-gallery-helper">Admin: choose <strong>＋ Add Quest Mini-Games</strong> to create these four reusable assignments. Previewing a game never saves student progress.</p>}
+            </section>
 
             {profile.role === 'admin' && editorOpen && (
               <section className="card learning-create-card learning-editor-card">
