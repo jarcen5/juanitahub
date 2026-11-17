@@ -68,6 +68,7 @@ export default function LearningWeeklyPlanner() {
   const [message, setMessage] = useState('')
   const [messageKind, setMessageKind] = useState<'info'|'success'|'error'>('info')
   const [weekStart, setWeekStart] = useState(() => mondayFor(localToday()))
+  const [reloadKey, setReloadKey] = useState(0)
   const [children, setChildren] = useState<PlannerChild[]>([])
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [library, setLibrary] = useState<PlannerAssignment[]>([])
@@ -141,7 +142,7 @@ export default function LearningWeeklyPlanner() {
     }
     void load()
     return () => { active = false }
-  },[session,weekStart])
+  },[session,weekStart,reloadKey])
 
   function updateSettings(next: Partial<PlannerSettings>) {
     setSettings(s => ({...s,...next}))
@@ -188,15 +189,34 @@ export default function LearningWeeklyPlanner() {
     if (!window.confirm('Assign '+original.length+' reviewed activities to '+resultSummary.students+' students for the week of '+weekStart+'? This will change student My Week lists.')) return
     setSaving(true);setMessage('')
     try {
-      // Re-check live week rows before writing; unique indexes also prevent duplicate once/week assignments.
-      const live = await supabase.from('learning_student_assignments').select('child_id,assignment_id').eq('week_start',weekStart)
-      if (live.error) throw live.error
+      // Recheck both duplicates and weekly workload at save time so a coworker's
+      // recent changes cannot silently overload a child.
+      const [live, liveHomework] = await Promise.all([
+        supabase.from('learning_student_assignments')
+          .select('id,child_id,assignment_id,schedule_id').eq('week_start',weekStart),
+        supabase.from('learning_homework_tasks').select('id,child_id').eq('week_start',weekStart),
+      ])
+      if (live.error || liveHomework.error) throw live.error ?? liveHomework.error
       const taken = new Set((live.data??[]).map(r=>r.child_id+':'+r.assignment_id))
-      const rows = original.filter(l=>!taken.has(l.childId+':'+l.assignmentId)).map(l=>({
-        child_id:l.childId,assignment_id:l.assignmentId,week_start:weekStart,
-        due_date:dueDate||null,assigned_by:session.user.id,updated_by:session.user.id,
-      }))
-      if (!rows.length) throw new Error('These activities were already assigned. Refresh the plan to review the latest work.')
+      const alreadyByChild = new Map<number, Set<string>>()
+      for (const row of live.data??[]) {
+        const keys=alreadyByChild.get(row.child_id)??new Set<string>()
+        keys.add(row.schedule_id?'schedule-'+row.schedule_id:'row-'+row.id)
+        alreadyByChild.set(row.child_id,keys)
+      }
+      const currentWorkload = new Map<number,number>()
+      for(const [id,keys] of alreadyByChild) currentWorkload.set(id,keys.size)
+      for(const task of liveHomework.data??[]) currentWorkload.set(task.child_id,(currentWorkload.get(task.child_id)??0)+1)
+      const rows: Array<{child_id:number;assignment_id:number;week_start:string;due_date:string|null;assigned_by:string;updated_by:string}>=[]
+      for(const item of original){
+        const key=item.childId+':'+item.assignmentId
+        if(taken.has(key) || (currentWorkload.get(item.childId)??0)>=settings.target) continue
+        rows.push({child_id:item.childId,assignment_id:item.assignmentId,week_start:weekStart,
+          due_date:dueDate||null,assigned_by:session.user.id,updated_by:session.user.id})
+        taken.add(key)
+        currentWorkload.set(item.childId,(currentWorkload.get(item.childId)??0)+1)
+      }
+      if (!rows.length) throw new Error('These activities are already assigned, or the children now meet their workload limits. Refresh to review the latest week.')
       const {error} = await supabase.from('learning_student_assignments').insert(rows)
       if (error) throw error
       setPlan(null);setSelected([])
@@ -245,6 +265,7 @@ export default function LearningWeeklyPlanner() {
       </div>
       <div className="jh-planner-config-footer">
         <span>Suggestions are generated locally. They do not save assignments.</span>
+        <button className="ghost" type="button" onClick={()=>setReloadKey(n=>n+1)} disabled={loading||saving}>↻ Refresh student work</button>
         <button className="primary" type="button" onClick={generate} disabled={loading||!visibleChildren.length}>{loading?'Loading…':plan?'↻ Regenerate suggestions':'✨ Suggest weekly plans'}</button>
       </div>
     </section>
