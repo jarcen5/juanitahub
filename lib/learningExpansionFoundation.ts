@@ -40,17 +40,17 @@ const kCount = kCountIcons.map((icon,i)=>{
 })
 const kLarger = Array.from({length:18},(_,i)=>{
   const first = 1+(i*3)%10
-  const second = 1+((i*3+4)%10)
+  const second = 1+((i*3+(i<10?4:6))%10)
   return numberQuestion('k-large-'+i,'Which number is BIGGER: '+first+' or '+second+'?',Math.max(first,second),
     'The bigger number means more objects.')
 })
 const kAddition = Array.from({length:18},(_,i)=>{
   const a = i%6
-  const b = Math.min(10-a,1+(i*3)%6)
+  const b = 1+Math.floor(i/6)
   return numberQuestion('k-add-'+i,'Count them together: '+a+' + '+b+' = ?',a+b,'Add the two groups together.')
 })
 const kSubtraction = Array.from({length:18},(_,i)=>{
-  const start=3+(i%8),gone=(i*3)%Math.min(6,start)
+  const start=3+(i%8),gone=1+Math.floor(i/8)
   return numberQuestion('k-sub-'+i,'You have '+start+' blocks. Take away '+gone+'. How many remain?',start-gone,'Subtract the blocks that go away.')
 })
 const kInitials = kPictureWords.map(([icon,word,letter],i)=>{
@@ -138,25 +138,28 @@ function gridQuestions(prefix:string, pairs:Array<[number,number]>,op:'+'|'-'):Q
     op==='+'?'Add the two numbers.':'Start with the first number and take away the second.'))
 }
 const g1Adds = gridQuestions('g1-add',Array.from({length:20},(_,i)=>{
-  const a=3+(i*7)%14;const b=1+(i*3)%Math.max(2,21-a);return [a,Math.min(b,20-a)]
+  const a=3+(i*11)%14;const b=1+(i*3+Math.floor(i/7))%Math.max(2,21-a);return [a,Math.min(b,20-a)]
 }),'+')
-const g1Subtracts=gridQuestions('g1-sub',Array.from({length:20},(_,i)=>{const a=6+(i*5)%15;return [a,1+(i*3)%a]}),'-')
+const g1Subtracts=gridQuestions('g1-sub',Array.from({length:20},(_,i)=>{const a=6+(i*7)%15;return [a,1+(i*3)%a]}),'-')
 const g1Tens=Array.from({length:18},(_,i)=>{
   const tens=1+i%9,ones=(i*7+3)%10;
   return numberQuestion('g1-place-'+i,'What number has '+tens+' tens and '+ones+' ones?',tens*10+ones,'Each ten is 10. Add the ones.')
 })
-const g1Punctuation=Array.from({length:18},(_,i)=>{
-  const entries:Array<[string,string,string[]]>= [
-    ['Where is my backpack','?',['.','!',',']],
-    ['I like to draw pictures','.',['?','!',',']],
-    ['What a wonderful surprise','!',['.','?',',']],
-    ['Can we go outside','?',['.','!',',']],
-    ['My pencil is blue','.',['?','!',',']],
-    ['Watch out','!',['.','?',',']],
-  ];const [sentence,correct,wrong]=entries[i%entries.length]
-  return question('g1-punct-'+i,'Pick the right ending mark: '+sentence+(i>=6?' (Practice '+(Math.floor(i/6)+1)+')':''),correct,wrong,
-    'A question uses ?, a statement uses ., and a strong feeling may use !.')
-})
+const punctuationSentences: Array<[string,string]> = [
+ ['Where is my backpack','?'],['I like to draw pictures','.'],
+ ['What a wonderful surprise','!'],['Can we go outside','?'],
+ ['My pencil is blue','.'],['Watch out','!'],
+ ['Who brought the soccer ball','?'],['The bus stops here','.'],
+ ['Hooray, we won the game','!'],['When does the library open','?'],
+ ['I washed my hands','.'],['That was an amazing goal','!'],
+ ['Can you help me read','?'],['The dog sleeps on the rug','.'],
+ ['What a big rainbow','!'],['How many books did you borrow','?'],
+ ['We planted seeds today','.'],['Look at that tall tower','!'],
+]
+const g1Punctuation=punctuationSentences.map(([sentence,correct],i)=>
+ question('g1-punct-'+i,'Pick the right ending mark: '+sentence,
+   correct,['.','?','!',','].filter(mark=>mark!==correct),
+   'A question uses ?, a statement uses ., and a strong feeling may use !.'))
 const g1Phonics=Array.from({length:20},(_,i)=>{
  const pairs:Array<[string,string,string[]]>=[
  ['cake','a_e',['a','ai','ee']],['bike','i_e',['i','ie','oa']],['home','o_e',['o','oo','ee']],
@@ -171,7 +174,7 @@ const g1Phonics=Array.from({length:20},(_,i)=>{
  'Look for the spelling pattern that helps the vowel say its name.')
 })
 const g2Addition=gridQuestions('g2-add',Array.from({length:20},(_,i)=>{
- const a=24+(i*13)%65,b=12+(i*9)%64;return [a,b]
+ const a=24+(i*17)%65,b=12+(i*9)%64;return [a,b]
 }),'+')
 const g2Subtraction=gridQuestions('g2-sub',Array.from({length:20},(_,i)=>{
  const a=53+(i*7)%47,b=10+(i*3)%38;return [a,b]
@@ -189,22 +192,31 @@ const g2Time=Array.from({length:18},(_,i)=>{
    fmt(nextHour,nextMin),[fmt((nextHour%12)+1,nextMin),fmt(nextHour,(nextMin+15)%60),fmt(hours,minutes)],
    'Count forward in 15-minute steps.')
 })
-const g2Grammar=Array.from({length:20},(_,i)=>{
- const forms:Array<[string,string,string[]]>=[
+const g2GrammarItems: Array<[string,string,string[]]> = [
  ['Which word is an adjective?','bright',['run','jump','quickly']],
  ['Which word is a verb?','climb',['tall','blue','soft']],
  ['Which word describes a noun?','tiny',['dance','eat','run']],
  ['Which word names an action?','skip',['yellow','loud','small']],
- ['Which word tells how?','slowly',['tree','happy','jump']],
+ ['Which word tells HOW?','slowly',['tree','happy','jump']],
  ['Which word is a proper noun?','Boston',['city','river','street']],
  ['Which word is a plural noun?','books',['book','read','reading']],
  ['Which word is a contraction?','can’t',['cannot','could not','do not']],
- ['Which word is an adjective?','gentle',['talk','write','quietly']],
- ['Which word is a verb?','whisper',['quiet','red','kind']],
- ]
- const [prompt,correct,wrong]=forms[i%forms.length]
- return question('g2-grammar-'+i,prompt+' ('+(i+1)+' of '+20+')',correct,wrong,'Think about the job each word does in a sentence.')
-})
+ ['Which word is an adjective for weather?','sunny',['walk','talk','run']],
+ ['Which word is a verb for talking quietly?','whisper',['quiet','red','kind']],
+ ['Which word describes a flavor?','sweet',['eat','mix','serve']],
+ ['Which word is a past-tense verb?','walked',['walk','walking','walks']],
+ ['Which word names a place?','school',['quietly','bounce','helpful']],
+ ['Which word is a plural noun for animals?','dogs',['dog','bark','loudly']],
+ ['Which word describes a person?','kind',['read','write','quickly']],
+ ['Which word tells WHEN something happens?','yesterday',['pencil','small','carry']],
+ ['Which word is an action?','stretch',['careful','bright','soft']],
+ ['Which word is a conjunction?','because',['under','happy','quickly']],
+ ['Which word describes a sound?','loud',['listen','sing','slowly']],
+ ['Which word is a singular noun?','apple',['apples','run','happily']],
+]
+const g2Grammar = g2GrammarItems.map(([prompt,correct,wrong],i)=>
+ question('g2-grammar-'+i,prompt,correct,wrong,
+   'Think about the job each word does in the sentence.'))
 
 export const foundationalPack: LearningPackAssignment[] = [
  bankQuiz('K · Count the Pictures','math',['K'],'Count groups of objects to 10',kCount),
