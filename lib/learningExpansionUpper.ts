@@ -24,7 +24,7 @@ const g3Literacy = g3Contexts.map(([passage,prompt,answer,wrong],i)=>
  question('g3-read-'+i,prompt,answer,wrong,'Use a detail from the passage to explain your choice.',passage))
 
 const g3Mult = Array.from({length:20},(_,i)=>{
- const a=2+(i*3)%9, b=2+(i*5)%10
+ const a=2+(i*7)%9, b=2+(i*3)%11
  return numberQuestion('g3-mul-'+i,a+' groups of '+b+' = ?',a*b,'Multiply the size of one group by the number of groups.')
 })
 const g3Div = Array.from({length:18},(_,i)=>{
@@ -33,7 +33,7 @@ const g3Div = Array.from({length:18},(_,i)=>{
 })
 
 const g4Fractions = Array.from({length:20},(_,i)=>{
- const den=3+i%8,num=1+(i*3)%(den-1),b=1+(num+1)%(den-1)
+ const den=4+i%7,num=1+(i*3)%(den-1),b=num===1?2:num-1
  const a=num+'/'+den,other=b+'/'+den
  return question('g4-fraction-'+i,'Which fraction is GREATER: '+a+' or '+other+'?',
    num>b?a:other,['They are equal','1/'+(den+1),'0/'+den],
@@ -121,11 +121,11 @@ const g6Grammar: Array<[string,string,string[]]> = [
 const g6Writing = g6Grammar.map(([prompt,answer,wrong],i)=>question('g6-writing-'+i,prompt,answer,wrong,'Think about how clear writers use evidence and structure.'))
 
 const g7Integers=Array.from({length:20},(_,i)=>{
- const first=-12+(i*5)%25,second=-8+(i*7)%17
+ const first=-12+(i*7)%25,second=-8+(i*7)%17
  const op=i%3===0?'-':'+'
  const total=op==='+'?first+second:first-second
  return question('g7-integer-'+i,'Calculate: ('+first+') '+op+' ('+second+') = ?',
-   String(total),[String(total+1),String(total-1),String(-total)].filter(x=>x!==String(total)),
+   String(total),[String(total+1),String(total-1),String(total+3),String(-total)].filter(x=>x!==String(total)),
    'Add or subtract integers using a number line or the sign rules.')
 })
 const g7Reasoning: Array<[string,string,string[]]> = [
