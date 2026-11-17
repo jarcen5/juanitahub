@@ -220,7 +220,7 @@ export default function LearningWeeklyPlanner() {
       const alreadyByChild = new Map<number, Set<string>>()
       for (const row of live.data??[]) {
         const keys=alreadyByChild.get(row.child_id)??new Set<string>()
-        if(!row.is_optional)keys.add(row.schedule_id?'schedule-'+row.schedule_id:'row-'+row.id)
+        if(!(row as {is_optional?: boolean}).is_optional)keys.add(row.schedule_id?'schedule-'+row.schedule_id:'row-'+row.id)
         alreadyByChild.set(row.child_id,keys)
       }
       const currentWorkload = new Map<number,number>()
