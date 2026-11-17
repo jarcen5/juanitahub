@@ -82,6 +82,9 @@ function candidateFor(
   if (!item.active || thisWeek.has(item.id)) return false
   if (!gradeMatches(item, grade)) return false
   if (settings.interactiveOnly && !interactiveTypes.has(item.assignment_type)) return false
+  // Do not automatically give challenge-level work in the default mix.
+  // Staff can explicitly select Challenge when appropriate.
+  if (settings.difficulty === 'any' && item.difficulty === 'challenge') return false
   if (settings.difficulty !== 'any' && item.difficulty !== settings.difficulty) return false
   // Never auto-suggest the long multi-station world or an unknown inactive format.
   if (item.activity_config?.experience === 'juanita_quest') return false
