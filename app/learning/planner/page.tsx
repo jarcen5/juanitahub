@@ -112,6 +112,13 @@ export default function LearningWeeklyPlanner() {
     async function load() {
       setLoading(true)
       setMessage('')
+      setProfile(null)
+      setChildren([])
+      setRegistrations([])
+      setLibrary([])
+      setWeekly([])
+      setHomework([])
+      setHistory([])
       setPlan(null)
       setSelected([])
       try {
