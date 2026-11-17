@@ -154,15 +154,42 @@ Deno.serve(async (req: Request) => {
       .in('id', ids).eq('active', true).order('subject').order('title')
     if (result.error) return out
     const interactive = new Set(['quiz','typing','writing','reading'])
-    out.choices = (result.data ?? []).filter((assignment: any) =>
+    const available = (result.data ?? []).filter((assignment: any) =>
       interactive.has(assignment.assignment_type)
       && ['digital','either'].includes(assignment.delivery_format)
-      && assignment.activity_config?.experience !== 'juanita_quest')
+      && assignment.activity_config?.experience !== 'juanita_quest'
+      && assignment.activity_config?.experience !== 'juanita_mini_game')
       .map((assignment: any) => ({
         id: assignment.id, title: assignment.title, subject: assignment.subject,
         assignment_type: assignment.assignment_type, skill: assignment.skill,
         estimated_minutes: assignment.estimated_minutes,
       }))
+
+    // Prefer genuinely fresh activities, then older review work.
+    // A stable student+week tie-breaker rotates the visible choices each Monday,
+    // preventing a large catalog from always showing the same first 12 entries.
+    const { data: history } = await db.from('learning_student_assignments')
+      .select('assignment_id,week_start')
+      .eq('child_id', childId)
+      .order('week_start', { ascending: false }).limit(500)
+    const previous = new Map<number,string>()
+    for (const row of history ?? []) {
+      const id = Number(row.assignment_id)
+      if (!previous.has(id)) previous.set(id,String(row.week_start))
+    }
+    const today = new Date(weekStart + 'T12:00:00Z').getTime()
+    const age = (id:number) => {
+      const day = previous.get(id)
+      return day ? Math.max(0,(today - new Date(day + 'T12:00:00Z').getTime())/86400000) : 365
+    }
+    const weekNumber = Math.floor(today/604800000)
+    const tieBreak = (id:number) => ((Math.imul(id ^ childId, 2654435761) + weekNumber * 1013) >>> 0)
+    out.choices = available.sort((a:any,b:any) => {
+      const ageA=age(Number(a.id)),ageB=age(Number(b.id))
+      const priorityA=ageA<28?0:ageA<90?1:2
+      const priorityB=ageB<28?0:ageB<90?1:2
+      return priorityB-priorityA || tieBreak(Number(a.id))-tieBreak(Number(b.id))
+    }).slice(0,12)
     return out
   }
 
