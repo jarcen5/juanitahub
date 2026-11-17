@@ -14,6 +14,10 @@ import ReadingActivityRunner, { type ReadingConfig, type ReadingQuestion, type R
 import ReadingReviewDialog, { type ReadingAttempt } from '@/components/ReadingReviewDialog'
 import StudentMyWeek, { type MyWeekItem, type StudentGoalView, type StudentAchievementView } from '@/components/StudentMyWeek'
 import LearningGoalsPanel from '@/components/LearningGoalsPanel'
+import LearningLibraryCoverage from '@/components/LearningLibraryCoverage'
+import { learningExpansionPack, auditLearningExpansionPack } from '@/lib/learningExpansionPack'
+import type { LearningPackAssignment } from '@/lib/learningContentHelpers'
+import { validateQuestionBank } from '@/lib/learningQuestionVariety'
 
 type Profile = { display_name: string; role: 'staff' | 'admin'; active: boolean }
 type Child = { id: number; first_name: string; last_name: string | null; active: boolean; is_demo: boolean }
@@ -32,6 +36,8 @@ type ActivityConfig = TypingConfig & WritingConfig & {
   passing_score?: number
   show_explanations?: boolean
   daily_practice?: boolean
+  rotate_questions?: boolean
+  questions_per_attempt?: number
 }
 type LearningAssignment = {
   id: number
@@ -618,6 +624,7 @@ export default function LearningPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
   const [starterAdding, setStarterAdding] = useState(false)
+  const [expansionAdding, setExpansionAdding] = useState(false)
   const [previewAssignment, setPreviewAssignment] = useState<LearningAssignment | null>(null)
   const [testAssignment, setTestAssignment] = useState<LearningAssignment | null>(null)
   const [typingTarget, setTypingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
@@ -650,6 +657,8 @@ export default function LearningPage() {
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([])
   const [quizPassingScore, setQuizPassingScore] = useState('80')
   const [quizShowExplanations, setQuizShowExplanations] = useState(true)
+  const [quizRotationEnabled, setQuizRotationEnabled] = useState(false)
+  const [quizQuestionsPerAttempt, setQuizQuestionsPerAttempt] = useState('6')
   const [writingMode, setWritingMode] = useState<WritingMode>('journal')
   const [writingPrompt, setWritingPrompt] = useState('')
   const [writingStarters, setWritingStarters] = useState('')
@@ -1448,6 +1457,8 @@ export default function LearningPage() {
     setQuizQuestions([])
     setQuizPassingScore('80')
     setQuizShowExplanations(true)
+    setQuizRotationEnabled(false)
+    setQuizQuestionsPerAttempt('6')
     setWritingMode('journal')
     setWritingPrompt('')
     setWritingStarters('')
@@ -1569,6 +1580,8 @@ export default function LearningPage() {
     setQuizQuestions(assignment.assignment_type === 'quiz' && Array.isArray(assignment.activity_config?.questions) ? assignment.activity_config.questions as QuizQuestion[] : [])
     setQuizPassingScore(typeof assignment.activity_config?.passing_score === 'number' ? String(assignment.activity_config.passing_score) : '80')
     setQuizShowExplanations(assignment.activity_config?.show_explanations !== false)
+    setQuizRotationEnabled(Boolean(assignment.activity_config?.rotate_questions))
+    setQuizQuestionsPerAttempt(String(assignment.activity_config?.questions_per_attempt ?? 6))
     setWritingMode(assignment.activity_config?.writing_mode ?? 'journal')
     setWritingPrompt(typeof assignment.activity_config?.prompt === 'string' ? assignment.activity_config.prompt : '')
     setWritingStarters(Array.isArray(assignment.activity_config?.sentence_starters) ? assignment.activity_config.sentence_starters.join('\n') : '')
@@ -1605,6 +1618,13 @@ export default function LearningPage() {
     if (newType === 'quiz') {
       if (!quizQuestions.length) return showMessage('Add at least one quiz question before saving.')
       if (!Number.isFinite(parsedPassingScore) || parsedPassingScore < 0 || parsedPassingScore > 100) return showMessage('Quiz goal must be between 0 and 100%.')
+      if (quizRotationEnabled) {
+        const count = Number(quizQuestionsPerAttempt)
+        const errors = validateQuestionBank({
+          questions: quizQuestions, rotate_questions: true, questions_per_attempt: count,
+        })
+        if (errors.length) return showMessage('Question rotation: ' + errors[0])
+      }
       for (let index = 0; index < quizQuestions.length; index += 1) {
         const question = quizQuestions[index]
         if (!question.prompt.trim()) return showMessage('Question ' + (index + 1) + ' needs a prompt.')
@@ -1635,6 +1655,10 @@ export default function LearningPage() {
         })),
         passing_score: parsedPassingScore,
         show_explanations: quizShowExplanations,
+        ...(quizRotationEnabled ? {
+          rotate_questions: true,
+          questions_per_attempt: Number(quizQuestionsPerAttempt),
+        } : {}),
       }
     } else if (newType === 'writing') {
       const parsedMinWords = writingMinWords.trim() ? Number(writingMinWords) : null
@@ -1792,6 +1816,46 @@ export default function LearningPage() {
     if (error) return showMessage(error.message)
     await loadData()
     setMessage('Added ' + missing.length + ' starter template' + (missing.length === 1 ? '' : 's') + '.')
+  }
+
+  function previewExpansionActivity(template: LearningPackAssignment, index: number) {
+    setTestAssignment({
+      ...template,
+      id: -1000 - index,
+      active: true,
+      activity_config: template.activity_config as ActivityConfig,
+    })
+  }
+
+  async function installReviewedExpansionPack() {
+    if (!session || profile?.role !== 'admin' || expansionAdding) return
+    // Staging previews use the shared live database. Block publishing there.
+    const liveHosts = new Set(['juanitahub.vercel.app','juanitahub-jsclc.vercel.app'])
+    if (!liveHosts.has(window.location.hostname)) {
+      showMessage('New practice assignments can only be published after production approval.')
+      return
+    }
+    const errors = auditLearningExpansionPack()
+    if (errors.length) return showMessage('Content review found an issue: ' + errors[0])
+    const existingTitles = new Set(library.map(a => a.title.trim().toLowerCase()))
+    const missing = learningExpansionPack.filter(a => !existingTitles.has(a.title.toLowerCase()))
+    if (!missing.length) return showMessage('All 40 Fresh Practice activities are already in the Library.')
+    if (!window.confirm('Publish '+missing.length+' reviewed Fresh Practice activities to the live Assignment Library? No existing assignments will be changed.')) return
+    setExpansionAdding(true)
+    const { error } = await supabase.from('learning_assignments').insert(
+      missing.map(assignment => ({
+        ...assignment,
+        active: true,
+        created_by: session.user.id,
+      })),
+    )
+    setExpansionAdding(false)
+    if (error) return showMessage('Could not publish the content pack: ' + error.message)
+    await loadData()
+    setLibrarySearch('Fresh Practice ·')
+    setLibraryStatusFilter('active')
+    setLibraryView('all')
+    setMessage('Added '+missing.length+' Fresh Practice activities. Preview and assign them from the Library.')
   }
 
   async function assignWork() {
@@ -2464,6 +2528,15 @@ export default function LearningPage() {
               )}
             </div>
 
+            <LearningLibraryCoverage
+              library={library}
+              isAdmin={profile.role === 'admin'}
+              canInstall={typeof window !== 'undefined' && ['juanitahub.vercel.app','juanitahub-jsclc.vercel.app'].includes(window.location.hostname)}
+              installing={expansionAdding}
+              onInstall={installReviewedExpansionPack}
+              onPreview={previewExpansionActivity}
+            />
+
             {profile.role === 'admin' && editorOpen && (
               <section className="card learning-create-card learning-editor-card">
                 <div className="learning-editor-heading">
@@ -2541,6 +2614,8 @@ export default function LearningPage() {
                       <div className="learning-quiz-settings">
                         <label className="field"><span>Goal / passing score %</span><input type="number" min="0" max="100" step="1" value={quizPassingScore} onChange={(event) => setQuizPassingScore(event.target.value)} /></label>
                         <label className="learning-check-row"><input type="checkbox" checked={quizShowExplanations} onChange={(event) => setQuizShowExplanations(event.target.checked)} /><span>Show explanations after answers</span></label>
+                        <label className="learning-check-row"><input type="checkbox" checked={quizRotationEnabled} onChange={(event) => setQuizRotationEnabled(event.target.checked)} /><span>Rotate questions and shuffle answer choices on repeated practice</span></label>
+                        {quizRotationEnabled && <label className="field"><span>Questions shown each attempt</span><input type="number" min="1" max={Math.max(1, quizQuestions.length-3)} value={quizQuestionsPerAttempt} onChange={(event) => setQuizQuestionsPerAttempt(event.target.value)} /><small>Build a bank at least 3 questions larger than the number shown. Student results are scored only on those shown.</small></label>}
                       </div>
 
                       <div className="learning-quiz-question-list">
