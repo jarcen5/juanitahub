@@ -1,0 +1,89 @@
+/* Staff Weekly Planner — self-contained to avoid changing the existing Learning Hub layout. */
+.jh-planner-page{display:grid;gap:18px;max-width:1340px;margin-inline:auto;padding-bottom:32px}
+.jh-planner-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;background:linear-gradient(117deg,#eef5ff,#effaf4);border:1px solid #d9e7f0;border-radius:23px;padding:clamp(22px,3vw,36px)}
+.jh-planner-kicker,.jh-planner-step{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#4b75a1;font-weight:850}
+.jh-planner-hero h1{font-size:clamp(27px,4vw,40px);margin:6px 0 11px;color:#244366}
+.jh-planner-hero p{line-height:1.6;color:#5b7791;max-width:76ch;margin:0}
+.jh-planner-back{flex-shrink:0;min-height:44px;display:inline-flex;align-items:center;text-decoration:none}
+.jh-planner-preview{border:1px solid #bddadd;background:#eaf7f5;color:#245e64;padding:13px 17px;border-radius:13px;font-size:13px;line-height:1.5}
+.jh-planner-config{display:grid;gap:21px;padding:clamp(19px,2.2vw,27px)}
+.jh-planner-heading{display:flex;justify-content:space-between;align-items:start;gap:15px}
+.jh-planner-heading h2,.jh-planner-results h2{margin:5px 0 6px;font-size:23px}
+.jh-planner-heading p,.jh-planner-results-header p{margin:0;color:var(--muted,#687e91);font-size:13px;line-height:1.5}
+.jh-planner-heading>a{font-size:13px;font-weight:750}
+.jh-planner-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.jh-planner-controls .field,.jh-planner-students .field,.jh-planner-level.field,.jh-planner-approve .field{display:grid;gap:7px;min-width:0}
+.jh-planner-controls .field>span,.jh-planner-students .field>span,.jh-planner-level.field>span,.jh-planner-approve .field>span{font-size:12px;font-weight:800;color:var(--muted,#596c7c)}
+.jh-planner-controls select,.jh-planner-controls input,.jh-planner-students select,.jh-planner-students input,.jh-planner-level select,.jh-planner-approve input{min-height:44px;width:100%;padding:10px 12px;border:1px solid #cbdce7;border-radius:11px;background:var(--panel,#fff);color:var(--ink,#263c50);font-size:14px}
+.jh-planner-check{display:inline-flex;align-items:center;gap:12px;font-size:13px;font-weight:750;cursor:pointer}
+.jh-planner-check>input{width:20px;height:20px;flex:none;accent-color:#2c82ba}
+.jh-planner-check small{display:block;color:var(--muted,#687d8e);font-weight:500;margin-top:4px}
+.jh-planner-students{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(150px,1fr) auto auto;align-items:end;gap:12px;padding:15px;border:1px solid #dfeaf0;border-radius:16px;background:rgba(241,248,252,.55)}
+.jh-planner-students>strong{white-space:nowrap;font-size:12px;padding-bottom:14px;color:#416987}
+.jh-planner-config-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;border-top:1px solid #e4edf4;padding-top:17px}
+.jh-planner-config-footer span{color:var(--muted,#687d8e);font-size:12px}
+.jh-planner-config-footer button{min-height:46px}
+.jh-planner-guide{display:flex;align-items:center;gap:19px;background:var(--panel,#fff);border-left:4px solid #b18acc}
+.jh-planner-guide>span{display:grid;place-items:center;min-width:170px;align-self:stretch;padding:9px;border-radius:12px;background:rgba(197,165,233,.15);text-align:center;color:#8f58ad}
+.jh-planner-guide strong{font-size:17px}
+.jh-planner-guide p{margin:5px 0 0;color:var(--muted,#687e90);line-height:1.55;font-size:12px}
+.jh-planner-results{display:grid;gap:17px}
+.jh-planner-results-header{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.jh-planner-summary{display:flex;gap:9px;flex-wrap:wrap}
+.jh-planner-summary span{display:grid;justify-items:center;gap:4px;padding:9px 13px;border:1px solid #dce7ef;border-radius:13px;font-size:11px;color:var(--muted,#687d8e);min-width:102px}
+.jh-planner-summary strong{font-size:23px;color:var(--ink,#29496d)}
+.jh-planner-plan-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;align-items:start}
+.jh-planner-child{padding:0!important;overflow:hidden;min-width:0}
+.jh-planner-child>summary{display:flex;align-items:center;gap:12px;padding:14px;cursor:pointer;list-style:none}
+.jh-planner-child>summary::-webkit-details-marker{display:none}
+.jh-planner-child>summary::after{content:'⌄';font-size:22px;color:#6b91a4;flex:none;transition:transform .2s ease}
+.jh-planner-child[open]>summary::after{transform:rotate(180deg)}
+.jh-planner-avatar{width:43px;height:43px;flex:none;border-radius:13px;display:grid;place-items:center;color:#fff;background:#61a7bf;font-size:20px;font-weight:800}
+.jh-planner-child-label{display:grid;gap:4px;flex:1;min-width:0}
+.jh-planner-child-label strong{font-size:14px;overflow-wrap:anywhere}
+.jh-planner-child-label small{font-size:11px;color:var(--muted,#617d8f)}
+.jh-planner-child-count{font-size:11px;font-weight:800;color:#398270;text-align:right;max-width:175px}
+.jh-planner-child-body{display:grid;gap:12px;border-top:1px solid #e2edf3;padding:13px 16px 17px}
+.jh-planner-child-body>.field{max-width:330px}
+.jh-planner-level small{display:inline;color:#8da0ac;font-size:10px}
+.jh-planner-child-note{margin:0;font-size:12px;color:var(--muted,#657b8d)}
+.jh-planner-suggestion{display:flex;align-items:start;gap:10px;padding:11px;background:rgba(235,245,251,.6);border:1px solid #dae8f1;border-radius:13px;cursor:pointer}
+.jh-planner-suggestion>input{width:18px;height:18px;flex:none;accent-color:#2f84ae;margin-top:5px}
+.jh-planner-subject{font-size:24px;line-height:1.2;flex:none}
+.jh-planner-suggestion>span:last-child{display:grid;gap:5px;min-width:0}
+.jh-planner-suggestion strong{font-size:13px}
+.jh-planner-suggestion small{font-size:11px;color:var(--muted,#6a8495);line-height:1.45}
+.jh-planner-approve{display:flex;align-items:center;justify-content:space-between;gap:30px}
+.jh-planner-approve strong{font-size:17px}
+.jh-planner-approve p{font-size:12px;line-height:1.5;color:var(--muted,#687e8e);max-width:66ch}
+.jh-planner-approve .field{max-width:220px}
+.jh-planner-approve button{flex-shrink:0;min-height:50px}
+.jh-planner-footer{font-size:11px;color:var(--muted,#687e8e);text-align:center}
+.jh-planner-page :where(button,a,input,select):focus-visible{outline:3px solid #329cd8;outline-offset:3px}
+@media(max-width:1080px){
+ .jh-planner-controls{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .jh-planner-students{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .jh-planner-students>strong{padding:0}
+}
+@media(max-width:760px){
+ .jh-planner-hero,.jh-planner-heading,.jh-planner-results-header,.jh-planner-approve{flex-direction:column;align-items:stretch}
+ .jh-planner-plan-list{grid-template-columns:1fr}
+ .jh-planner-summary{width:100%}
+ .jh-planner-summary>span{flex:1;min-width:0}
+ .jh-planner-guide{flex-direction:column;align-items:stretch}
+ .jh-planner-guide>span{min-width:0}
+ .jh-planner-config-footer{flex-direction:column;align-items:stretch}
+ .jh-planner-config-footer button{width:100%}
+}
+@media(max-width:460px){
+ .jh-planner-controls,.jh-planner-students{grid-template-columns:1fr}
+ .jh-planner-child-count{max-width:95px}
+ .jh-planner-hero{padding:18px}
+}
+html[data-theme="dark"] .jh-planner-hero{background:linear-gradient(117deg,#203a54,#193d35);border-color:#3c5b6c}
+html[data-theme="dark"] .jh-planner-hero h1{color:#e6f4fc}
+html[data-theme="dark"] .jh-planner-hero p{color:#bed3e2}
+html[data-theme="dark"] .jh-planner-preview{background:#224841;color:#d7f8ea;border-color:#48816d}
+html[data-theme="dark"] .jh-planner-students,html[data-theme="dark"] .jh-planner-suggestion{background:#243d4f;border-color:#3f5c6f}
+html[data-theme="dark"] .jh-planner-child-body,html[data-theme="dark"] .jh-planner-config-footer{border-color:#3d5363}
+@media(prefers-reduced-motion:reduce){.jh-planner-child>summary::after{transition:none}}
