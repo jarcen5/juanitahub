@@ -72,6 +72,7 @@ const workspaceDefinitions: WorkspaceDefinition[] = [
     routes: ['/learning'],
     links: [
       { href: '/learning#week', label: 'This Week' },
+      { href: '/learning/planner', label: 'Smart Weekly Planner' },
       { href: '/learning#review', label: 'Review' },
       { href: '/learning#goals', label: 'Goals' },
       { href: '/learning#my-week', label: 'My Week' },
