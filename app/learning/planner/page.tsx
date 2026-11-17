@@ -168,7 +168,7 @@ export default function LearningWeeklyPlanner() {
     setPlan(null)
     setSelected([])
   }
-  const grades = useMemo(() => [...new Set([...Array.from({length:8},(_,i)=>String(i+1)),...registrations.map(r=>r.grade||'').filter(Boolean)])].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})),[registrations])
+  const grades = useMemo(() => [...new Set(['K',...Array.from({length:8},(_,i)=>String(i+1)),...registrations.map(r=>r.grade||'').filter(Boolean)])].sort((a,b)=>a==='K'?-1:b==='K'?1:a.localeCompare(b,undefined,{numeric:true})),[registrations])
   const visibleChildren = useMemo(() => children.filter(c => (includeDemo || !c.is_demo) &&
     (filterGrade === 'all' || registrations.find(r=>r.child_id===c.id)?.grade===filterGrade) &&
     childName(c).toLowerCase().includes(studentSearch.trim().toLowerCase())),[children,includeDemo,filterGrade,studentSearch,registrations])
