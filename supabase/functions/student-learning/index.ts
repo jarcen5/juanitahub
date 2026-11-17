@@ -454,7 +454,25 @@ Deno.serve(async (req: Request) => {
     const target = await getAssignment(childId, studentAssignmentId, 'quiz')
     if (!target) return json({ error: 'That quiz is not available.' }, 404)
     const answers = Array.isArray(input?.answers) ? input.answers : []
-    const questions = Array.isArray(target.assignment.activity_config?.questions) ? target.assignment.activity_config.questions : []
+    const bank = Array.isArray(target.assignment.activity_config?.questions)
+      ? target.assignment.activity_config.questions : []
+    const config = target.assignment.activity_config ?? {}
+    const requested = Number(config.questions_per_attempt)
+    const rotating = config.rotate_questions === true && Number.isInteger(requested)
+      && requested > 0 && requested < bank.length
+    let questions = bank
+    if (rotating) {
+      // For low-stakes practice, accept one unique, valid bank subset per attempt.
+      // Never score missing questions as incorrect or trust client-supplied correctness.
+      // Strict high-stakes exams would additionally require server-issued question sets.
+      if (answers.length !== requested) return json({ error: 'Please complete all questions in your practice set.' }, 400)
+      const byId = new Map<string, any>(bank.map((question: any) => [String(question?.id ?? ''), question]))
+      const ids = answers.map((answer: any) => String(answer?.question_id ?? ''))
+      if (ids.some((id: string) => !id || !byId.has(id)) || new Set(ids).size !== requested) {
+        return json({ error: 'This practice set contains an invalid or repeated question.' }, 400)
+      }
+      questions = ids.map((id: string) => byId.get(id))
+    }
     const evaluated = questions.map((question: any) => {
       const found = answers.find((answer: any) => String(answer?.question_id) === String(question?.id))
       const response = cleanText(found?.response, 4000)
