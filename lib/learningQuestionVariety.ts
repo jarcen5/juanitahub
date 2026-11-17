@@ -70,10 +70,14 @@ export function validateQuestionBank(config: RotationConfig): string[] {
   const errors: string[] = []
   const questions = config.questions ?? []
   const ids = new Set<string>()
+  const prompts = new Set<string>()
   for (const [index, question] of questions.entries()) {
     const prefix = 'Question ' + (index + 1)
     if (!question.id || ids.has(question.id)) errors.push(prefix + ' needs a unique ID')
     ids.add(question.id)
+    const promptKey = (question.passage ?? '').trim().toLowerCase() + '|' + question.prompt.trim().toLowerCase()
+    if (prompts.has(promptKey)) errors.push(prefix + ' repeats another question with the same passage and wording')
+    prompts.add(promptKey)
     if (!question.prompt.trim() || !question.correct_answer.trim()) errors.push(prefix + ' needs a question and correct answer')
     if (question.choices?.length) {
       const normalized = question.choices.map(c => c.trim().toLocaleLowerCase())
