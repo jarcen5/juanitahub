@@ -154,6 +154,20 @@ export default function LearningWeeklyPlanner() {
     return {students:new Set(chosen.map(l=>l.childId)).size, activities:chosen.length, missingGrades:(plan??[]).filter(p=>!p.grade).length, complete:(plan??[]).filter(p=>p.existing>=settings.target).length}
   },[plan,selected,settings.target])
 
+  function changeLearningLevel(childId: number, grade: string) {
+    const nextSettings = { ...settings, grades: { ...settings.grades, [childId]: grade } }
+    setSettings(nextSettings)
+    if (!plan) return
+    const nextPlans = makeWeeklyPlans({
+      children: visibleChildren, registrations, library, history,
+      weekly, homework, weekStart, settings: nextSettings,
+    })
+    const previousKeys = new Set(plan.flatMap(p=>p.suggestions.map(a=>a.childId+':'+a.assignmentId)))
+    setSelected(oldSelected => nextPlans.flatMap(p=>p.suggestions.map(a=>a.childId+':'+a.assignmentId))
+      .filter(key => key.startsWith(childId+':') || !previousKeys.has(key) || oldSelected.includes(key)))
+    setPlan(nextPlans)
+  }
+
   function generate() {
     if (!profile?.active || loading) return
     const result = makeWeeklyPlans({children:visibleChildren,registrations,library,history,weekly,homework,weekStart,settings})
@@ -213,7 +227,7 @@ export default function LearningWeeklyPlanner() {
     <section className="card jh-planner-config">
       <div className="jh-planner-heading"><div><span className="jh-planner-kicker">Step 1</span><h2>Set up the week</h2><p>Keep the workload manageable. Assigned homework and recurring practice already count toward the target.</p></div><a href="/learning#library">Browse Assignment Library</a></div>
       <div className="jh-planner-controls">
-        <label className="field"><span>Week beginning</span><input type="date" value={weekStart} onChange={e=>{if(e.target.value)setWeekStart(mondayFor(e.target.value))}} /></label>
+        <label className="field"><span>Week beginning</span><input type="date" value={weekStart} onChange={e=>{if(e.target.value)setWeekStart(mondayFor(e.target.value));setDueDate('')}} /></label>
         <label className="field"><span>Target total activities per child</span><select value={settings.target} onChange={e=>updateSettings({target:Number(e.target.value)})}>{[1,2,3,4,5].map(n=><option key={n} value={n}>{n} activities</option>)}</select></label>
         <label className="field"><span>Subject emphasis</span><select value={settings.focus} onChange={e=>updateSettings({focus:e.target.value as PlannerSettings['focus']})}><option value="balanced">Balanced subjects</option><option value="reading">Reading & literacy</option><option value="math">Math</option><option value="typing">Typing</option></select></label>
         <label className="field"><span>Difficulty</span><select value={settings.difficulty} onChange={e=>updateSettings({difficulty:e.target.value as PlannerSettings['difficulty']})}><option value="any">Mix support & standard</option><option value="support">Foundational / support</option><option value="standard">Standard</option><option value="challenge">Challenge</option></select></label>
@@ -255,7 +269,7 @@ export default function LearningWeeklyPlanner() {
               <span className="jh-planner-child-count">{picked ? picked+' selected' : studentPlan.message||'No new work'}</span>
             </summary>
             <div className="jh-planner-child-body">
-              <label className="field jh-planner-level"><span>Learning level for this plan <small>(temporary override, not saved to profile)</small></span><select value={settings.grades[studentPlan.child.id]||''} onChange={e=>updateSettings({grades:{...settings.grades,[studentPlan.child.id]:e.target.value}})}><option value="">Use registered grade</option>{grades.map(g=><option key={g} value={g}>Level {g}</option>)}</select></label>
+              <label className="field jh-planner-level"><span>Learning level for this plan <small>(temporary override, not saved to profile)</small></span><select value={settings.grades[studentPlan.child.id]||''} onChange={e=>changeLearningLevel(studentPlan.child.id,e.target.value)}><option value="">Use registered grade</option>{grades.map(g=><option key={g} value={g}>Level {g}</option>)}</select></label>
               {studentPlan.message && <p className="jh-planner-child-note">{studentPlan.message}</p>}
               {studentPlan.suggestions.map(s=>{
                 const key=s.childId+':'+s.assignmentId
@@ -265,7 +279,7 @@ export default function LearningWeeklyPlanner() {
                   <span><strong>{s.title}</strong><small>{s.reason} · {s.subject} · {s.difficulty}</small></span>
                 </label>
               })}
-              {settings.grades[studentPlan.child.id] !== undefined && <small>After changing a learning level, select Regenerate suggestions above to update this plan.</small>}
+              {Boolean(settings.grades[studentPlan.child.id]) && <small>Suggestions above now reflect this temporary learning level.</small>}
             </div>
           </details>
         })}
