@@ -146,7 +146,9 @@ export default function AssignmentPreviewDialog({ assignment, onClose }: Props) 
               <div className="learning-preview-quiz">
                 <div className="learning-preview-quiz-heading">
                   <strong>Quiz setup</strong>
-                  <span>{assignment.activity_config?.questions?.length ?? 0} questions • Goal {assignment.activity_config?.passing_score ?? 80}%</span>
+                  <span>{assignment.activity_config?.rotate_questions
+                    ? String(assignment.activity_config.questions_per_attempt ?? assignment.activity_config?.questions?.length ?? 0)+' per attempt from '+String(assignment.activity_config.questions?.length ?? 0)+'-question bank'
+                    : String(assignment.activity_config?.questions?.length ?? 0)+' questions'} • Goal {assignment.activity_config?.passing_score ?? 80}%</span>
                 </div>
                 <div className="learning-preview-quiz-list">
                   {(assignment.activity_config?.questions ?? []).map((question, index) => (
