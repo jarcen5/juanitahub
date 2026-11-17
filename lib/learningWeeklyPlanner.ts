@@ -27,6 +27,7 @@ export type PlannerWeeklyAssignment = {
   child_id: number
   assignment_id: number
   schedule_id: number | null
+  is_optional?: boolean
 }
 export type PlannerHomework = { child_id: number; id: number }
 export type PlannerChild = { id: number; first_name: string; last_name: string | null; is_demo: boolean }
@@ -65,7 +66,10 @@ function dateAgeDays(from: string, to: string): number {
 
 function countsAsOneAssignment(rows: PlannerWeeklyAssignment[]): number {
   const keys = new Set<string>()
-  for (const row of rows) keys.add(row.schedule_id ? 'schedule-' + row.schedule_id : 'row-' + row.id)
+  for (const row of rows) {
+    if (row.is_optional) continue
+    keys.add(row.schedule_id ? 'schedule-' + row.schedule_id : 'row-' + row.id)
+  }
   return keys.size
 }
 
