@@ -62,6 +62,8 @@ type StudentAssignment = {
   max_score: number | null
   minutes_spent: number | null
   staff_note: string | null
+  is_optional?: boolean
+  assignment_origin?: 'staff' | 'student_choice'
 }
 type AssignmentUsageRow = {
   assignment_id: number
@@ -727,6 +729,17 @@ export default function LearningPage() {
     if (session && tab === 'review') void loadData()
   }, [tab])
 
+  async function loadWeeklyWithOptional(week: string) {
+    const loaded = await supabase.from('learning_student_assignments')
+      .select('id, child_id, assignment_id, week_start, due_date, schedule_id, occurrence_date, status, completed_at, score, max_score, minutes_spent, staff_note, is_optional, assignment_origin')
+      .eq('week_start', week).order('child_id').order('id')
+    if (!loaded.error) return loaded
+    // Staging uses the existing live database until its migration is approved.
+    return supabase.from('learning_student_assignments')
+      .select('id, child_id, assignment_id, week_start, due_date, schedule_id, occurrence_date, status, completed_at, score, max_score, minutes_spent, staff_note')
+      .eq('week_start', week).order('child_id').order('id')
+  }
+
   async function loadData() {
     if (!session) return
     setLoading(true)
@@ -738,7 +751,7 @@ export default function LearningPage() {
       supabase.from('children').select('id, first_name, last_name, active, is_demo').eq('active', true).order('first_name').order('last_name'),
       supabase.from('child_registrations').select('child_id, grade, school').eq('status', 'active'),
       supabase.from('learning_assignments').select('id, title, subject, assignment_type, skill, grade_levels, difficulty, delivery_format, instructions, estimated_minutes, resource_url, active, activity_config').order('subject').order('title'),
-      supabase.from('learning_student_assignments').select('id, child_id, assignment_id, week_start, due_date, schedule_id, occurrence_date, status, completed_at, score, max_score, minutes_spent, staff_note').eq('week_start', weekStart).order('child_id').order('id'),
+      loadWeeklyWithOptional(weekStart),
       supabase.from('learning_homework_tasks').select('id, child_id, week_start, due_date, school_subject, title, details, estimated_minutes, status, student_marked_done_at, staff_verified_at, staff_verified_by, assigned_at').eq('week_start', weekStart).order('child_id').order('id'),
       supabase.from('learning_reading_logs').select('id, child_id, read_on, title, minutes, pages, note, created_at').gte('read_on', weekStart).lte('read_on', weekEnd).order('read_on', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('learning_staff_notes').select('id, child_id, note_date, note, created_at').order('note_date', { ascending: false }).order('created_at', { ascending: false }).limit(120),
@@ -1104,7 +1117,7 @@ export default function LearningPage() {
   const weeklyChildren = useMemo(() => children.filter((child) => (weeklyByChild.get(child.id)?.length ?? 0) > 0 || (homeworkByChild.get(child.id)?.length ?? 0) > 0 || (readingByChild.get(child.id)?.length ?? 0) > 0), [children, weeklyByChild, homeworkByChild, readingByChild])
   const visibleWeeklyChildren = useMemo(() => weeklyChildren.filter((child) => childName(child).toLowerCase().includes(weekStudentSearch.trim().toLowerCase())), [weeklyChildren, weekStudentSearch])
 
-  const reportingWeeklyAssignments = useMemo(() => weeklyAssignments.filter((row) => reportingChildIds.has(row.child_id)), [weeklyAssignments, reportingChildIds])
+  const reportingWeeklyAssignments = useMemo(() => weeklyAssignments.filter((row) => reportingChildIds.has(row.child_id) && !row.is_optional), [weeklyAssignments, reportingChildIds])
   const reportingHomeworkTasks = useMemo(() => homeworkTasks.filter((row) => reportingChildIds.has(row.child_id)), [homeworkTasks, reportingChildIds])
   const reportingReadingLogs = useMemo(() => readingLogs.filter((row) => reportingChildIds.has(row.child_id)), [readingLogs, reportingChildIds])
   const metrics = useMemo(() => ({
@@ -1317,12 +1330,12 @@ export default function LearningPage() {
 
   const staffAttention = useMemo(() => {
     const noWork = reportingChildren.filter((child) => {
-      const assignmentCount = weeklyByChild.get(child.id)?.length ?? 0
+      const assignmentCount = (weeklyByChild.get(child.id)??[]).filter(row=>!row.is_optional).length
       const homeworkCount = homeworkByChild.get(child.id)?.length ?? 0
       return assignmentCount + homeworkCount === 0
     })
     const noCompletions = reportingChildren.filter((child) => {
-      const assignments = weeklyByChild.get(child.id) ?? []
+      const assignments = (weeklyByChild.get(child.id) ?? []).filter(row=>!row.is_optional)
       const homework = homeworkByChild.get(child.id) ?? []
       const total = assignments.length + homework.length
       if (!total) return false
@@ -1368,6 +1381,7 @@ export default function LearningPage() {
         maxScore: row.max_score,
         writingStatus: writingSubmission?.status ?? null,
         readingReviewStatus: readingAttempt?.review_status ?? null,
+        isOptionalChoice: Boolean(row.is_optional),
       }]
     })
     const homeworkItems: MyWeekItem[] = (homeworkByChild.get(myWeekChildId) ?? []).map((task) => ({
@@ -2156,14 +2170,16 @@ export default function LearningPage() {
                   const homework = homeworkByChild.get(child.id) ?? []
                   const logs = readingByChild.get(child.id) ?? []
                   const minutes = logs.reduce((sum, row) => sum + Number(row.minutes), 0)
-                  const workTotal = assignments.length + homework.length
-                  const workDone = assignments.filter((row) => row.status === 'completed').length + homework.filter((task) => task.status === 'completed').length
+                  const requiredAssignments = assignments.filter(row=>!row.is_optional)
+                  const optionalCount = assignments.length-requiredAssignments.length
+                  const workTotal = requiredAssignments.length + homework.length
+                  const workDone = requiredAssignments.filter((row) => row.status === 'completed').length + homework.filter((task) => task.status === 'completed').length
                   return (
                     <article className="card learning-student-card" key={child.id}>
                       <header>
                         <span className="learning-avatar">{child.first_name[0]?.toUpperCase()}</span>
                         <span><strong>{childName(child)}{child.is_demo ? ' • Demo' : ''}</strong><small>{registrationByChild.get(child.id)?.grade ? 'Grade ' + registrationByChild.get(child.id)?.grade : 'Grade not recorded'} • {minutes} reading min</small></span>
-                        <span className="learning-progress">{workDone}/{workTotal} done</span>
+                        <span className="learning-progress">{workDone}/{workTotal} required done{optionalCount ? ' · '+optionalCount+' optional' : ''}</span>
                       </header>
                       <div className="learning-assignment-list">
                         {assignments.map((row) => {
@@ -2172,7 +2188,7 @@ export default function LearningPage() {
                           return (
                             <div className="learning-assignment-row" key={row.id}>
                               <span className="learning-subject-icon">{subjectIcons[assignment.subject]}</span>
-                              <span className="learning-assignment-copy"><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.schedule_id && row.occurrence_date ? ' • Recurring ' + new Date(row.occurrence_date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small>{row.status === 'completed' && (row.score != null || row.minutes_spent != null || row.staff_note) && <span className="learning-completion-meta">{row.score != null && row.max_score != null ? `Score ${row.score}/${row.max_score} • ${Math.round((row.score / row.max_score) * 100)}%` : ''}{row.score != null && row.max_score != null && row.minutes_spent != null ? ' • ' : ''}{row.minutes_spent != null ? row.minutes_spent + ' min' : ''}{(row.score != null || row.minutes_spent != null) && row.staff_note ? ' • ' : ''}{row.staff_note || ''}</span>}</span>
+                              <span className="learning-assignment-copy"><strong>{assignment.title}</strong><small>{subjectLabels[assignment.subject]}{assignment.skill ? ' • ' + assignment.skill : ''}{row.is_optional ? ' • Optional student choice' : ''}{row.schedule_id && row.occurrence_date ? ' • Recurring ' + new Date(row.occurrence_date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : row.due_date ? ' • Due ' + dateLabel(row.due_date) : ''}</small>{row.status === 'completed' && (row.score != null || row.minutes_spent != null || row.staff_note) && <span className="learning-completion-meta">{row.score != null && row.max_score != null ? `Score ${row.score}/${row.max_score} • ${Math.round((row.score / row.max_score) * 100)}%` : ''}{row.score != null && row.max_score != null && row.minutes_spent != null ? ' • ' : ''}{row.minutes_spent != null ? row.minutes_spent + ' min' : ''}{(row.score != null || row.minutes_spent != null) && row.staff_note ? ' • ' : ''}{row.staff_note || ''}</span>}</span>
                               <span className={'learning-status ' + row.status}>{statusLabel(row.status)}</span>
                               <span className="learning-row-actions">
                                 {assignment.assignment_type === 'typing' && <button className="primary" type="button" disabled={saving} onClick={() => setTypingTarget({ row, child, assignment })}>{row.status === 'completed' ? 'Retry typing' : 'Launch typing'}</button>}

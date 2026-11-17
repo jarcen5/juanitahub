@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, type CSSProperties } from 'react'
+import LearningChoiceBoard, { type ChoiceBoardData } from '@/components/LearningChoiceBoard'
 
 export type MyWeekItem = {
   rowId: number
@@ -32,6 +33,7 @@ export type MyWeekItem = {
   writingStatus?: 'draft' | 'submitted' | 'reviewed' | null
   readingReviewStatus?: 'not_needed' | 'pending' | 'reviewed' | null
   isJuanitaQuest?: boolean
+  isOptionalChoice?: boolean
 }
 
 export type StudentGoalView = {
@@ -71,6 +73,8 @@ type Props = {
   isDemo?: boolean
   goals?: StudentGoalView[]
   achievements?: StudentAchievementView[]
+  choiceBoard?: ChoiceBoardData | null
+  onChooseActivity?: (assignmentId: number) => Promise<void>
 }
 
 const subjectIcons: Record<MyWeekItem['subject'], string> = {
@@ -176,7 +180,7 @@ function actionLabel(item: MyWeekItem) {
   return 'Start'
 }
 
-export default function StudentMyWeek({ studentName, grade, weekLabel, items, onLaunch, onHomeworkDone, onExit, exitLabel = 'Back to staff view', isDemo = false, goals = [], achievements = [] }: Props) {
+export default function StudentMyWeek({ studentName, grade, weekLabel, items, onLaunch, onHomeworkDone, onExit, exitLabel = 'Back to staff view', isDemo = false, goals = [], achievements = [], choiceBoard = null, onChooseActivity }: Props) {
   const displayItems = useMemo(() => {
     const recurringGroups = new Map<number, MyWeekItem[]>()
     const standalone: MyWeekItem[] = []
@@ -221,12 +225,15 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
     return standalone
   }, [items])
 
-  const completed = displayItems.filter((item) => statusFor(item).key === 'completed' || item.writingStatus === 'submitted' || item.writingStatus === 'reviewed' || item.readingReviewStatus === 'pending' || item.readingReviewStatus === 'reviewed').length
-  const inProgress = displayItems.filter((item) => statusFor(item).key === 'in_progress').length
-  const todo = Math.max(0, displayItems.length - completed - inProgress)
-  const progress = displayItems.length ? Math.round((completed / displayItems.length) * 100) : 0
+  const requiredItems = displayItems.filter((item) => !item.isOptionalChoice)
+  const optionalItems = displayItems.filter((item) => item.isOptionalChoice)
 
-  const ordered = [...displayItems].sort((a, b) => {
+  const completed = requiredItems.filter((item) => statusFor(item).key === 'completed' || item.writingStatus === 'submitted' || item.writingStatus === 'reviewed' || item.readingReviewStatus === 'pending' || item.readingReviewStatus === 'reviewed').length
+  const inProgress = requiredItems.filter((item) => statusFor(item).key === 'in_progress').length
+  const todo = Math.max(0, requiredItems.length - completed - inProgress)
+  const progress = requiredItems.length ? Math.round((completed / requiredItems.length) * 100) : 0
+
+  const ordered = [...requiredItems].sort((a, b) => {
     const order = { in_progress: 0, assigned: 1, completed: 2 } as const
     const aKey = statusFor(a).key as keyof typeof order
     const bKey = statusFor(b).key as keyof typeof order
@@ -257,11 +264,11 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
     const interactive = isInteractive(item) && (item.kind !== 'homework' || Boolean(onHomeworkDone))
     const isHomework = item.kind === 'homework'
     return (
-      <article className={'my-week-card ' + displayStatus.key + (item.isJuanitaQuest ? ' quest-assignment' : '') + (isHomework ? ' homework-assignment' : '')} key={(item.kind ?? 'assignment') + '-' + item.rowId}>
+      <article className={'my-week-card ' + displayStatus.key + (item.isJuanitaQuest ? ' quest-assignment' : '') + (isHomework ? ' homework-assignment' : '') + (item.isOptionalChoice ? ' optional-assignment' : '')} key={(item.kind ?? 'assignment') + '-' + item.rowId}>
         <div className="my-week-card-icon">{isHomework ? '🏫' : item.isJuanitaQuest ? '🗺️' : subjectIcons[item.subject]}</div>
         <div className="my-week-card-copy">
           <div className="my-week-card-eyebrow">
-            <span>{isHomework ? '🏫 School Homework' : item.isJuanitaQuest ? '🎮 Juanita Quest' : (typeLabels[item.assignmentType] ?? 'Learning activity')}</span>
+            <span>{isHomework ? '🏫 School Homework' : item.isOptionalChoice ? '🌈 My Choice · Optional' : item.isJuanitaQuest ? '🎮 Juanita Quest' : (typeLabels[item.assignmentType] ?? 'Learning activity')}</span>
             <em className={'my-week-status ' + displayStatus.key}>{displayStatus.label}</em>
           </div>
           <h2>{item.title}</h2>
@@ -312,7 +319,7 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
           </div>
           <div className="my-week-progress-card">
             <div className="my-week-progress-ring" style={{ '--my-week-progress': progress + '%' } as CSSProperties}><strong>{progress}%</strong></div>
-            <span>{completed} of {displayItems.length} finished</span>
+            <span>{completed} of {requiredItems.length} required finished</span>
           </div>
         </section>
 
@@ -357,11 +364,11 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
           </section>
         )}
 
-        {displayItems.length === 0 ? (
+        {requiredItems.length === 0 ? (
           <section className="my-week-empty">
             <span>🌟</span>
-            <h2>Nothing assigned yet!</h2>
-            <p>There isn’t any learning work on your list for this week.</p>
+            <h2>No required work this week!</h2>
+            <p>You can choose an optional activity below if staff has enabled your Choice Board.</p>
           </section>
         ) : (
           <section className="my-week-list grouped">
@@ -418,6 +425,21 @@ export default function StudentMyWeek({ studentName, grade, weekLabel, items, on
                 <div className="my-week-work-group-list">{checkedHomeworkItems.map(renderItemCard)}</div>
               </section>
             )}
+          </section>
+        )}
+
+        {choiceBoard?.enabled && (
+          <LearningChoiceBoard board={choiceBoard} onChoose={onChooseActivity} />
+        )}
+
+        {optionalItems.length > 0 && (
+          <section className="my-week-work-group optional" aria-label="Optional activities chosen by student">
+            <header className="my-week-work-group-heading">
+              <span>🌈</span>
+              <div><strong>My Choices</strong><small>Extra activities you picked. They do not change your required-work progress.</small></div>
+              <em>{optionalItems.length}</em>
+            </header>
+            <div className="my-week-work-group-list">{optionalItems.map(renderItemCard)}</div>
           </section>
         )}
 

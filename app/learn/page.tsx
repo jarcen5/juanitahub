@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { studentLearningRequest, type StudentAccessContext } from '@/lib/studentLearning'
 import { clearDeviceModeLock, setDeviceModeLock } from '@/lib/deviceMode'
 import StudentMyWeek, { type MyWeekItem, type StudentGoalView, type StudentAchievementView } from '@/components/StudentMyWeek'
+import type { ChoiceBoardData } from '@/components/LearningChoiceBoard'
 import TypingActivityRunner from '@/components/TypingActivityRunner'
 import QuizActivityRunner, { type QuizConfig } from '@/components/QuizActivityRunner'
 import WritingActivityRunner, { type WritingConfig } from '@/components/WritingActivityRunner'
@@ -32,6 +33,8 @@ type WeekRow = {
   max_score: number | null
   minutes_spent: number | null
   staff_note: string | null
+  assignment_origin?: 'staff' | 'student_choice'
+  is_optional?: boolean
 }
 
 type LabAssignment = {
@@ -76,6 +79,7 @@ type WeekResponse = {
   homework: HomeworkTask[]
   goals: StudentGoalView[]
   achievements: StudentAchievementView[]
+  choice_board?: ChoiceBoardData | null
 }
 
 const DEVICE_KEY = 'juanita-learning-device'
@@ -119,7 +123,7 @@ export default function StudentLearningPage() {
   const [students, setStudents] = useState<LabStudent[]>([])
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null)
   const [pin, setPin] = useState('')
-  const [week, setWeek] = useState<WeekResponse>({ rows: [], assignments: [], writing: [], reading: [], homework: [], goals: [], achievements: [] })
+  const [week, setWeek] = useState<WeekResponse>({ rows: [], assignments: [], writing: [], reading: [], homework: [], goals: [], achievements: [], choice_board: null })
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
   const [message, setMessage] = useState('')
@@ -214,6 +218,7 @@ export default function StudentLearningPage() {
         homework: data.homework ?? [],
         goals: data.goals ?? [],
         achievements: data.achievements ?? [],
+        choice_board: data.choice_board ?? null,
       })
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Your Student Learning session ended.')
@@ -433,6 +438,7 @@ export default function StudentLearningPage() {
         writingStatus: writingByRow.get(row.id)?.status ?? null,
         readingReviewStatus: readingByRow.get(row.id)?.review_status ?? null,
         isJuanitaQuest: assignment.assignment_type === 'quiz' && assignment.activity_config?.experience === 'juanita_quest',
+        isOptionalChoice: row.assignment_origin === 'student_choice' || Boolean(row.is_optional),
       }]
     })
     const homeworkItems: MyWeekItem[] = week.homework.map((task) => ({
@@ -455,6 +461,18 @@ export default function StudentLearningPage() {
     }))
     return [...assignmentItems, ...homeworkItems]
   }, [week.rows, week.homework, assignmentById, writingByRow, readingByRow])
+
+  async function chooseActivity(assignmentId: number) {
+    if (!deviceToken || !studentToken || working) throw new Error('Please sign in again before choosing.')
+    const result = await studentLearningRequest<{ok: boolean}>('choose_choice', {
+      device_token: deviceToken,
+      student_token: studentToken,
+      assignment_id: assignmentId,
+      week_start: weekStart,
+    })
+    if (!result.ok) throw new Error('The activity could not be added. Ask a staff member.')
+    await loadWeek()
+  }
 
   function launchItem(item: MyWeekItem) {
     const row = week.rows.find((entry) => entry.id === item.rowId)
@@ -576,6 +594,8 @@ export default function StudentLearningPage() {
         isDemo={student.is_demo}
         goals={week.goals}
         achievements={week.achievements}
+        choiceBoard={week.choice_board}
+        onChooseActivity={chooseActivity}
       />
 
       {activeItem?.assignment.assignment_type === 'typing' && access && (

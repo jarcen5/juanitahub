@@ -43,6 +43,14 @@ const defaultSettings: PlannerSettings = {
 }
 const publicLiveHosts = new Set(['juanitahub.vercel.app','juanitahub-jsclc.vercel.app'])
 
+async function loadWeekRows(week: string) {
+  const result=await supabase.from('learning_student_assignments')
+    .select('id,child_id,assignment_id,schedule_id,is_optional').eq('week_start',week)
+  if(!result.error)return result
+  return supabase.from('learning_student_assignments')
+    .select('id,child_id,assignment_id,schedule_id').eq('week_start',week)
+}
+
 async function allHistory(): Promise<PlannerHistory[]> {
   const rows: PlannerHistory[] = []
   const pageSize = 400
@@ -134,7 +142,7 @@ export default function LearningWeeklyPlanner() {
           supabase.from('children').select('id,first_name,last_name,is_demo').eq('active',true).order('first_name').order('last_name'),
           supabase.from('child_registrations').select('child_id,grade').eq('status','active'),
           supabase.from('learning_assignments').select('id,title,subject,assignment_type,grade_levels,skill,difficulty,delivery_format,active,activity_config').eq('active',true),
-          supabase.from('learning_student_assignments').select('id,child_id,assignment_id,schedule_id').eq('week_start',weekStart),
+          loadWeekRows(weekStart),
           supabase.from('learning_homework_tasks').select('id,child_id').eq('week_start',weekStart),
           allHistory(),
         ])
@@ -212,7 +220,7 @@ export default function LearningWeeklyPlanner() {
       const alreadyByChild = new Map<number, Set<string>>()
       for (const row of live.data??[]) {
         const keys=alreadyByChild.get(row.child_id)??new Set<string>()
-        keys.add(row.schedule_id?'schedule-'+row.schedule_id:'row-'+row.id)
+        if(!(row as {is_optional?: boolean}).is_optional)keys.add(row.schedule_id?'schedule-'+row.schedule_id:'row-'+row.id)
         alreadyByChild.set(row.child_id,keys)
       }
       const currentWorkload = new Map<number,number>()
@@ -234,7 +242,7 @@ export default function LearningWeeklyPlanner() {
       setMessage('Assigned '+rows.length+' activities. '+(original.length-rows.length)+' duplicates were skipped. Open This Week to review.')
       setMessageKind('success')
       const [w,h] = await Promise.all([
-        supabase.from('learning_student_assignments').select('id,child_id,assignment_id,schedule_id').eq('week_start',weekStart),
+        loadWeekRows(weekStart),
         supabase.from('learning_homework_tasks').select('id,child_id').eq('week_start',weekStart),
       ])
       if (!w.error) setWeekly((w.data??[]) as PlannerWeeklyAssignment[])
@@ -282,8 +290,9 @@ export default function LearningWeeklyPlanner() {
     </section>
 
     <section className="card jh-planner-guide">
-      <span className="jh-planner-step">Student independence · Coming next</span>
-      <div><strong>Student Choice Board</strong><p>Children will eventually be able to pick optional work from a staff-approved, grade/learning-level-matched collection. This will be a separate secure workflow; students will never gain access to staff permissions or unrestricted assignments.</p></div>
+      <span className="jh-planner-step">Student independence · Optional practice</span>
+      <div><strong>Staff-Approved Student Choice Board</strong><p>Publish suitable activities once, set learning levels and weekly limits, and let children choose optional work without changing recurring assignments or required learning goals.</p>
+      <a href="/learning/choice-board">Open Student Choice Board →</a></div>
     </section>
 
     {plan && <section className="jh-planner-results" aria-label="Weekly plan suggestions">
