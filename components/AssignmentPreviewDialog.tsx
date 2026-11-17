@@ -29,6 +29,8 @@ type PreviewAssignment = {
     }>
     passing_score?: number
     show_explanations?: boolean
+    rotate_questions?: boolean
+    questions_per_attempt?: number
     writing_mode?: 'journal' | 'short_response' | 'paragraph' | 'creative' | 'reading_response'
     prompt?: string
     sentence_starters?: string[]
