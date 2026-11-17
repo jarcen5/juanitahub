@@ -282,8 +282,9 @@ export default function LearningWeeklyPlanner() {
     </section>
 
     <section className="card jh-planner-guide">
-      <span className="jh-planner-step">Student independence · Coming next</span>
-      <div><strong>Student Choice Board</strong><p>Children will eventually be able to pick optional work from a staff-approved, grade/learning-level-matched collection. This will be a separate secure workflow; students will never gain access to staff permissions or unrestricted assignments.</p></div>
+      <span className="jh-planner-step">Student independence · Optional practice</span>
+      <div><strong>Staff-Approved Student Choice Board</strong><p>Publish suitable activities once, set learning levels and weekly limits, and let children choose optional work without changing recurring assignments or required learning goals.</p>
+      <a href="/learning/choice-board">Open Student Choice Board →</a></div>
     </section>
 
     {plan && <section className="jh-planner-results" aria-label="Weekly plan suggestions">
