@@ -36,6 +36,16 @@ function validDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value)
 }
 
+function currentNewYorkWeek() {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date())
+  const part = (key: string) => parts.find((value) => value.type === key)?.value ?? ''
+  const current = new Date(Date.UTC(Number(part('year')), Number(part('month')) - 1, Number(part('day'))))
+  const offset = (current.getUTCDay() + 6) % 7
+  current.setUTCDate(current.getUTCDate() - offset)
+  return [current.getUTCFullYear(), String(current.getUTCMonth() + 1).padStart(2, '0'), String(current.getUTCDate()).padStart(2, '0')].join('-')
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
@@ -113,6 +123,47 @@ Deno.serve(async (req: Request) => {
     if (!access?.enabled || !child?.active) return null
     await db.from('learning_student_sessions').update({ last_seen_at: now.toISOString() }).eq('id', session.id)
     return { session, child }
+  }
+
+  async function choicesForStudent(childId: number, weekStart: string, rows: any[]) {
+    const disabled = { enabled: false, weekly_limit: 0, used: 0, remaining: 0,
+      learning_level: null as string | null, choices: [] as any[] }
+    if (weekStart !== currentNewYorkWeek()) return disabled
+    const setting = await db.from('learning_choice_board_students')
+      .select('enabled,learning_level,weekly_limit').eq('child_id', childId).maybeSingle()
+    if (setting.error || !setting.data?.enabled || !Number(setting.data.weekly_limit)) return disabled
+    const config = setting.data
+    const registration = await db.from('child_registrations').select('grade')
+      .eq('child_id', childId).eq('status', 'active').order('registered_at', { ascending: false }).limit(1)
+    const level = String(config.learning_level || registration.data?.[0]?.grade || '').trim()
+    const weeklyLimit = Number(config.weekly_limit)
+    const used = rows.filter((row) => row.assignment_origin === 'student_choice').length
+    const out = { enabled: true, weekly_limit: weeklyLimit, used,
+      remaining: Math.max(0, weeklyLimit - used), learning_level: level || null, choices: [] as any[] }
+    if (!level || out.remaining <= 0) return out
+    const catalog = await db.from('learning_choice_board_items')
+      .select('assignment_id,allowed_levels').eq('enabled', true)
+    if (catalog.error || !catalog.data?.length) return out
+    const eligible = catalog.data.filter((entry: any) =>
+      !Array.isArray(entry.allowed_levels) || !entry.allowed_levels.length || entry.allowed_levels.includes(level))
+    const already = new Set(rows.map((row) => Number(row.assignment_id)))
+    const ids = eligible.map((entry: any) => Number(entry.assignment_id)).filter((id: number) => id > 0 && !already.has(id))
+    if (!ids.length) return out
+    const result = await db.from('learning_assignments')
+      .select('id,title,subject,assignment_type,skill,estimated_minutes,active,delivery_format,activity_config')
+      .in('id', ids).eq('active', true).order('subject').order('title')
+    if (result.error) return out
+    const interactive = new Set(['quiz','typing','writing','reading'])
+    out.choices = (result.data ?? []).filter((assignment: any) =>
+      interactive.has(assignment.assignment_type)
+      && ['digital','either'].includes(assignment.delivery_format)
+      && assignment.activity_config?.experience !== 'juanita_quest')
+      .map((assignment: any) => ({
+        id: assignment.id, title: assignment.title, subject: assignment.subject,
+        assignment_type: assignment.assignment_type, skill: assignment.skill,
+        estimated_minutes: assignment.estimated_minutes,
+      }))
+    return out
   }
 
   async function getAssignment(childId: number, studentAssignmentId: number, expectedType?: string) {
@@ -254,7 +305,7 @@ Deno.serve(async (req: Request) => {
     if (!validDate(weekStart)) return json({ error: 'Invalid week.' }, 400)
     const { data: rows, error: rowError } = await db
       .from('learning_student_assignments')
-      .select('id,assignment_id,week_start,due_date,schedule_id,occurrence_date,status,score,max_score,minutes_spent,staff_note')
+      .select('id,assignment_id,week_start,due_date,schedule_id,occurrence_date,status,score,max_score,minutes_spent,staff_note,assignment_origin,is_optional')
       .eq('child_id', childId)
       .eq('week_start', weekStart)
       .order('id')
@@ -304,7 +355,24 @@ Deno.serve(async (req: Request) => {
         .order('unlocked_at', { ascending: false })
         .limit(8),
     ])
-    return json({ student: { id: childId, first_name: student.child.first_name }, rows: rows ?? [], assignments, writing, reading, homework: homeworkRows ?? [], goals: goalRows ?? [], achievements: achievementRows ?? [] })
+    const choice_board = await choicesForStudent(childId, weekStart, rows ?? [])
+    return json({ student: { id: childId, first_name: student.child.first_name }, rows: rows ?? [], assignments, writing, reading, homework: homeworkRows ?? [], goals: goalRows ?? [], achievements: achievementRows ?? [], choice_board })
+  }
+
+  if (action === 'choose_choice') {
+    const assignmentId = Number(input?.assignment_id)
+    const weekStart = cleanText(input?.week_start, 20)
+    if (!Number.isSafeInteger(assignmentId) || assignmentId <= 0 || !validDate(weekStart)) {
+      return json({ error: 'Please choose a valid activity for this week.' }, 400)
+    }
+    // The student's identity comes only from their validated device-bound session.
+    // The DB RPC locks the child and enforces weekly quota, catalog permissions,
+    // grade/learning level, active content and duplicate recurring assignments.
+    const { data, error } = await db.rpc('claim_learning_choice', {
+      p_child_id: childId, p_assignment_id: assignmentId, p_week_start: weekStart,
+    })
+    if (error) return json({ error: error.message || 'Could not add that activity.' }, 409)
+    return json(data ?? { ok: true })
   }
 
   if (action === 'mark_homework_done') {
