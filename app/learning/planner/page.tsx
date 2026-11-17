@@ -82,9 +82,13 @@ export default function LearningWeeklyPlanner() {
   const [plan, setPlan] = useState<PlannerStudentPlan[] | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [dueDate, setDueDate] = useState('')
+  const [isProduction, setIsProduction] = useState(false)
 
-  const isProduction = typeof window !== 'undefined' && publicLiveHosts.has(window.location.hostname)
   const endOfWeek = datePlus(weekStart,6)
+
+  useEffect(() => {
+    setIsProduction(publicLiveHosts.has(window.location.hostname))
+  }, [])
 
   useEffect(() => {
     let active = true
