@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { studentLearningRequest, type StudentAccessContext } from '@/lib/studentLearning'
+import { selectRotatingQuestions, effectiveQuestionCount } from '@/lib/learningQuestionVariety'
 
 export type QuizQuestionType =
   | 'multiple_choice'
@@ -25,6 +26,8 @@ export type QuizConfig = {
   questions?: QuizQuestion[]
   passing_score?: number
   show_explanations?: boolean
+  rotate_questions?: boolean
+  questions_per_attempt?: number
 }
 
 type Props = {
@@ -78,7 +81,13 @@ export default function QuizActivityRunner({
   onClose,
   onSaved,
 }: Props) {
-  const questions = activityConfig?.questions ?? []
+  const [attemptIndex, setAttemptIndex] = useState(0)
+  const questions = useMemo(() => selectRotatingQuestions(activityConfig, [
+    studentAssignmentId ?? 'staff-test',
+    assignmentId ?? assignmentTitle,
+    attemptIndex,
+  ].join(':')) as QuizQuestion[], [activityConfig, studentAssignmentId, assignmentId, assignmentTitle, attemptIndex])
+  const rotating = Boolean(activityConfig?.rotate_questions && (activityConfig.questions?.length ?? 0) > effectiveQuestionCount(activityConfig))
   const passingScore = Math.max(0, Math.min(100, Number(activityConfig?.passing_score ?? 80)))
   const showExplanations = activityConfig?.show_explanations !== false
 
@@ -223,6 +232,7 @@ export default function QuizActivityRunner({
   }
 
   function resetQuiz() {
+    setAttemptIndex((value) => value + 1)
     setQuestionIndex(0)
     setResponse('')
     setAnswers([])
@@ -232,6 +242,20 @@ export default function QuizActivityRunner({
     setFinished(false)
     setSaving(false)
     setSaveWarning('')
+  }
+
+  useEffect(() => () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+  }, [])
+
+  function hearQuestion() {
+    if (!current || !('speechSynthesis' in window)) return
+    window.speechSynthesis.cancel()
+    const words = [current.passage ?? '', current.prompt, ...(current.choices ?? [])].filter(Boolean).join('. ')
+    const speech = new SpeechSynthesisUtterance(words)
+    speech.lang = 'en-US'
+    speech.rate = 0.83
+    window.speechSynthesis.speak(speech)
   }
 
   if (!questions.length) {
@@ -264,7 +288,7 @@ export default function QuizActivityRunner({
             <p>{testMode ? 'Nothing was saved. This is exactly how the quiz result screen will behave for a student.' : studentName + '’s score was saved automatically.'}</p>
 
             <div className="quiz-results-grid">
-              <article><strong>{correctCount}/{questions.length}</strong><span>Correct</span><small>{questions.length - correctCount} missed</small></article>
+              <article><strong>{correctCount}/{questions.length}</strong><span>Correct</span><small>{rotating ? 'Rotated from a larger bank' : questions.length - correctCount + ' missed'}</small></article>
               <article><strong>{percent.toFixed(1)}%</strong><span>Score</span><small>Goal {passingScore}%</small></article>
               <article><strong>{timeLabel(elapsedSeconds)}</strong><span>Time</span><small>{passed ? 'Goal met' : 'Keep practicing'}</small></article>
             </div>
@@ -280,7 +304,7 @@ export default function QuizActivityRunner({
         ) : current ? (
           <section className="quiz-workspace">
             <div className="quiz-progress-heading">
-              <div><span className="learning-kicker">{typeLabel(current.type)}</span><h1>{assignmentTitle}</h1></div>
+              <div><span className="learning-kicker">{typeLabel(current.type)}{rotating ? ' · Fresh practice mix' : ''}</span><h1>{assignmentTitle}</h1></div>
               <strong>Question {questionIndex + 1} of {questions.length}</strong>
             </div>
             <div className="quiz-progress-track"><span style={{ width: ((questionIndex + (checked ? 1 : 0)) / questions.length) * 100 + '%' }} /></div>
@@ -288,6 +312,7 @@ export default function QuizActivityRunner({
             <article className="quiz-question-card">
               {current.passage && <section className="quiz-reading-passage"><span>Read this first</span><p>{current.passage}</p></section>}
               <h2>{current.prompt}</h2>
+              {'speechSynthesis' in (typeof window === 'undefined' ? {} : window) && <button type="button" className="ghost" onClick={hearQuestion} aria-label="Read the question and answers aloud">🔊 Hear the question</button>}
 
               {choiceQuestion ? (
                 <div className="quiz-choice-list">
