@@ -33,10 +33,15 @@ const g3Div = Array.from({length:18},(_,i)=>{
 })
 
 const g4Fractions = Array.from({length:20},(_,i)=>{
- const den=4+i%7,num=1+(i*3)%(den-1),b=num===1?2:num-1
- const a=num+'/'+den,other=b+'/'+den
- return question('g4-fraction-'+i,'Which fraction is GREATER: '+a+' or '+other+'?',
-   num>b?a:other,['They are equal','1/'+(den+1),'0/'+den],
+ const den=4+i%8
+ const pairs:Array<[number,number]>=[]
+ for(let small=1;small<den-1;small++)for(let big=small+1;big<den;big++)pairs.push([small,big])
+ const repetition=Math.floor(i/8)
+ const [small,big]=pairs[(repetition*((i%8)+1)+(i%8))%pairs.length]
+ const [num,b]=i%2===0?[small,big]:[big,small]
+ const first=num+'/'+den,second=b+'/'+den
+ return question('g4-fraction-'+i,'Which fraction is GREATER: '+first+' or '+second+'?',
+   num>b?first:second,['They are equal','1/'+(den+1),'0/'+den],
    'When denominators are the same, compare the top numbers.')
 })
 const g4Context: Array<[string,string,string,string[]]> = [
