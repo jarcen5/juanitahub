@@ -1,0 +1,49 @@
+/* Assignment library coverage, grade/subject gaps, and original question-bank pack. */
+.jh-coverage{display:grid;gap:18px;border:1px solid #cce4ec}
+.jh-coverage-heading,.jh-coverage-pack-heading,.jh-coverage-publish{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.jh-coverage-heading h3,.jh-coverage-pack-heading h4{margin:5px 0 7px;font-size:21px;color:var(--ink,#294b6a)}
+.jh-coverage-heading p,.jh-coverage-pack-heading p,.jh-coverage-publish p{margin:0;color:var(--muted,#617b8f);font-size:12px;line-height:1.55}
+.jh-coverage-counts{display:grid;gap:3px;min-width:130px;text-align:center;border:1px solid #cfe0ed;border-radius:13px;padding:10px;background:rgba(234,247,253,.65)}
+.jh-coverage-counts strong{font-size:17px;color:#3374a4}
+.jh-coverage-counts span{color:#7391a4;font-size:11px}
+.jh-coverage-table-wrap{width:100%;overflow-x:auto;border:1px solid #dce8ef;border-radius:14px}
+.jh-coverage-table{border-collapse:collapse;width:100%;min-width:840px;font-size:12px}
+.jh-coverage-table th,.jh-coverage-table td{padding:10px 12px;border-bottom:1px solid #e4edf2;text-align:center;white-space:nowrap}
+.jh-coverage-table thead th{background:#eaf5fc;color:#2a6588;font-size:11px;font-weight:900;text-transform:capitalize}
+.jh-coverage-table tbody th{text-align:left;color:var(--ink,#375872)}
+.jh-coverage-table tbody tr:last-child th,.jh-coverage-table tbody tr:last-child td{border-bottom:0}
+.jh-coverage-table tbody tr:nth-child(even){background:rgba(240,248,253,.5)}
+.jh-coverage-low{font-size:11px;font-weight:750;color:#9d5b27}
+.jh-coverage-ok{font-size:11px;font-weight:750;color:#27765d}
+.jh-coverage-explain{margin:-9px 0 0;color:var(--muted,#6d8393);font-size:11px;line-height:1.5}
+.jh-coverage-pack-heading{border-top:1px solid #e0eaf0;padding-top:16px}
+.jh-coverage-pack-heading button{flex:none;min-height:42px}
+.jh-coverage-filters{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.jh-coverage-filters label{display:grid;gap:5px;color:var(--muted,#617b8f);font-size:11px;font-weight:850}
+.jh-coverage-filters select{min-width:150px;min-height:42px;border-radius:11px;border:1px solid #d0dfeb;background:var(--panel,#fff);color:var(--ink,#314c67);padding:7px 10px}
+.jh-coverage-filters>span{margin-left:auto;font-weight:800;font-size:12px;color:#3f7899}
+.jh-coverage-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-height:470px;overflow:auto;padding:4px}
+.jh-coverage-item{display:flex;align-items:start;gap:12px;min-width:0;border:1px solid #d7e5ed;border-radius:12px;padding:12px;background:var(--panel,#fff)}
+.jh-coverage-item-icon{flex:none;display:grid;place-items:center;width:45px;height:45px;border-radius:13px;background:#e7f5ff;font-size:25px}
+.jh-coverage-item-copy{display:grid;gap:5px;min-width:0;flex:1}
+.jh-coverage-item-copy strong{font-size:13px;color:var(--ink,#2f526a);line-height:1.3}
+.jh-coverage-item-copy small{font-size:10px;color:var(--muted,#688398);line-height:1.4}
+.jh-coverage-item-copy p{margin:0;color:var(--muted,#688398);font-size:11px;line-height:1.5}
+.jh-coverage-item-actions{display:grid;justify-items:center;gap:6px;flex:none}
+.jh-coverage-item-actions button{min-height:36px;font-size:12px}
+.jh-coverage-item-actions span{font-size:10px;font-weight:800;color:#5b879a}
+.jh-coverage-publish{background:#eff7fc;padding:15px;border-radius:14px;border:1px solid #d1e7f2}
+.jh-coverage-publish strong{font-size:14px;color:var(--ink,#345774)}
+.jh-coverage-publish button{min-height:45px;flex:none}
+.jh-coverage :where(button,select):focus-visible{outline:3px solid #3d9ad2;outline-offset:2px}
+@media(max-width:980px){.jh-coverage-gallery{grid-template-columns:1fr}}
+@media(max-width:620px){.jh-coverage-heading,.jh-coverage-pack-heading,.jh-coverage-publish{flex-direction:column;align-items:stretch}.jh-coverage-counts{width:max-content}.jh-coverage-item{gap:8px;padding:9px}.jh-coverage-item-actions{margin-left:auto}.jh-coverage-item-icon{width:36px;height:36px;font-size:20px}.jh-coverage-publish button{width:100%}}
+html[data-theme="dark"] .jh-coverage-table thead th{background:#284a5d;color:#dcecf4}
+html[data-theme="dark"] .jh-coverage-table tbody tr:nth-child(even){background:#233e4b}
+html[data-theme="dark"] .jh-coverage-table th,html[data-theme="dark"] .jh-coverage-table td{border-color:#3e5765}
+html[data-theme="dark"] .jh-coverage-publish{background:#28465a;border-color:#4a6575}
+html[data-theme="dark"] .jh-coverage-counts{background:#28485a;border-color:#4a6575}
+html[data-theme="dark"] .jh-coverage-item{border-color:#3e586c}
+html[data-theme="dark"] .jh-coverage-item-icon{background:#2b5168}
+html[data-theme="dark"] .jh-coverage-low{color:#f2c487}
+html[data-theme="dark"] .jh-coverage-ok{color:#a9eacb}
