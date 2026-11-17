@@ -625,6 +625,10 @@ export default function LearningPage() {
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null)
   const [starterAdding, setStarterAdding] = useState(false)
   const [expansionAdding, setExpansionAdding] = useState(false)
+  const [isProductionHost, setIsProductionHost] = useState(false)
+  useEffect(() => {
+    setIsProductionHost(['juanitahub.vercel.app','juanitahub-jsclc.vercel.app'].includes(window.location.hostname))
+  }, [])
   const [previewAssignment, setPreviewAssignment] = useState<LearningAssignment | null>(null)
   const [testAssignment, setTestAssignment] = useState<LearningAssignment | null>(null)
   const [typingTarget, setTypingTarget] = useState<{ row: StudentAssignment; child: Child; assignment: LearningAssignment } | null>(null)
@@ -819,7 +823,7 @@ export default function LearningPage() {
   const assignmentById = useMemo(() => new Map(library.map((assignment) => [assignment.id, assignment])), [library])
   const gradeOptions = useMemo(() => [...new Set(registrations.map((registration) => registration.grade?.trim()).filter((grade): grade is string => Boolean(grade)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [registrations])
   // Keep grades 1–7 browsable even before students in those grades are registered.
-  const libraryGradeOptions = useMemo(() => [...new Set([...Array.from({ length: 7 }, (_, i) => String(i + 1)), ...gradeOptions])].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [gradeOptions])
+  const libraryGradeOptions = useMemo(() => [...new Set(['K',...Array.from({ length: 7 }, (_, i) => String(i + 1)), ...gradeOptions])].sort((a, b) => a==='K'?-1:b==='K'?1:a.localeCompare(b, undefined, { numeric: true })), [gradeOptions])
 
   useEffect(() => {
     if (!assignGrade && gradeOptions.length) setAssignGrade(gradeOptions[0])
@@ -2531,7 +2535,7 @@ export default function LearningPage() {
             <LearningLibraryCoverage
               library={library}
               isAdmin={profile.role === 'admin'}
-              canInstall={typeof window !== 'undefined' && ['juanitahub.vercel.app','juanitahub-jsclc.vercel.app'].includes(window.location.hostname)}
+              canInstall={isProductionHost}
               installing={expansionAdding}
               onInstall={installReviewedExpansionPack}
               onPreview={previewExpansionActivity}
@@ -2769,7 +2773,7 @@ export default function LearningPage() {
                 </div>
                 <div className="learning-library-grade-chips" aria-label="Quick grade filter">
                   <button className={gradeFilter === 'all' ? 'active' : ''} type="button" onClick={() => setGradeFilter('all')}>All grades</button>
-                  {gradeOptions.map((grade) => <button className={gradeFilter === grade ? 'active' : ''} type="button" key={grade} onClick={() => setGradeFilter(grade)}>Grade {grade}</button>)}
+                  {libraryGradeOptions.map((grade) => <button className={gradeFilter === grade ? 'active' : ''} type="button" key={grade} onClick={() => setGradeFilter(grade)}>{grade==='K'?'Kindergarten':'Grade '+grade}</button>)}
                 </div>
               </div>
               <div className="learning-library-search-row">
