@@ -1,0 +1,39 @@
+/* Juanita Learning Choice Board: optional student-led practice, separate from assigned work. */
+.jh-choiceboard{display:grid;gap:16px;padding:clamp(17px,2.5vw,24px);border:2px solid #bcddeb;border-radius:23px;background:linear-gradient(125deg,#f0f8ff,#f8f3ff);color:#254d6b}
+.jh-choiceboard-heading{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.jh-choiceboard-title{display:flex;align-items:center;gap:15px}
+.jh-choiceboard-mascot{display:grid;place-items:center;width:69px;height:69px;border-radius:24px;background:#dff5e9;font-size:39px}
+.jh-choiceboard-eyebrow{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.09em;font-weight:900;color:#5b86aa}
+.jh-choiceboard h2{margin:4px 0 6px;font-size:clamp(24px,4vw,34px);color:#254c77}
+.jh-choiceboard-heading p{margin:0;font-size:13px;color:#628198;line-height:1.5}
+.jh-choiceboard-counter{display:grid;justify-items:center;min-width:112px;background:#fff;border:2px solid #d8eaf5;border-radius:18px;padding:10px}
+.jh-choiceboard-counter strong{font-size:35px;color:#387faf}
+.jh-choiceboard-counter span{font-size:11px;text-align:center;color:#5a7592;font-weight:800}
+.jh-choiceboard-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.jh-choiceboard-card{display:grid;grid-template-rows:auto 1fr auto;gap:11px;min-width:0;border:2px solid #e3e8f5;border-radius:19px;background:#fff;padding:16px;box-shadow:0 5px 17px rgba(48,92,124,.05)}
+.jh-choiceboard-card-icon{display:grid;place-items:center;width:61px;height:61px;font-size:37px;background:#e8f6ff;border-radius:19px}
+.jh-choiceboard-type{display:block;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#5b8caf;font-weight:900}
+.jh-choiceboard-card h3{margin:6px 0;font-size:19px;line-height:1.25;color:#254a70}
+.jh-choiceboard-card p{margin:0;color:#617e93;font-size:12px;line-height:1.55}
+.jh-choiceboard-card button{width:100%;min-height:49px;padding:10px 12px;border:0;border-radius:13px;background:#2b80ae;color:#fff;font-size:13px;font-weight:900;cursor:pointer}
+.jh-choiceboard-card button:hover:not(:disabled){background:#216993}
+.jh-choiceboard-card button:disabled{background:#c8dbe5;color:#55798a;cursor:not-allowed}
+.jh-choiceboard-card button:focus-visible{outline:3px solid #f0b85d;outline-offset:3px}
+.jh-choiceboard-empty{display:grid;justify-items:center;text-align:center;gap:10px;border:2px dashed #bddbe8;border-radius:17px;padding:25px;background:#fff}
+.jh-choiceboard-empty>span{font-size:44px}
+.jh-choiceboard-empty strong{font-size:19px}
+.jh-choiceboard-empty p{font-size:12px;color:#6b8494;margin:0}
+.jh-choiceboard-notice{margin:0;padding:11px 14px;background:#e3f6e9;color:#285f43;border-radius:12px;font-size:13px;font-weight:750}
+.jh-choiceboard-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:#5d7b8d}
+.jh-choiceboard-foot strong{color:#458070}
+.my-week-work-group.optional .my-week-work-group-heading{background:#f5efff}
+.my-week-card.optional-assignment{border-left:4px solid #a58ce0}
+@media(max-width:900px){.jh-choiceboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.jh-choiceboard-heading{flex-direction:column;align-items:stretch}.jh-choiceboard-counter{display:flex;gap:8px;justify-content:center;align-items:center}.jh-choiceboard-grid{grid-template-columns:1fr}.jh-choiceboard-card{grid-template-columns:62px 1fr;grid-template-rows:1fr auto;align-items:start}.jh-choiceboard-card button{grid-column:1/-1}.jh-choiceboard-title{align-items:flex-start}}
+html[data-theme="dark"] .jh-choiceboard{background:linear-gradient(125deg,#203a51,#35304d);border-color:#567587;color:#e0f0fa}
+html[data-theme="dark"] .jh-choiceboard h2{color:#e4f2ff}
+html[data-theme="dark"] .jh-choiceboard-heading p,html[data-theme="dark"] .jh-choiceboard-foot{color:#bfd4e4}
+html[data-theme="dark"] .jh-choiceboard-counter,html[data-theme="dark"] .jh-choiceboard-card,html[data-theme="dark"] .jh-choiceboard-empty{background:#223c50;border-color:#466477}
+html[data-theme="dark"] .jh-choiceboard-counter strong,html[data-theme="dark"] .jh-choiceboard-card h3,html[data-theme="dark"] .jh-choiceboard-empty strong{color:#e0f1ff}
+html[data-theme="dark"] .jh-choiceboard-card p,html[data-theme="dark"] .jh-choiceboard-empty p{color:#bdd4e3}
+@media(prefers-reduced-motion:reduce){.jh-choiceboard-card button{transition:none}}
