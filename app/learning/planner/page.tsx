@@ -110,8 +110,15 @@ export default function LearningWeeklyPlanner() {
       setPlan(null)
       setSelected([])
       try {
-        const [p,c,r,l,w,h,all] = await Promise.all([
-          supabase.from('staff_profiles').select('role,active,display_name').eq('user_id',session!.user.id).maybeSingle(),
+        // Check staff authorization before requesting any student or assignment data.
+        const p = await supabase.from('staff_profiles')
+          .select('role,active,display_name').eq('user_id',session!.user.id).maybeSingle()
+        if (!active) return
+        if (p.error) throw p.error
+        const candidate = p.data as Profile | null
+        setProfile(candidate)
+        if (!candidate?.active) return
+        const [c,r,l,w,h,all] = await Promise.all([
           supabase.from('children').select('id,first_name,last_name,is_demo').eq('active',true).order('first_name').order('last_name'),
           supabase.from('child_registrations').select('child_id,grade').eq('status','active'),
           supabase.from('learning_assignments').select('id,title,subject,assignment_type,grade_levels,skill,difficulty,delivery_format,active,activity_config').eq('active',true),
@@ -120,11 +127,8 @@ export default function LearningWeeklyPlanner() {
           allHistory(),
         ])
         if (!active) return
-        const error = p.error || c.error || r.error || l.error || w.error || h.error
+        const error = c.error || r.error || l.error || w.error || h.error
         if (error) throw error
-        const candidate = p.data as Profile | null
-        setProfile(candidate)
-        if (!candidate?.active) { setLoading(false); return }
         setChildren((c.data ?? []) as PlannerChild[])
         setRegistrations((r.data ?? []) as Registration[])
         setLibrary((l.data ?? []) as PlannerAssignment[])
