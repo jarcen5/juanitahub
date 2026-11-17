@@ -2133,7 +2133,7 @@ export default function LearningPage() {
               {staffAttention.noWork.length > 0 && (
                 <div className="learning-attention-actions">
                   <span><strong>Assign next:</strong> {staffAttention.noWork.slice(0, 6).map(childName).join(' • ')}</span>
-                  <button className="primary" type="button" onClick={() => setTab('library')}>Go to Assignment Library</button>
+                  <a className="primary" href="/learning/planner">✨ Suggest weekly plans</a>
                 </div>
               )}
             </section>
@@ -2147,7 +2147,7 @@ export default function LearningPage() {
 
             {weeklyChildren.length > 0 && <div className="learning-week-search"><label className="field"><span>Find a student</span><input type="search" value={weekStudentSearch} onChange={(event) => setWeekStudentSearch(event.target.value)} placeholder="Search students by name…" aria-label="Search students in This Week" /></label><div className="learning-week-search-actions"><span role="status" aria-live="polite">{visibleWeeklyChildren.length} of {weeklyChildren.length} students</span>{weekStudentSearch && <button className="ghost" type="button" onClick={() => setWeekStudentSearch('')}>Clear search</button>}</div></div>}
             {weeklyChildren.length === 0 ? (
-              <section className="card learning-empty"><span>📘</span><h2>No learning activity yet this week</h2><p>Use Assignment Library to assign work, or Reading to log time with a book.</p></section>
+              <section className="card learning-empty"><span>📘</span><h2>No learning activity yet this week</h2><p>Use the Smart Weekly Planner to suggest work for multiple children, or choose activities individually from the Assignment Library.</p><a className="primary" href="/learning/planner">✨ Open Smart Weekly Planner</a></section>
             ) : (
               <div className="learning-student-list">
                 {visibleWeeklyChildren.length === 0 && <div className="card learning-inline-empty">No students match “{weekStudentSearch}”. Try another name or clear the search.</div>}
